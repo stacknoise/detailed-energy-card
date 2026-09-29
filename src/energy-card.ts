@@ -233,6 +233,17 @@ export class EnergyCard extends LitElement {
     const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
     const room = sel.room !== undefined ? sel.rooms[sel.room] : undefined;
     const home = this._hass?.config?.location_name ?? this._t("home");
+    // No single room selected: all rooms of the visible row count as selected.
+    const allRooms = sel.rooms.length > 0 && !room;
+    const detailRoom: RoomNode | undefined = allRooms
+      ? {
+          name: floor?.name ?? home,
+          icon: floor?.icon ?? "mdi:home",
+          color: floor?.color,
+          watts: sel.rooms.reduce((sum, r) => sum + r.watts, 0),
+          consumers: sel.rooms.flatMap((r) => r.consumers),
+        }
+      : room;
     const path = [home, floor?.name, room?.name].filter(Boolean).join(" › ");
 
     return html`
@@ -248,19 +259,19 @@ export class EnergyCard extends LitElement {
         </header>
         <div class="scroll">
           <div class="graph" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px` })}>
-            ${this._renderLines(model, layout, sel.floor, sel.room)}
+            ${this._renderLines(model, layout, sel.floor, sel.room, allRooms)}
             ${model.sources.map((s, i) => this._renderSource(s, layout.sourceXs[i]))}
             ${this._renderHome(model, layout, home)}
             ${model.floors.map((f, i) => this._renderFloor(f.name, f.watts, f.color, layout.floorXs[i], layout.yFloor, i === sel.floor))}
-            ${sel.rooms.map((r, i) => this._renderRoom(r, layout.roomXs[i], layout.yRoom, i === sel.room))}
+            ${sel.rooms.map((r, i) => this._renderRoom(r, layout.roomXs[i], layout.yRoom, i === sel.room, allRooms))}
           </div>
         </div>
-        ${sel.rooms.length && !room ? nothing : this._renderDetail(model, room)}
+        ${this._renderDetail(model, detailRoom)}
       </ha-card>
     `;
   }
 
-  private _renderLines(model: EnergyModel, l: Layout, floorIdx?: number, roomIdx?: number): TemplateResult {
+  private _renderLines(model: EnergyModel, l: Layout, floorIdx?: number, roomIdx?: number, allRooms = false): TemplateResult {
     const animate = this._config?.options?.animation !== false;
     const line = (d: string, watts: number, active: boolean, reverse = false) => {
       const dur = flowDuration(watts);
@@ -287,7 +298,7 @@ export class EnergyCard extends LitElement {
     });
     const rooms = floorIdx !== undefined ? model.floors[floorIdx].rooms : model.rooms;
     rooms.forEach((r, i) => {
-      parts.push(line(curve(roomFromX, roomFromY, l.roomXs[i], l.yRoom), r.watts, i === roomIdx));
+      parts.push(line(curve(roomFromX, roomFromY, l.roomXs[i], l.yRoom), r.watts, allRooms || i === roomIdx));
     });
     return html`<svg class="lines" width=${l.width} height=${l.height}>${parts}</svg>`;
   }
@@ -344,7 +355,7 @@ export class EnergyCard extends LitElement {
     `;
   }
 
-  private _renderRoom(r: RoomNode, x: number, y: number, selected: boolean): TemplateResult {
+  private _renderRoom(r: RoomNode, x: number, y: number, selected: boolean, allRooms = false): TemplateResult {
     return html`
       <button
         class="node"
@@ -353,7 +364,7 @@ export class EnergyCard extends LitElement {
         title=${r.name}
         @click=${() => this._select({ ...this._sel, room: selected ? null : r.name })}
       >
-        <span class="circle room ${selected ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon></span>
+        <span class="circle room ${selected || allRooms ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon></span>
         <span class="label">${r.name}</span>
         <span class="value">${this._fmt(r.watts)}</span>
       </button>
