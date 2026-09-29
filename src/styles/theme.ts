@@ -205,6 +205,13 @@ export const cardStyles = css`
     border-top: 1px solid var(--_line);
     margin-top: 20px;
     padding-top: 16px;
+    container: detail / inline-size;
+  }
+  /* One grid for the whole list so name, bar and value columns line up across rows. */
+  .list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(48px, 0.8fr) max-content;
+    column-gap: 12px;
   }
   .detail-head {
     display: flex;
@@ -217,9 +224,9 @@ export const cardStyles = css`
   }
   .row {
     display: grid;
-    grid-template-columns: 1fr 45% auto;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
     align-items: center;
-    gap: 12px;
     padding: 8px 0;
     cursor: pointer;
     background: none;
@@ -229,8 +236,15 @@ export const cardStyles = css`
     width: 100%;
     text-align: left;
   }
+  .row .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .row .name small {
     display: block;
+    white-space: nowrap;
     color: var(--_muted);
     font-family: monospace;
     font-size: 0.75em;
@@ -248,9 +262,19 @@ export const cardStyles = css`
     background: var(--_bar);
   }
   .row .val {
-    min-width: 70px;
     text-align: right;
     font-weight: 600;
+    white-space: nowrap;
+  }
+  /* Too narrow for a useful bar: drop it so name and value stay readable. */
+  @container detail (max-width: 320px) {
+    .list {
+      grid-template-columns: minmax(0, 1fr) max-content;
+    }
+    .bar,
+    .spacer {
+      display: none;
+    }
   }
   .empty,
   .error {

@@ -88,6 +88,7 @@
       };
 
       const states = {
+        "sensor.sehr_lange_entitaet_id_der_kuechen_spuelmaschine_leistung_gesamt": s(1234),
         "sensor.pv": s(3420),
         "sensor.akku": s(480),
         "sensor.soc": { state: "76", attributes: { unit_of_measurement: "%", device_class: "battery" } },
@@ -161,6 +162,17 @@
             room("bad", [c("sensor.bad", "Bad")]),
             room("buero", [c("sensor.buero", "Büro")]),
             room("schlafen", [c("sensor.schlafen", "Schlafen")]),
+          ],
+        },
+        long: {
+          title: "Lange Namen",
+          sources,
+          rooms: [
+            room("kueche", [
+              c("sensor.sehr_lange_entitaet_id_der_kuechen_spuelmaschine_leistung_gesamt"),
+              c("sensor.backofen", "Backofen mit einem außergewöhnlich langen Anzeigenamen"),
+              c("sensor.kuehl", "Kühlschrank"),
+            ]),
           ],
         },
         many: { title: "Viele Räume", sources, options: { unit: "kW" }, rooms: manyRooms },
