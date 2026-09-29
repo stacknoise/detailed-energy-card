@@ -210,7 +210,7 @@ export const cardStyles = css`
   /* One grid for the whole list so name, bar and value columns line up across rows. */
   .list {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(48px, 0.8fr) max-content;
+    grid-template-columns: minmax(0, max-content) minmax(48px, 1fr) max-content;
     column-gap: 12px;
   }
   .detail-head {
@@ -238,6 +238,8 @@ export const cardStyles = css`
   }
   .row .name {
     min-width: 0;
+    /* long names must not squeeze the bar away; the bar takes all remaining width */
+    max-width: 50cqw;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

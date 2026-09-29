@@ -1,6 +1,7 @@
 export const SOURCE_H = 100;
 export const HOME_H = 66;
-export const FLOOR_H = 40;
+/** Height of a floor pill including its border and glow. */
+export const FLOOR_H = 48;
 export const ROOM_H = 96;
 export const ROOM_COL_W = 64;
 /** More rooms than this in one row scroll horizontally, or wrap into two rows if enabled. */
@@ -59,7 +60,8 @@ export function computeLayout(i: LayoutInput): Layout {
   const perRow = wrapped ? wrapColumns(i.rooms) : i.rooms;
   const width = Math.max(i.width, perRow * ROOM_COL_W);
   const yHome = i.sources > 0 ? 124 : 0;
-  const yFloor = yHome + 102;
+  // Without a room row the floors sit closer to the home, and nothing is cut off below them.
+  const yFloor = yHome + (i.floors > 0 && i.rooms === 0 ? 88 : 102);
   const yRoom = i.floors > 0 ? yFloor + 74 : yHome + 102;
   const rooms = roomPositions(i.rooms, width, wrapped);
   const roomRows = wrapped ? 2 : 1;
