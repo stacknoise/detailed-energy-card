@@ -32,7 +32,7 @@ export const COLORS: Field[] = [
   { path: "colors.flow", selector: text, label: "Fluss-Linien (Hex)" },
   { path: "colors.inactive", selector: text, label: "Inaktive Linien (Hex)" },
   { path: "colors.bar", selector: text, label: "Verbraucher-Balken (Hex)" },
-  { path: "colors.background", selector: text, label: "Hintergrund (Hex oder theme)" },
+  { path: "colors.background", selector: text, label: "Hintergrund (Hex, leer = transparent)" },
   { path: "colors.text", selector: text, label: "Text (Hex oder theme)" },
 ];
 

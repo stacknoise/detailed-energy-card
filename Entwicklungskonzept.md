@@ -271,8 +271,8 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 | `--efc-flow` | `flow` | `--primary-color` | `#b5abfc` |
 | `--efc-inactive` | `inactive` | `--disabled-text-color` | `#75798c` |
 | `--efc-bar` | `bar` | `--primary-color` | `#b5abfc` |
-| `--efc-bg` | `background` | `--card-background-color` | `#232532` |
-| `--efc-ground` | – | `--primary-background-color` | `#161826` |
+| `--efc-bg` | `background` | – | `transparent` |
+| `--efc-ground` | – | – | `transparent` |
 | `--efc-text` | `text` | `--primary-text-color` | `#e9e9ed` |
 | `--efc-muted` | – | `--secondary-text-color` | `#9397ab` |
 | `--efc-line` | – | `--divider-color` | `#3f424d` |

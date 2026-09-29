@@ -6,8 +6,6 @@ const NOCTURNE: Record<string, string> = {
   "--efc-flow": "#b5abfc",
   "--efc-inactive": "#75798c",
   "--efc-bar": "#b5abfc",
-  "--efc-bg": "#232532",
-  "--efc-ground": "#161826",
   "--efc-text": "#e9e9ed",
   "--efc-muted": "#9397ab",
   "--efc-line": "#3f424d",
@@ -39,8 +37,8 @@ export const cardStyles = css`
     --_flow: var(--efc-flow, var(--primary-color, #b5abfc));
     --_inactive: var(--efc-inactive, var(--disabled-text-color, #75798c));
     --_bar: var(--efc-bar, var(--primary-color, #b5abfc));
-    --_bg: var(--efc-bg, var(--card-background-color, #232532));
-    --_ground: var(--efc-ground, var(--primary-background-color, #161826));
+    --_bg: var(--efc-bg, transparent);
+    --_ground: var(--efc-ground, transparent);
     --_text: var(--efc-text, var(--primary-text-color, #e9e9ed));
     --_muted: var(--efc-muted, var(--secondary-text-color, #9397ab));
     --_line: var(--efc-line, var(--divider-color, #3f424d));
