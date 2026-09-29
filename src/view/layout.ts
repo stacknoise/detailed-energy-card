@@ -98,9 +98,21 @@ export function roomPath(x0: number, y0: number, x1: number, y1: number, firstRo
 /** Stroke width in px for a power in watts. */
 export const strokeWidth = (watts: number): number => 1 + (Math.abs(watts) / 1000) * 0.7;
 
-/** Dash animation duration in seconds; null when there is no flow (< 1 W). */
+/** Slowest and fastest dash cycle in seconds, and the powers (W) where they are reached. */
+export const SLOWEST_CYCLE = 3.2;
+export const FASTEST_CYCLE = 0.35;
+const SLOW_AT_W = 10;
+const FAST_AT_W = 5000;
+
+/**
+ * Dash animation duration in seconds; null when there is no flow (< 1 W).
+ * Logarithmic in the power, so the difference between 100 W and 1 kW is as visible as
+ * between 1 kW and 10 kW: the more a node draws, the faster its lines move.
+ */
 export function flowDuration(watts: number): number | null {
   const abs = Math.abs(watts);
   if (abs < 1) return null;
-  return Math.min(2.2, Math.max(0.5, 2.2 - (abs / 1000) * 0.5));
+  const t = (Math.log10(abs) - Math.log10(SLOW_AT_W)) / (Math.log10(FAST_AT_W) - Math.log10(SLOW_AT_W));
+  const clamped = Math.min(1, Math.max(0, t));
+  return SLOWEST_CYCLE - clamped * (SLOWEST_CYCLE - FASTEST_CYCLE);
 }
