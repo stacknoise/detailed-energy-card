@@ -15,7 +15,15 @@ These are design mockups; the visual editor (mockup below) is planned for 0.2.
 
 ## Install (HACS)
 
-HACS → ⋮ → Custom repositories → add this repository as type *Dashboard* → download *Energy Card*.
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stacknoise&repository=energy-card&category=plugin)
+
+Click the button above to add the repository to HACS on your Home Assistant instance, or do it manually:
+
+1. Open HACS → ⋮ → **Custom repositories**.
+2. Enter `https://github.com/stacknoise/energy-card` and choose the type **Dashboard**.
+3. Search for *Energy Card* in HACS and click **Download**.
+4. Reload the browser. HACS registers the resource `/hacsfiles/energy-card/energy-card.js` automatically.
+5. Add the card to a dashboard: **Add card → Energy Card**, or use `type: custom:energy-card` in YAML.
 
 ## Example
 
