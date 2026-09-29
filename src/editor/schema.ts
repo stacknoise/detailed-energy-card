@@ -58,6 +58,7 @@ export const GENERAL: Field[] = [
   { path: "options.animation", selector: { boolean: {} }, label: "Animation", default: true },
   { path: "options.show_unassigned", selector: { boolean: {} }, label: "„Nicht erfasst“ anzeigen", default: true },
   { path: "options.remember_selection", selector: { boolean: {} }, label: "Auswahl merken", default: true },
+  { path: "options.wrap_rooms", selector: { boolean: {} }, label: "Viele Räume in zwei Reihen umbrechen (statt scrollen)", default: false },
 ];
 
 export const COLORS: Field[] = [

@@ -111,3 +111,26 @@ describe("layout", () => {
     expect(flowDuration(10_000)).toBe(0.5);
   });
 });
+
+import { roomPositions, MAX_ROOMS_PER_ROW } from "../src/view/layout";
+
+describe("wrapped rooms", () => {
+  it("keeps one row up to the limit and when wrapping is off", () => {
+    expect(roomPositions(MAX_ROOMS_PER_ROW, 600, true).row.every((r) => r === 0)).toBe(true);
+    expect(roomPositions(9, 900, false).row.every((r) => r === 0)).toBe(true);
+  });
+  it("wraps into two staggered rows", () => {
+    const { xs, row } = roomPositions(7, 400, true);
+    expect(row).toEqual([0, 0, 0, 0, 1, 1, 1]);
+    expect(xs.slice(4)).toEqual([100, 200, 300]);
+  });
+  it("computeLayout uses two rows, less width and more height", () => {
+    const flat = computeLayout({ width: 300, sources: 1, floors: 0, rooms: 10 });
+    const wrapped = computeLayout({ width: 300, sources: 1, floors: 0, rooms: 10, wrap: true });
+    expect(flat.width).toBe(640);
+    expect(wrapped.width).toBe(320);
+    expect(wrapped.roomRows).toBe(2);
+    expect(wrapped.height).toBe(flat.height + 96);
+    expect(new Set(wrapped.roomYs).size).toBe(2);
+  });
+});

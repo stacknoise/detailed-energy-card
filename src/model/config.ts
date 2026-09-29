@@ -51,6 +51,7 @@ export interface OptionsConfig {
   animation?: boolean;
   show_unassigned?: boolean;
   remember_selection?: boolean;
+  wrap_rooms?: boolean;
 }
 
 export interface EnergyCardConfig {

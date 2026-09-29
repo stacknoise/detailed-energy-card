@@ -3,6 +3,8 @@ export const HOME_H = 66;
 export const FLOOR_H = 40;
 export const ROOM_H = 96;
 export const ROOM_COL_W = 64;
+/** More rooms than this in one row scroll horizontally, or wrap into two rows if enabled. */
+export const MAX_ROOMS_PER_ROW = 6;
 
 export interface LayoutInput {
   width: number;
@@ -10,6 +12,8 @@ export interface LayoutInput {
   floors: number;
   /** rooms in the currently visible row */
   rooms: number;
+  /** wrap many rooms into two rows instead of scrolling */
+  wrap?: boolean;
 }
 
 export interface Layout {
@@ -22,6 +26,9 @@ export interface Layout {
   sourceXs: number[];
   floorXs: number[];
   roomXs: number[];
+  /** y position of each room (two rows when wrapped) */
+  roomYs: number[];
+  roomRows: number;
 }
 
 /** Evenly distributes n nodes over width: x = W * (i + 0.5) / n. */
@@ -29,13 +36,30 @@ export function distribute(n: number, width: number): number[] {
   return Array.from({ length: n }, (_, i) => (width * (i + 0.5)) / n);
 }
 
+/**
+ * Room positions. A wrapped layout uses two rows; the second row is staggered so its
+ * lines run between the nodes of the first row.
+ */
+export function roomPositions(n: number, width: number, wrap: boolean): { xs: number[]; row: number[] } {
+  if (!wrap || n <= MAX_ROOMS_PER_ROW) return { xs: distribute(n, width), row: Array(n).fill(0) };
+  const cols = Math.ceil(n / 2);
+  const rest = n - cols;
+  const first = distribute(cols, width);
+  const second = Array.from({ length: rest }, (_, c) => (width * (c + 1)) / (rest + 1));
+  return { xs: [...first, ...second], row: [...Array(cols).fill(0), ...Array(rest).fill(1)] };
+}
+
 export function computeLayout(i: LayoutInput): Layout {
-  // Rows with many rooms keep a fixed column width and scroll horizontally.
-  const width = Math.max(i.width, i.rooms * ROOM_COL_W);
+  // Rows keep a fixed minimum column width; too many rooms scroll horizontally.
+  const wrapped = !!i.wrap && i.rooms > MAX_ROOMS_PER_ROW;
+  const perRow = wrapped ? Math.ceil(i.rooms / 2) : i.rooms;
+  const width = Math.max(i.width, perRow * ROOM_COL_W);
   const yHome = i.sources > 0 ? 124 : 0;
   const yFloor = yHome + 102;
   const yRoom = i.floors > 0 ? yFloor + 74 : yHome + 102;
-  const bottom = i.rooms > 0 ? yRoom + ROOM_H : i.floors > 0 ? yFloor + FLOOR_H : yHome + HOME_H;
+  const rooms = roomPositions(i.rooms, width, wrapped);
+  const roomRows = wrapped ? 2 : 1;
+  const bottom = i.rooms > 0 ? yRoom + ROOM_H * roomRows : i.floors > 0 ? yFloor + FLOOR_H : yHome + HOME_H;
   return {
     width,
     height: bottom,
@@ -45,7 +69,9 @@ export function computeLayout(i: LayoutInput): Layout {
     yRoom,
     sourceXs: distribute(i.sources, width),
     floorXs: distribute(i.floors, width),
-    roomXs: distribute(i.rooms, width),
+    roomXs: rooms.xs,
+    roomYs: rooms.row.map((r) => yRoom + r * ROOM_H),
+    roomRows,
   };
 }
 
