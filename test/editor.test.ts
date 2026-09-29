@@ -14,19 +14,18 @@ import { validateConfig, type EnergyCardConfig } from "../src/model/config";
 const FULL: EnergyCardConfig = {
   type: "custom:energy-card",
   title: "Energiefluss",
-  home: { name: "Zuhause", total_entity: "sensor.total" },
+  home: { total_entity: "sensor.total" },
   sources: [
     { entity: "sensor.pv", name: "PV", type: "solar", icon: "mdi:solar-power", color: "#f2c94c", soc_entity: "sensor.soc", invert: false },
   ],
   floors: [
     {
-      name: "EG",
-      icon: "mdi:home",
+      floor_id: "eg",
       color: "#fff",
-      rooms: [{ name: "Küche", icon: "mdi:stove", color: "#fff", consumers: [{ entity: "sensor.a", name: "Backofen" }] }],
+      rooms: [{ area_id: "kueche", color: "#fff", consumers: [{ entity: "sensor.a", name: "Backofen" }] }],
     },
   ],
-  rooms: [{ name: "Bad", icon: "mdi:shower", color: "#fff", consumers: [{ entity: "sensor.b", name: "Boiler" }] }],
+  rooms: [{ area_id: "bad", color: "#fff", consumers: [{ entity: "sensor.b", name: "Boiler" }] }],
   colors: { preset: "custom", accent: "#1", flow: "#2", inactive: "#3", bar: "#4", background: "#5", text: "#6" },
   options: { unit: "auto", decimals: 2, animation: true, show_unassigned: true, remember_selection: true },
 };
@@ -72,20 +71,26 @@ describe("config utils", () => {
     expect(moveItem([1, 2, 3], 0, 1)).toEqual([2, 1, 3]);
   });
   it("toggleFloors moves rooms between levels", () => {
-    const flat: EnergyCardConfig = { type: "x", rooms: [{ name: "K" }] };
-    const withFloors = toggleFloors(flat, true);
+    const flat: EnergyCardConfig = { type: "x", rooms: [{ area_id: "k" }] };
+    const areas = [{ area_id: "k", floor_id: "eg" }, { area_id: "x", floor_id: null }];
+    const withFloors = toggleFloors(flat, true, areas);
     expect(withFloors.rooms).toBeUndefined();
-    expect(withFloors.floors![0].rooms).toEqual([{ name: "K" }]);
-    const back = toggleFloors({ type: "x", floors: [{ name: "EG", rooms: [{ name: "A" }] }, { name: "OG", rooms: [{ name: "B" }] }] }, false);
+    expect(withFloors.floors).toEqual([{ floor_id: "eg", rooms: [{ area_id: "k" }] }]);
+    // rooms whose area has no floor are dropped
+    expect(toggleFloors({ type: "x", rooms: [{ area_id: "x" }] }, true, areas).floors).toEqual([]);
+    const back = toggleFloors(
+      { type: "x", floors: [{ floor_id: "eg", rooms: [{ area_id: "a" }] }, { floor_id: "og", rooms: [{ area_id: "b" }] }] },
+      false,
+    );
     expect(back.floors).toBeUndefined();
-    expect(back.rooms!.map((r) => r.name)).toEqual(["A", "B"]);
+    expect(back.rooms!.map((r) => r.area_id)).toEqual(["a", "b"]);
   });
   it("finds duplicate assignments", () => {
     const cfg: EnergyCardConfig = {
       type: "x",
       rooms: [
-        { name: "A", consumers: [{ entity: "sensor.x" }] },
-        { name: "B", consumers: [{ entity: "sensor.x" }, { entity: "sensor.y" }] },
+        { area_id: "a", name: "A", consumers: [{ entity: "sensor.x" }] },
+        { area_id: "b", name: "B", consumers: [{ entity: "sensor.x" }, { entity: "sensor.y" }] },
       ],
     };
     expect(findDuplicates(cfg)).toEqual([{ entity: "sensor.x", places: ["A", "B"] }]);

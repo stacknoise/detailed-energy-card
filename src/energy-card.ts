@@ -7,6 +7,7 @@ import { computeModel, type EnergyModel, type RoomNode, type SourceNode } from "
 import { formatPower, stateToWatts, type StateLike } from "./model/units";
 import { localize, type Key } from "./localize";
 import "./editor/card-editor";
+import { loadRegistries, resolveNames, type Registries } from "./model/registry";
 import {
   computeLayout,
   curve,
@@ -21,6 +22,8 @@ import {
 interface Hass {
   language?: string;
   locale?: { language?: string };
+  config?: { location_name?: string };
+  callWS<T>(msg: { type: string }): Promise<T>;
   states: Record<string, StateLike | undefined>;
 }
 
@@ -55,6 +58,8 @@ export class EnergyCard extends LitElement {
   private _entityIds: string[] = [];
   private _model?: EnergyModel;
   private _ro?: ResizeObserver;
+  private _reg?: Registries;
+  private _regLoading = false;
 
   static getConfigElement(): HTMLElement {
     return document.createElement("energy-card-editor");
@@ -67,7 +72,6 @@ export class EnergyCard extends LitElement {
     return {
       title: "Energiefluss",
       sources: power.slice(0, 1).map((entity) => ({ entity, type: "grid", name: "Netz" })),
-      rooms: [{ name: "Wohnzimmer", icon: "mdi:sofa", consumers: power.slice(1, 3).map((entity) => ({ entity })) }],
     };
   }
 
@@ -87,10 +91,27 @@ export class EnergyCard extends LitElement {
   set hass(hass: Hass) {
     const old = this._hass;
     this._hass = hass;
+    this._ensureRegistries();
     // Only re-render when a referenced entity changed.
     if (old && this._entityIds.every((id) => old.states[id] === hass.states[id])) return;
     this._recompute();
     this.requestUpdate();
+  }
+
+  /** Floor and area names come from Home Assistant; load them once. */
+  private _ensureRegistries(): void {
+    if (this._reg || this._regLoading || !this._hass?.callWS) return;
+    this._regLoading = true;
+    loadRegistries(this._hass)
+      .then((reg) => {
+        this._reg = reg;
+        this._recompute();
+        this.requestUpdate();
+      })
+      .catch(() => {
+        /* fall back to ids; retried on the next hass update */
+      })
+      .finally(() => (this._regLoading = false));
   }
 
   getCardSize(): number {
@@ -127,7 +148,8 @@ export class EnergyCard extends LitElement {
   private _recompute(): void {
     if (!this._config || !this._hass) return;
     const states = this._hass.states;
-    this._model = computeModel(this._config, (id) => {
+    const cfg = this._reg ? resolveNames(this._config, this._reg) : this._config;
+    this._model = computeModel(cfg, (id) => {
       const w = stateToWatts(states[id]);
       // SoC and other non-power sensors are plain numbers: fall back to the raw value
       if (w === null) {
@@ -209,7 +231,7 @@ export class EnergyCard extends LitElement {
     });
     const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
     const room = sel.room !== undefined ? sel.rooms[sel.room] : undefined;
-    const home = cfg.home?.name ?? this._t("home");
+    const home = this._hass?.config?.location_name ?? this._t("home");
     const path = [home, floor?.name, room?.name].filter(Boolean).join(" › ");
 
     return html`

@@ -27,7 +27,7 @@ describe("units", () => {
 
 describe("config", () => {
   it("rejects floors and rooms together", () => {
-    expect(() => validateConfig({ type: "x", floors: [{ name: "EG" }], rooms: [{ name: "K" }] })).toThrow(ConfigError);
+    expect(() => validateConfig({ type: "x", floors: [{ floor_id: "eg" }], rooms: [{ area_id: "k" }] })).toThrow(ConfigError);
   });
   it("rejects non-sensor entities", () => {
     expect(() => validateConfig({ type: "x", sources: [{ entity: "light.a" }] })).toThrow(ConfigError);
@@ -37,7 +37,7 @@ describe("config", () => {
       type: "x",
       home: { total_entity: "sensor.total" },
       sources: [{ entity: "sensor.bat", type: "battery", soc_entity: "sensor.soc" }],
-      rooms: [{ name: "K", consumers: [{ entity: "sensor.a" }, { entity: "sensor.a" }] }],
+      rooms: [{ area_id: "k", consumers: [{ entity: "sensor.a" }, { entity: "sensor.a" }] }],
     });
     expect(collectEntityIds(cfg).sort()).toEqual(["sensor.a", "sensor.bat", "sensor.soc", "sensor.total"]);
   });
@@ -52,7 +52,7 @@ describe("compute", () => {
       { entity: "sensor.grid", type: "grid" },
       { entity: "sensor.bat", type: "battery", soc_entity: "sensor.soc" },
     ],
-    floors: [{ name: "EG", rooms: [{ name: "K", consumers: [{ entity: "sensor.a" }, { entity: "sensor.b" }] }] }],
+    floors: [{ floor_id: "eg", name: "EG", rooms: [{ area_id: "k", name: "K", consumers: [{ entity: "sensor.a" }, { entity: "sensor.b" }] }] }],
   });
 
   it("sums consumers, rooms and floors; total drives unassigned", () => {

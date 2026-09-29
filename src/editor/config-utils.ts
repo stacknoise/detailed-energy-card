@@ -59,12 +59,24 @@ export function removeItem<T>(list: T[], index: number): T[] {
   return list.filter((_, i) => i !== index);
 }
 
-/** Switches between floors and top-level rooms without losing rooms. */
-export function toggleFloors(cfg: EnergyCardConfig, useFloors: boolean): EnergyCardConfig {
+/**
+ * Switches between floors and top-level rooms. Turning floors on groups the rooms by the
+ * floor their area belongs to in Home Assistant; rooms whose area has no floor are dropped.
+ */
+export function toggleFloors(
+  cfg: EnergyCardConfig,
+  useFloors: boolean,
+  areas: Array<{ area_id: string; floor_id?: string | null }> = [],
+): EnergyCardConfig {
   const { floors, rooms, ...rest } = cfg;
   if (useFloors) {
-    if (floors?.length) return cfg;
-    return { ...rest, floors: [{ name: "EG", rooms: rooms ?? [] }] };
+    if (floors) return cfg;
+    const byFloor = new Map<string, RoomConfig[]>();
+    for (const r of rooms ?? []) {
+      const fid = areas.find((a) => a.area_id === r.area_id)?.floor_id;
+      if (fid) byFloor.set(fid, [...(byFloor.get(fid) ?? []), r]);
+    }
+    return { ...rest, floors: [...byFloor].map(([floor_id, rs]) => ({ floor_id, rooms: rs })) };
   }
   if (!floors) return cfg;
   const flat: RoomConfig[] = floors.flatMap((f) => f.rooms ?? []);
@@ -81,8 +93,8 @@ export function findDuplicates(cfg: EnergyCardConfig): Duplicate[] {
   const seen = new Map<string, string[]>();
   const add = (entity: string, place: string) => seen.set(entity, [...(seen.get(entity) ?? []), place]);
   const rooms = (rs: RoomConfig[], prefix: string) =>
-    rs.forEach((r) => (r.consumers ?? []).forEach((c) => c.entity && add(c.entity, `${prefix}${r.name}`)));
+    rs.forEach((r) => (r.consumers ?? []).forEach((c) => c.entity && add(c.entity, `${prefix}${r.name ?? r.area_id}`)));
   rooms(cfg.rooms ?? [], "");
-  (cfg.floors ?? []).forEach((f) => rooms(f.rooms ?? [], `${f.name} › `));
+  (cfg.floors ?? []).forEach((f) => rooms(f.rooms ?? [], `${f.name ?? f.floor_id} › `));
   return [...seen].filter(([, p]) => p.length > 1).map(([entity, places]) => ({ entity, places }));
 }

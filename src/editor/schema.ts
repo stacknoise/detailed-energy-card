@@ -37,7 +37,6 @@ export const COLORS: Field[] = [
 ];
 
 export const HOME: Field[] = [
-  { path: "home.name", selector: text, label: "Name" },
   { path: "home.total_entity", selector: power, label: "Gesamt-Sensor (optional)" },
 ];
 
@@ -56,9 +55,21 @@ export const SOURCE: Field[] = [
   { path: "invert", selector: { boolean: {} }, label: "Vorzeichen invertieren" },
 ];
 
-export const NODE: Field[] = [
-  { path: "name", selector: text, label: "Name", required: true },
-  { path: "icon", selector: icon, label: "Icon" },
+export interface Choice {
+  value: string;
+  label: string;
+}
+const dropdown = (choices: Choice[]) => ({ select: { mode: "dropdown", options: choices } });
+
+/** Floors can only be picked from the Home Assistant floor registry. */
+export const floorFields = (choices: Choice[] = []): Field[] => [
+  { path: "floor_id", selector: dropdown(choices), label: "Etage", required: true },
+  { path: "color", selector: text, label: "Farbe (Hex)" },
+];
+
+/** Rooms can only be picked from the Home Assistant area registry. */
+export const roomFields = (choices: Choice[] = []): Field[] => [
+  { path: "area_id", selector: dropdown(choices), label: "Bereich (Raum)", required: true },
   { path: "color", selector: text, label: "Farbe (Hex)" },
 ];
 
@@ -90,10 +101,10 @@ export function coveredPaths(): string[] {
     ...prefix("", COLORS),
     ...prefix("", HOME),
     ...prefix("sources[].", SOURCE),
-    ...prefix("floors[].", NODE),
-    ...prefix("floors[].rooms[].", NODE),
+    ...prefix("floors[].", floorFields()),
+    ...prefix("floors[].rooms[].", roomFields()),
     ...prefix("floors[].rooms[].consumers[].", CONSUMER),
-    ...prefix("rooms[].", NODE),
+    ...prefix("rooms[].", roomFields()),
     ...prefix("rooms[].consumers[].", CONSUMER),
   ];
 }

@@ -12,10 +12,24 @@ import {
   updateIn,
   type Pointer,
 } from "./config-utils";
-import { COLORS, CONSUMER, GENERAL, HOME, NODE, SOURCE, labelFor, toSchema, type Field } from "./schema";
+import {
+  COLORS,
+  CONSUMER,
+  GENERAL,
+  HOME,
+  SOURCE,
+  floorFields,
+  labelFor,
+  roomFields,
+  toSchema,
+  type Choice,
+  type Field,
+} from "./schema";
+import { loadRegistries, type Registries } from "../model/registry";
 
 interface Hass {
   states: Record<string, unknown>;
+  callWS<T>(msg: { type: string }): Promise<T>;
   [k: string]: unknown;
 }
 
@@ -27,9 +41,52 @@ export class EnergyCardEditor extends LitElement {
   /** open state of collapsible tree/source items, keyed by pointer */
   @state() private _open = new Set<string>();
 
+  @state() private _reg?: Registries;
+  private _regLoading = false;
+
   setConfig(config: EnergyCardConfig): void {
     this._config = config;
   }
+
+  protected willUpdate(): void {
+    if (this._reg || this._regLoading || !this.hass?.callWS) return;
+    this._regLoading = true;
+    loadRegistries(this.hass)
+      .then((reg) => (this._reg = reg))
+      .catch(() => undefined)
+      .finally(() => (this._regLoading = false));
+  }
+
+  // ---------- Home Assistant floors and areas (the only allowed choices) ----------
+
+  private _usedFloorIds(): string[] {
+    return (this._config?.floors ?? []).map((f) => f.floor_id);
+  }
+
+  private _usedAreaIds(): string[] {
+    const c = this._config;
+    return [...(c?.rooms ?? []), ...(c?.floors ?? []).flatMap((f) => f.rooms ?? [])].map((r) => r.area_id);
+  }
+
+  private _floorChoices(current: string): Choice[] {
+    const used = this._usedFloorIds();
+    return (this._reg?.floors ?? [])
+      .filter((f) => f.floor_id === current || !used.includes(f.floor_id))
+      .map((f) => ({ value: f.floor_id, label: f.name }));
+  }
+
+  /** Areas that may still be added to a list; on a floor only that floor's areas. */
+  private _areaOptions(floorId: string | undefined, current = ""): Choice[] {
+    const used = this._usedAreaIds();
+    return (this._reg?.areas ?? [])
+      .filter(
+        (a) => (floorId === undefined || a.floor_id === floorId) && (a.area_id === current || !used.includes(a.area_id)),
+      )
+      .map((a) => ({ value: a.area_id, label: a.name }));
+  }
+
+  private _floorName = (id: string) => this._reg?.floors.find((f) => f.floor_id === id)?.name ?? id;
+  private _areaName = (id: string) => this._reg?.areas.find((a) => a.area_id === id)?.name ?? id;
 
   static styles = css`
     :host {
@@ -215,38 +272,45 @@ export class EnergyCardEditor extends LitElement {
     `;
   }
 
-  private _renderRooms(listPtr: Pointer, nested: boolean): TemplateResult {
+  private _renderRooms(listPtr: Pointer, nested: boolean, floorId?: string): TemplateResult {
     const rooms: RoomConfig[] = getIn(this._config, listPtr) ?? [];
+    const free = this._areaOptions(floorId);
     return html`
       ${rooms.map((r, i) => {
         const ptr: Pointer = [...listPtr, i];
         const key = ptr.join(".");
         return html`<div class="item ${nested ? "nested" : ""}">
-          ${this._itemHead(key, r.name || "Raum", `${r.consumers?.length ?? 0} Verbraucher`, ptr, i, rooms.length)}
-          ${this._open.has(key) ? html`${this._form(ptr, NODE)}${this._renderConsumers(ptr)}` : nothing}
+          ${this._itemHead(key, this._areaName(r.area_id), `${r.consumers?.length ?? 0} Verbraucher`, ptr, i, rooms.length)}
+          ${this._open.has(key)
+            ? html`${this._form(ptr, roomFields(this._areaOptions(floorId, r.area_id)))}${this._renderConsumers(ptr)}`
+            : nothing}
         </div>`;
       })}
-      <button class="add" @click=${() => this._addRoom(listPtr)}>+ Raum</button>
+      <button class="add" ?disabled=${!free.length} @click=${() => this._addRoom(listPtr, free[0].value)}>+ Raum</button>
+      ${this._reg && !free.length
+        ? html`<div class="warn">Keine weiteren Bereiche in Home Assistant verfügbar.</div>`
+        : nothing}
     `;
   }
 
-  private _addRoom(listPtr: Pointer): void {
+  private _addRoom(listPtr: Pointer, areaId: string): void {
     const n = (getIn(this._config, listPtr) ?? []).length;
     this._open = new Set(this._open).add([...listPtr, n].join("."));
-    this._update(listPtr, (l) => [...(l ?? []), { name: `Raum ${n + 1}`, consumers: [] }]);
+    this._update(listPtr, (l) => [...(l ?? []), { area_id: areaId, consumers: [] }]);
   }
 
   private _renderStructure(): TemplateResult {
     const cfg = this._config;
     const useFloors = !!cfg?.floors;
     const floors: FloorConfig[] = cfg?.floors ?? [];
+    const freeFloors = this._floorChoices("");
     return html`
       <section>
         <h3>Struktur</h3>
         <ha-formfield label="Etagen verwenden">
           <ha-switch
             .checked=${useFloors}
-            @change=${(ev: Event) => this._emit(toggleFloors(cfg!, (ev.target as HTMLInputElement).checked))}
+            @change=${(ev: Event) => this._emit(toggleFloors(cfg!, (ev.target as HTMLInputElement).checked, this._reg?.areas))}
           ></ha-switch>
         </ha-formfield>
         ${useFloors
@@ -255,16 +319,19 @@ export class EnergyCardEditor extends LitElement {
                 const ptr: Pointer = ["floors", i];
                 const key = ptr.join(".");
                 return html`<div class="item">
-                  ${this._itemHead(key, f.name || "Etage", `${f.rooms?.length ?? 0} Räume`, ptr, i, floors.length)}
+                  ${this._itemHead(key, this._floorName(f.floor_id), `${f.rooms?.length ?? 0} Räume`, ptr, i, floors.length)}
                   ${this._open.has(key)
-                    ? html`${this._form(ptr, NODE)}${this._renderRooms([...ptr, "rooms"], true)}`
+                    ? html`${this._form(ptr, floorFields(this._floorChoices(f.floor_id)))}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
                     : nothing}
                 </div>`;
               })}
-              <button class="add"
-                @click=${() => this._update(["floors"], (l) => [...(l ?? []), { name: `Etage ${(l?.length ?? 0) + 1}`, rooms: [] }])}>
+              <button class="add" ?disabled=${!freeFloors.length}
+                @click=${() => this._update(["floors"], (l) => [...(l ?? []), { floor_id: freeFloors[0].value, rooms: [] }])}>
                 + Etage
-              </button>`
+              </button>
+              ${this._reg && !freeFloors.length
+                ? html`<div class="warn">Keine weiteren Etagen in Home Assistant angelegt.</div>`
+                : nothing}`
           : this._renderRooms(["rooms"], false)}
       </section>
     `;

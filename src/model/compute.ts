@@ -67,7 +67,7 @@ function computeRoom(room: RoomConfig, read: Reader): RoomNode {
     return { entity: c.entity, name: c.name, watts: r.valid ? Math.max(0, r.watts) : 0, valid: r.valid };
   });
   return {
-    name: room.name,
+    name: room.name ?? room.area_id,
     icon: room.icon,
     color: room.color,
     watts: consumers.reduce((s, c) => s + c.watts, 0),
@@ -102,7 +102,7 @@ export function computeModel(cfg: EnergyCardConfig, read: Reader): EnergyModel {
 
   const floors: FloorNode[] = (cfg.floors ?? []).map((f) => {
     const rooms = (f.rooms ?? []).map((r) => computeRoom(r, read));
-    return { name: f.name, icon: f.icon, color: f.color, watts: rooms.reduce((s, r) => s + r.watts, 0), rooms };
+    return { name: f.name ?? f.floor_id, icon: f.icon, color: f.color, watts: rooms.reduce((s, r) => s + r.watts, 0), rooms };
   });
   const rooms = (cfg.rooms ?? []).map((r) => computeRoom(r, read));
 
