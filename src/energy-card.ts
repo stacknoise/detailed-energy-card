@@ -6,6 +6,7 @@ import { collectEntityIds, validateConfig, type EnergyCardConfig } from "./model
 import { computeModel, type EnergyModel, type RoomNode, type SourceNode } from "./model/compute";
 import { formatPower, stateToWatts, type StateLike } from "./model/units";
 import { localize, type Key } from "./localize";
+import "./editor/card-editor";
 import {
   computeLayout,
   curve,
@@ -54,6 +55,10 @@ export class EnergyCard extends LitElement {
   private _entityIds: string[] = [];
   private _model?: EnergyModel;
   private _ro?: ResizeObserver;
+
+  static getConfigElement(): HTMLElement {
+    return document.createElement("energy-card-editor");
+  }
 
   static getStubConfig(hass?: Hass): Record<string, unknown> {
     const power = Object.entries(hass?.states ?? {})
