@@ -58,6 +58,7 @@ export const GENERAL: Field[] = [
   { path: "options.animation", selector: { boolean: {} }, label: "Animation", default: true },
   { path: "options.show_unassigned", selector: { boolean: {} }, label: "„Nicht erfasst“ anzeigen", default: true },
   { path: "options.remember_selection", selector: { boolean: {} }, label: "Auswahl merken", default: true },
+  { path: "options.wrap_rooms", selector: { boolean: {} }, label: "Viele Räume in zwei Reihen umbrechen (statt scrollen)", default: false },
 ];
 
 export const COLORS: Field[] = [
@@ -121,8 +122,8 @@ export function toSchema(fields: Field[], obj: unknown) {
 }
 
 /** Translates a field-path -> label lookup for ha-form's computeLabel. */
-export function labelFor(fields: Field[], name: string): string {
-  return fields.find((f) => f.path === name)?.label ?? name;
+export function labelFor(fields: Field[], name: string, tr: (s: string) => string = (s) => s): string {
+  return tr(fields.find((f) => f.path === name)?.label ?? name);
 }
 
 /**

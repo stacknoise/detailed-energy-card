@@ -2,14 +2,21 @@
 
 Home Assistant Lovelace card showing the power flow from sources (PV, battery, grid) through the home, optional floors and rooms down to individual consumers. See [Entwicklungskonzept.md](Entwicklungskonzept.md) for the full concept and roadmap.
 
-Status: **0.1 MVP** (YAML configuration). The visual editor follows in 0.2.
+Status: **0.3**. Configure it in the visual editor (German and English) or in YAML.
 
 ## Preview
 
-![Card with floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/mockups/3a-card-mit-etagen.png)
-![Card without floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/mockups/3b-card-ohne-etagen.png)
+Home → floor → room → consumers. Click a floor to show its rooms, click a room to list its consumers, click the selected room again to see all rooms of the floor together.
 
-These are design mockups; the visual editor (mockup below) is planned for 0.2.
+| With floors | Without floors |
+| --- | --- |
+| ![Card with floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-with-floors.png) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-without-floors.png) |
+
+| All rooms of a floor selected | Many rooms wrapped into two rows |
+| --- | --- |
+| ![All rooms selected](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-all-rooms.png) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-many-rooms-wrapped.png) |
+
+The screenshots are rendered from mock data with `npm run screenshots`. The visual editor has a German and an English UI; its design mockup:
 
 ![Editor mockup](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/mockups/4a-editor.png)
 
@@ -45,14 +52,18 @@ floors:
             name: Backofen
 ```
 
-Floors and rooms are not free text: they are picked from the floors and areas that already exist in Home Assistant (`floor_id`, `area_id`); names and icons come from there, and the home name is your instance's location name. Use either `floors` or `rooms` on the top level. Only `sensor.*` power entities (W / kW / MW) are supported. All options are documented in the concept, section 3.
+Floors and rooms are not free text: they are picked from the floors and areas that already exist in Home Assistant (`floor_id`, `area_id`); names and icons come from there, and the home name is your instance's location name. Options: `options.unit` (`W`, `kW`, `auto`; default `W`), `options.decimals`, `options.animation`, `options.show_unassigned`, `options.remember_selection` and `options.wrap_rooms` (wrap more than 6 rooms into two rows instead of scrolling). Use either `floors` or `rooms` on the top level. Only `sensor.*` power entities (W / kW / MW) are supported. All options are documented in the concept, section 3.
 
 ## Development
 
 ```bash
 npm install
-npm test
-npm run build      # dist/energy-card.js
+npm test            # unit tests (Vitest)
+npm run build       # dist/energy-card.js
+npm run test:e2e    # browser tests (Playwright) against dev/index.html
+npm run screenshots # re-render docs/screenshots/*.png
 ```
 
-Open `dev/index.html` through a static server (e.g. `npx vite`) for a mock-data preview.
+`npx vite` serves `dev/index.html`, a mock-data preview. Pick a scenario with `?scenario=floors|flat|many|wrap|invalid`.
+
+Locally the browser tests use the installed Microsoft Edge; in CI they use Chromium (`npx playwright install chromium`).

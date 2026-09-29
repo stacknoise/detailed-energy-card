@@ -11,6 +11,7 @@ import { loadRegistries, resolveNames, type Registries } from "./model/registry"
 import {
   computeLayout,
   curve,
+  roomPath,
   flowDuration,
   strokeWidth,
   FLOOR_H,
@@ -229,6 +230,7 @@ export class EnergyCard extends LitElement {
       sources: model.sources.length,
       floors: model.floors.length,
       rooms: sel.rooms.length,
+      wrap: cfg.options?.wrap_rooms === true,
     });
     const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
     const room = sel.room !== undefined ? sel.rooms[sel.room] : undefined;
@@ -263,7 +265,7 @@ export class EnergyCard extends LitElement {
             ${model.sources.map((s, i) => this._renderSource(s, layout.sourceXs[i]))}
             ${this._renderHome(model, layout, home)}
             ${model.floors.map((f, i) => this._renderFloor(f.name, f.watts, f.color, layout.floorXs[i], layout.yFloor, i === sel.floor))}
-            ${sel.rooms.map((r, i) => this._renderRoom(r, layout.roomXs[i], layout.yRoom, i === sel.room, allRooms))}
+            ${sel.rooms.map((r, i) => this._renderRoom(r, layout.roomXs[i], layout.roomYs[i], i === sel.room, allRooms))}
           </div>
         </div>
         ${this._renderDetail(model, detailRoom)}
@@ -298,7 +300,7 @@ export class EnergyCard extends LitElement {
     });
     const rooms = floorIdx !== undefined ? model.floors[floorIdx].rooms : model.rooms;
     rooms.forEach((r, i) => {
-      parts.push(line(curve(roomFromX, roomFromY, l.roomXs[i], l.yRoom), r.watts, allRooms || i === roomIdx));
+      parts.push(line(roomPath(roomFromX, roomFromY, l.roomXs[i], l.roomYs[i], l.yRoom), r.watts, allRooms || i === roomIdx));
     });
     return html`<svg class="lines" width=${l.width} height=${l.height}>${parts}</svg>`;
   }

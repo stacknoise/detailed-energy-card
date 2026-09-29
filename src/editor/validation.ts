@@ -2,6 +2,9 @@ import type { EnergyCardConfig } from "../model/config";
 import { computeModel } from "../model/compute";
 import { stateToWatts, type StateLike } from "../model/units";
 import type { Field } from "./schema";
+import { makeTr, type Tr } from "../localize/editor";
+
+const DE = makeTr("de");
 
 const POWER_UNITS = ["W", "kW", "MW"];
 
@@ -10,17 +13,18 @@ export function checkSensor(
   states: Record<string, StateLike | undefined>,
   entityId: unknown,
   check: NonNullable<Field["check"]>,
+  tr: Tr = DE,
 ): string | undefined {
   if (typeof entityId !== "string" || !entityId) return undefined;
-  if (!entityId.startsWith("sensor.")) return "Nur sensor.* ist erlaubt";
+  if (!entityId.startsWith("sensor.")) return tr("Nur sensor.* ist erlaubt");
   const st = states[entityId];
-  if (!st) return "Entität nicht gefunden";
+  if (!st) return tr("Entität nicht gefunden");
   const attrs = st.attributes;
   if (check === "power") {
-    if (attrs.device_class !== "power") return "Kein Leistungssensor (device_class: power)";
-    if (!POWER_UNITS.includes(String(attrs.unit_of_measurement))) return "Einheit muss W, kW oder MW sein";
+    if (attrs.device_class !== "power") return tr("Kein Leistungssensor (device_class: power)");
+    if (!POWER_UNITS.includes(String(attrs.unit_of_measurement))) return tr("Einheit muss W, kW oder MW sein");
   } else if (attrs.device_class !== "battery" && attrs.unit_of_measurement !== "%") {
-    return "Kein Prozent-/Batteriesensor";
+    return tr("Kein Prozent-/Batteriesensor");
   }
   return undefined;
 }
@@ -31,14 +35,15 @@ export function fieldErrors(
   fields: Field[],
   states: Record<string, StateLike | undefined>,
   get: (o: unknown, path: string) => unknown,
+  tr: Tr = DE,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const f of fields) {
     const value = get(obj, f.path);
     const msg = f.check
-      ? checkSensor(states, value, f.check)
+      ? checkSensor(states, value, f.check, tr)
       : f.kind === "color"
-        ? colorError(value)
+        ? colorError(value, tr)
         : undefined;
     if (msg) errors[f.path] = msg;
   }
@@ -51,8 +56,8 @@ export function isValidColor(value: unknown): boolean {
   return typeof value === "string" && /^(#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|var\(--[\w-]+\))$/i.test(value);
 }
 
-export const colorError = (value: unknown): string | undefined =>
-  isValidColor(value) ? undefined : "Ungültige Farbe (z. B. #9184d9)";
+export const colorError = (value: unknown, tr: Tr = DE): string | undefined =>
+  isValidColor(value) ? undefined : tr("Ungültige Farbe (z. B. #9184d9)");
 
 /** Set when the rooms use more power than the configured total sensor reports. */
 export function sumConflict(
@@ -106,6 +111,7 @@ export function contrastWarning(
   colors: { text?: string; background?: string } | undefined,
   themeText: string | undefined,
   themeBg: string | undefined,
+  tr: Tr = DE,
 ): string | undefined {
   if (!colors?.text && !colors?.background) return undefined;
   const text = parseColor(colors.text && colors.text !== "theme" ? colors.text : themeText);
@@ -113,6 +119,6 @@ export function contrastWarning(
   if (!text || !bg) return undefined;
   const ratio = contrastRatio(text, bg);
   return ratio < 4.5
-    ? `Geringer Kontrast zwischen Text und Hintergrund (${ratio.toFixed(1)} : 1, empfohlen ab 4.5 : 1)`
+    ? tr("Geringer Kontrast zwischen Text und Hintergrund ({0} : 1, empfohlen ab 4.5 : 1)", ratio.toFixed(1))
     : undefined;
 }

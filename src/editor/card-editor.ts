@@ -31,6 +31,7 @@ import {
 import { loadRegistries, type Registries } from "../model/registry";
 import type { StateLike } from "../model/units";
 import { colorError, contrastWarning, fieldErrors, sumConflict } from "./validation";
+import { makeTr, type Tr } from "../localize/editor";
 
 interface Hass {
   states: Record<string, unknown>;
@@ -88,6 +89,11 @@ export class EnergyCardEditor extends LitElement {
         (a) => (floorId === undefined || a.floor_id === floorId) && (a.area_id === current || !used.includes(a.area_id)),
       )
       .map((a) => ({ value: a.area_id, label: a.name }));
+  }
+
+  private get _tr(): Tr {
+    const h = this.hass as { locale?: { language?: string }; language?: string } | undefined;
+    return makeTr(h?.locale?.language ?? h?.language);
   }
 
   private _floorName = (id: string) => this._reg?.floors.find((f) => f.floor_id === id)?.name ?? id;
@@ -271,8 +277,8 @@ export class EnergyCardEditor extends LitElement {
         .hass=${this.hass}
         .data=${data}
         .schema=${toSchema(plain, obj)}
-        .error=${fieldErrors(obj, plain, states, getPath)}
-        .computeLabel=${(s: { name: string }) => labelFor(fields, s.name)}
+        .error=${fieldErrors(obj, plain, states, getPath, this._tr)}
+        .computeLabel=${(s: { name: string }) => labelFor(fields, s.name, this._tr)}
         @value-changed=${(ev: CustomEvent) => this._onForm(ptr, fields, ev)}
       ></ha-form>
       ${colors.map((f) => this._colorRow(ptr, f, getPath(obj, f.path)))}`;
@@ -282,26 +288,26 @@ export class EnergyCardEditor extends LitElement {
   private _colorRow(ptr: Pointer, f: Field, value: unknown): TemplateResult {
     const text = typeof value === "string" ? value : "";
     const swatch = /^#[0-9a-f]{6}$/i.test(text) ? text : "#808080";
-    const error = colorError(value);
+    const error = colorError(value, this._tr);
     const set = (v: string) => this._update(ptr, (obj: object) => setPath(obj ?? {}, f.path, v));
     return html`<div class="color">
-      <label>${f.label}</label>
+      <label>${this._tr(f.label)}</label>
       <div class="swatches">
         ${PALETTE.map(
           (c) => html`<button
             class="swatch ${c.value === text ? "on" : ""} ${c.value ? "" : "theme"}"
-            title=${c.label}
+            title=${this._tr(c.label)}
             style=${c.value ? `background:${c.value}` : ""}
             @click=${() => set(c.value)}
           >${c.value ? "" : "T"}</button>`,
         )}
       </div>
       <div class="inputs">
-        <input type="color" title="Eigene Farbe wählen" .value=${swatch}
+        <input type="color" title=${this._tr("Eigene Farbe wählen")} .value=${swatch}
           @input=${(e: Event) => set((e.target as HTMLInputElement).value)} />
         <input type="text" placeholder="Theme" .value=${text}
           @change=${(e: Event) => set((e.target as HTMLInputElement).value.trim())} />
-        <button class="icon" title="Zurücksetzen auf Theme" ?disabled=${!text} @click=${() => set("")}>↺</button>
+        <button class="icon" title=${this._tr("Zurücksetzen auf Theme")} ?disabled=${!text} @click=${() => set("")}>↺</button>
       </div>
       ${error ? html`<div class="warn">${error}</div>` : nothing}
     </div>`;
@@ -312,7 +318,7 @@ export class EnergyCardEditor extends LitElement {
   private _drag?: { list: string; index: number };
 
   private _handle(listPtr: Pointer, index: number): TemplateResult {
-    return html`<span class="handle" draggable="true" title="Ziehen zum Sortieren"
+    return html`<span class="handle" draggable="true" title=${this._tr("Ziehen zum Sortieren")}
       @dragstart=${(e: DragEvent) => this._onDragStart(e, listPtr, index)}
       @dragend=${() => (this._drag = undefined)}>⠿</span>`;
   }
@@ -346,11 +352,11 @@ export class EnergyCardEditor extends LitElement {
       <button class="title" @click=${() => this._toggleOpen(key)}>
         ${this._open.has(key) ? "▾" : "▸"} ${title}<small>${sub}</small>
       </button>
-      <button class="icon" title="Nach oben" ?disabled=${index === 0}
+      <button class="icon" title=${this._tr("Nach oben")} ?disabled=${index === 0}
         @click=${() => this._update(listPtr, (l) => moveItem(l, index, -1))}>↑</button>
-      <button class="icon" title="Nach unten" ?disabled=${index === count - 1}
+      <button class="icon" title=${this._tr("Nach unten")} ?disabled=${index === count - 1}
         @click=${() => this._update(listPtr, (l) => moveItem(l, index, 1))}>↓</button>
-      <button class="icon" title="Entfernen"
+      <button class="icon" title=${this._tr("Entfernen")}
         @click=${() => this._update(listPtr, (l) => removeItem(l, index))}>✕</button>
     </div>`;
   }
@@ -359,16 +365,16 @@ export class EnergyCardEditor extends LitElement {
     const sources = this._config?.sources ?? [];
     return html`
       <section>
-        <h3>Stromquellen (${sources.length})</h3>
+        <h3>${this._tr("Stromquellen ({0})", sources.length)}</h3>
         ${sources.map((s: SourceConfig, i) => {
           const ptr: Pointer = ["sources", i];
           const key = `s${i}`;
           return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, ["sources"])} @drop=${(e: DragEvent) => this._onDrop(e, ["sources"], i)}>
-            ${this._itemHead(key, s.name ?? s.type ?? "Quelle", s.entity ?? "", ptr, i, sources.length)}
+            ${this._itemHead(key, s.name ?? s.type ?? this._tr("Quelle"), s.entity ?? "", ptr, i, sources.length)}
             ${this._open.has(key) ? this._form(ptr, SOURCE) : nothing}
           </div>`;
         })}
-        <button class="add" @click=${() => this._addSource()}>+ Quelle hinzufügen</button>
+        <button class="add" @click=${() => this._addSource()}>${this._tr("+ Quelle hinzufügen")}</button>
       </section>
     `;
   }
@@ -381,7 +387,7 @@ export class EnergyCardEditor extends LitElement {
   private _renderConsumers(roomPtr: Pointer): TemplateResult {
     const consumers = getIn(this._config, [...roomPtr, "consumers"]) ?? [];
     return html`
-      <h3>Verbraucher (${consumers.length})</h3>
+      <h3>${this._tr("Verbraucher ({0})", consumers.length)}</h3>
       ${consumers.map((_c: unknown, i: number) => {
         const ptr: Pointer = [...roomPtr, "consumers", i];
         return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, [...roomPtr, "consumers"])} @drop=${(e: DragEvent) => this._onDrop(e, [...roomPtr, "consumers"], i)}>
@@ -392,14 +398,14 @@ export class EnergyCardEditor extends LitElement {
               @click=${() => this._update([...roomPtr, "consumers"], (l) => moveItem(l, i, -1))}>↑</button>
             <button class="icon" ?disabled=${i === consumers.length - 1}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => moveItem(l, i, 1))}>↓</button>
-            <button class="icon" title="Entfernen"
+            <button class="icon" title=${this._tr("Entfernen")}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => removeItem(l, i))}>✕</button>
           </div>
         </div>`;
       })}
       <button class="add"
         @click=${() => this._update([...roomPtr, "consumers"], (l) => [...(l ?? []), { entity: "" }])}>
-        + Verbraucher
+        ${this._tr("+ Verbraucher")}
       </button>
     `;
   }
@@ -412,15 +418,15 @@ export class EnergyCardEditor extends LitElement {
         const ptr: Pointer = [...listPtr, i];
         const key = ptr.join(".");
         return html`<div class="item ${nested ? "nested" : ""}" @dragover=${(e: DragEvent) => this._onOver(e, listPtr)} @drop=${(e: DragEvent) => this._onDrop(e, listPtr, i)}>
-          ${this._itemHead(key, this._areaName(r.area_id), `${r.consumers?.length ?? 0} Verbraucher`, ptr, i, rooms.length)}
+          ${this._itemHead(key, this._areaName(r.area_id), this._tr("{0} Verbraucher", r.consumers?.length ?? 0), ptr, i, rooms.length)}
           ${this._open.has(key)
             ? html`${this._form(ptr, roomFields(this._areaOptions(floorId, r.area_id)))}${this._renderConsumers(ptr)}`
             : nothing}
         </div>`;
       })}
-      <button class="add" ?disabled=${!free.length} @click=${() => this._addRoom(listPtr, free[0].value)}>+ Raum</button>
+      <button class="add" ?disabled=${!free.length} @click=${() => this._addRoom(listPtr, free[0].value)}>${this._tr("+ Raum")}</button>
       ${this._reg && !free.length
-        ? html`<div class="warn">Keine weiteren Bereiche in Home Assistant verfügbar.</div>`
+        ? html`<div class="warn">${this._tr("Keine weiteren Bereiche in Home Assistant verfügbar.")}</div>`
         : nothing}
     `;
   }
@@ -438,8 +444,8 @@ export class EnergyCardEditor extends LitElement {
     const freeFloors = this._floorChoices("");
     return html`
       <section>
-        <h3>Struktur</h3>
-        <ha-formfield label="Etagen verwenden">
+        <h3>${this._tr("Struktur")}</h3>
+        <ha-formfield .label=${this._tr("Etagen verwenden")}>
           <ha-switch
             .checked=${useFloors}
             @change=${(ev: Event) => this._emit(toggleFloors(cfg!, (ev.target as HTMLInputElement).checked, this._reg?.areas))}
@@ -451,7 +457,7 @@ export class EnergyCardEditor extends LitElement {
                 const ptr: Pointer = ["floors", i];
                 const key = ptr.join(".");
                 return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, ["floors"])} @drop=${(e: DragEvent) => this._onDrop(e, ["floors"], i)}>
-                  ${this._itemHead(key, this._floorName(f.floor_id), `${f.rooms?.length ?? 0} Räume`, ptr, i, floors.length)}
+                  ${this._itemHead(key, this._floorName(f.floor_id), this._tr("{0} Räume", f.rooms?.length ?? 0), ptr, i, floors.length)}
                   ${this._open.has(key)
                     ? html`${this._form(ptr, floorFields(this._floorChoices(f.floor_id)))}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
                     : nothing}
@@ -459,10 +465,10 @@ export class EnergyCardEditor extends LitElement {
               })}
               <button class="add" ?disabled=${!freeFloors.length}
                 @click=${() => this._update(["floors"], (l) => [...(l ?? []), { floor_id: freeFloors[0].value, rooms: [] }])}>
-                + Etage
+                ${this._tr("+ Etage")}
               </button>
               ${this._reg && !freeFloors.length
-                ? html`<div class="warn">Keine weiteren Etagen in Home Assistant angelegt.</div>`
+                ? html`<div class="warn">${this._tr("Keine weiteren Etagen in Home Assistant angelegt.")}</div>`
                 : nothing}`
           : this._renderRooms(["rooms"], false)}
       </section>
@@ -477,18 +483,19 @@ export class EnergyCardEditor extends LitElement {
       this._config.colors,
       theme.getPropertyValue("--primary-text-color"),
       theme.getPropertyValue("--card-background-color"),
+      this._tr,
     );
     const conflict = sumConflict(this._config, (this.hass?.states ?? {}) as Record<string, StateLike | undefined>);
     return html`
-      <section><h3>Allgemein</h3>${this._form([], GENERAL)}</section>
-      <section><h3>Farben</h3>${this._form([], COLORS)}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
-      <section><h3>Zuhause</h3>${this._form([], HOME)}</section>
+      <section><h3>${this._tr("Allgemein")}</h3>${this._form([], GENERAL)}</section>
+      <section><h3>${this._tr("Farben")}</h3>${this._form([], COLORS)}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
+      <section><h3>${this._tr("Zuhause")}</h3>${this._form([], HOME)}</section>
       ${this._renderSources()} ${this._renderStructure()}
       ${conflict
-        ? html`<div class="warn">⚠ Die Räume verbrauchen zusammen ${Math.round(conflict.rooms)} W, mehr als der Gesamt-Sensor (${Math.round(conflict.total)} W). „Nicht erfasst“ wird nicht angezeigt.</div>`
+        ? html`<div class="warn">⚠ ${this._tr("Die Räume verbrauchen zusammen {0} W, mehr als der Gesamt-Sensor ({1} W). „Nicht erfasst“ wird nicht angezeigt.", Math.round(conflict.rooms), Math.round(conflict.total))}</div>`
         : nothing}
       ${dups.map(
-        (d) => html`<div class="warn">⚠ ${d.entity} ist mehrfach zugeordnet: ${d.places.join(", ")}</div>`,
+        (d) => html`<div class="warn">⚠ ${this._tr("{0} ist mehrfach zugeordnet: {1}", d.entity, d.places.join(", "))}</div>`,
       )}
     `;
   }

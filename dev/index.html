@@ -1,24 +1,182 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-body{margin:0;padding:16px;background:#161826;font-family:system-ui,sans-serif;color:#e9e9ed;max-width:480px}
-ha-card{display:block;border-radius:12px;border:1px solid #3f424d}
-ha-icon{display:inline-block;width:24px;height:24px;font-size:11px;text-align:center;line-height:24px}
-</style></head><body>
-<energy-card id="c"></energy-card>
-<script type="module">
-await import("../dist/energy-card.js?v="+Date.now());
-const s=(v,u="W")=>({state:String(v),attributes:{unit_of_measurement:u}});
-const hass={language:"de",config:{location_name:"Zuhause"},callWS:async(m)=>m.type.includes("floor")?[{floor_id:"eg",name:"EG"},{floor_id:"og",name:"OG"},{floor_id:"keller",name:"Keller"}]:[{area_id:"kueche",name:"Küche",icon:"mdi:stove",floor_id:"eg"},{area_id:"wz",name:"Wohnzimmer",icon:"mdi:sofa",floor_id:"eg"},{area_id:"flur",name:"Flur",icon:"mdi:door",floor_id:"eg"},{area_id:"bad",name:"Bad",icon:"mdi:shower",floor_id:"og"},{area_id:"werk",name:"Werkstatt",icon:"mdi:tools",floor_id:"keller"}],states:{
- "sensor.pv":s(3.42,"kW"),"sensor.akku":s(480),"sensor.soc":s(76,"%"),"sensor.netz":s(350),
- "sensor.total":s(4.25,"kW"),"sensor.backofen":s(820),"sensor.spuel":s(310),"sensor.kuehl":s(120),"sensor.kaffee":s(70),
- "sensor.wz":s(540),"sensor.flur":s(240),"sensor.og":s(1050),"sensor.keller":s(1100)}};
-const room=(area_id,c)=>({area_id,consumers:c});
-const el=document.getElementById("c");
-el.setConfig({type:"custom:energy-card",title:"Energiefluss",home:{total_entity:"sensor.total"},
- sources:[{entity:"sensor.pv",type:"solar"},{entity:"sensor.akku",type:"battery",soc_entity:"sensor.soc"},{entity:"sensor.netz",type:"grid"}],
- colors:{preset:"nocturne"},
- floors:[{floor_id:"eg",rooms:[room("kueche",[{entity:"sensor.backofen",name:"Backofen"},{entity:"sensor.spuel",name:"Spülmaschine"},{entity:"sensor.kuehl",name:"Kühlschrank"},{entity:"sensor.kaffee",name:"Kaffeemaschine"}]),room("wz",[{entity:"sensor.wz"}]),room("flur",[{entity:"sensor.flur"}])]},
- {floor_id:"og",rooms:[room("bad",[{entity:"sensor.og"}])]},{floor_id:"keller",rooms:[room("werk",[{entity:"sensor.keller"}])]}]});
-el.hass=hass;
-</script></body></html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Energy Card – dev preview</title>
+    <style>
+      /* HA-like dark theme variables */
+      :root {
+        --primary-color: #03a9f4;
+        --accent-color: #ff9800;
+        --primary-text-color: #e1e1e1;
+        --secondary-text-color: #9b9b9b;
+        --disabled-text-color: #6f6f6f;
+        --divider-color: rgba(225, 225, 225, 0.16);
+        --card-background-color: #1c1c1c;
+        --primary-background-color: #111111;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: #111111;
+        color: var(--primary-text-color);
+        font-family: Roboto, system-ui, sans-serif;
+        max-width: 480px;
+      }
+      ha-card {
+        display: block;
+        border-radius: 12px;
+        border: 1px solid var(--divider-color);
+      }
+    </style>
+  </head>
+  <body>
+    <energy-card id="c"></energy-card>
+    <script type="module">
+      import * as mdi from "@mdi/js";
+      import "../src/energy-card.ts";
+
+      // Minimal stand-in for Home Assistant's <ha-icon>, drawing MDI icons.
+      customElements.define(
+        "ha-icon",
+        class extends HTMLElement {
+          static observedAttributes = ["icon"];
+          attributeChangedCallback() {
+            this.render();
+          }
+          connectedCallback() {
+            this.render();
+          }
+          render() {
+            const name = (this.getAttribute("icon") ?? "").replace(/^mdi:/, "");
+            const key = "mdi" + name.replace(/(^|-)(\w)/g, (_, __, c) => c.toUpperCase());
+            const d = mdi[key];
+            this.style.display = "inline-flex";
+            this.innerHTML = d
+              ? `<svg viewBox="0 0 24 24" style="width:var(--mdc-icon-size,24px);height:var(--mdc-icon-size,24px);fill:currentColor"><path d="${d}"/></svg>`
+              : "";
+          }
+        },
+      );
+
+      const s = (v, unit = "W") => ({ state: String(v), attributes: { unit_of_measurement: unit, device_class: "power" } });
+      const room = (area_id, consumers = []) => ({ area_id, consumers });
+      const c = (entity, name) => ({ entity, name });
+
+      const registries = {
+        floors: [
+          { floor_id: "eg", name: "EG" },
+          { floor_id: "og", name: "OG" },
+          { floor_id: "keller", name: "Keller" },
+        ],
+        areas: [
+          { area_id: "kueche", name: "Küche", icon: "mdi:stove", floor_id: "eg" },
+          { area_id: "wohnzimmer", name: "Wohnzimmer", icon: "mdi:sofa", floor_id: "eg" },
+          { area_id: "flur", name: "Flur", icon: "mdi:door", floor_id: "eg" },
+          { area_id: "bad", name: "Bad", icon: "mdi:shower", floor_id: "og" },
+          { area_id: "schlafen", name: "Schlafen", icon: "mdi:bed", floor_id: "og" },
+          { area_id: "werkstatt", name: "Werkstatt", icon: "mdi:tools", floor_id: "keller" },
+          { area_id: "wohnen", name: "Wohnen", icon: "mdi:sofa" },
+          { area_id: "buero", name: "Büro", icon: "mdi:desk" },
+          ...["Flur 2", "Garage", "Keller", "Garten", "Terrasse", "Waschküche"].map((name, i) => ({
+            area_id: `x${i}`,
+            name,
+            icon: "mdi:home",
+          })),
+        ],
+      };
+
+      const states = {
+        "sensor.pv": s(3420),
+        "sensor.akku": s(480),
+        "sensor.soc": { state: "76", attributes: { unit_of_measurement: "%", device_class: "battery" } },
+        "sensor.netz": s(350),
+        "sensor.total": s(4250),
+        "sensor.backofen": s(820),
+        "sensor.spuel": s(310),
+        "sensor.kuehl": s(120),
+        "sensor.kaffee": s(70),
+        "sensor.wz": s(540),
+        "sensor.flur": s(240),
+        "sensor.og": s(1050),
+        "sensor.keller": s(1100),
+        // flat apartment
+        "sensor.balkon": s(620),
+        "sensor.netz2": s(1240),
+        "sensor.total2": s(1860),
+        "sensor.herd": s(710),
+        "sensor.spuel2": s(120),
+        "sensor.kuehl2": s(110),
+        "sensor.wohnen": s(380),
+        "sensor.bad": s(280),
+        "sensor.buero": s(160),
+        "sensor.schlafen": s(100),
+        ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`sensor.r${i}`, s(100 + i * 60)])),
+      };
+
+      const sources = [
+        { entity: "sensor.pv", type: "solar" },
+        { entity: "sensor.akku", type: "battery", soc_entity: "sensor.soc" },
+        { entity: "sensor.netz", type: "grid" },
+      ];
+
+      const manyRooms = Array.from({ length: 10 }, (_, i) => room(i < 8 ? registries.areas[i].area_id : `x${i - 8}`, [c(`sensor.r${i}`, `Verbraucher ${i + 1}`)]));
+
+      const scenarios = {
+        floors: {
+          title: "Energiefluss",
+          home: { total_entity: "sensor.total" },
+          sources,
+          options: { unit: "kW" },
+          floors: [
+            {
+              floor_id: "eg",
+              rooms: [
+                room("kueche", [
+                  c("sensor.backofen", "Backofen"),
+                  c("sensor.spuel", "Spülmaschine"),
+                  c("sensor.kuehl", "Kühlschrank"),
+                  c("sensor.kaffee", "Kaffeemaschine"),
+                ]),
+                room("wohnzimmer", [c("sensor.wz", "TV & Sound")]),
+                room("flur", [c("sensor.flur", "Beleuchtung")]),
+              ],
+            },
+            { floor_id: "og", rooms: [room("bad", [c("sensor.og", "Fußbodenheizung")])] },
+            { floor_id: "keller", rooms: [room("werkstatt", [c("sensor.keller", "Werkzeug")])] },
+          ],
+        },
+        flat: {
+          title: "Energiefluss",
+          home: { total_entity: "sensor.total2" },
+          sources: [
+            { entity: "sensor.balkon", type: "solar", name: "Balkon-PV" },
+            { entity: "sensor.netz2", type: "grid" },
+          ],
+          options: { unit: "kW" },
+          rooms: [
+            room("kueche", [c("sensor.herd", "Herd"), c("sensor.spuel2", "Spülmaschine"), c("sensor.kuehl2", "Kühlschrank")]),
+            room("wohnen", [c("sensor.wohnen", "Wohnzimmer")]),
+            room("bad", [c("sensor.bad", "Bad")]),
+            room("buero", [c("sensor.buero", "Büro")]),
+            room("schlafen", [c("sensor.schlafen", "Schlafen")]),
+          ],
+        },
+        many: { title: "Viele Räume", sources, options: { unit: "kW" }, rooms: manyRooms },
+        wrap: { title: "Viele Räume", sources, options: { unit: "kW", wrap_rooms: true }, rooms: manyRooms },
+        invalid: { title: "Ungültig", rooms: [{ name: "ohne area_id" }] },
+      };
+
+      const name = new URLSearchParams(location.search).get("scenario") ?? "floors";
+      const el = document.getElementById("c");
+      el.setConfig({ type: "custom:energy-card", ...scenarios[name] });
+      el.hass = {
+        language: "de",
+        config: { location_name: "Zuhause" },
+        states,
+        callWS: async (m) => (m.type.includes("floor") ? registries.floors : registries.areas),
+      };
+    </script>
+  </body>
+</html>

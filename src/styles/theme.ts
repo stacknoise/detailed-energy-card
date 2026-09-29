@@ -196,6 +196,7 @@ export const cardStyles = css`
   }
   .value {
     font-weight: 600;
+    white-space: nowrap;
   }
   .warn {
     opacity: 0.5;
