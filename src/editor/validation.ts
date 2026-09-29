@@ -45,10 +45,10 @@ export function fieldErrors(
   return errors;
 }
 
-/** Accepts empty, "theme" and CSS hex colors. */
+/** Accepts empty, "theme", CSS hex colors and var(--theme-variable). */
 export function isValidColor(value: unknown): boolean {
   if (value === undefined || value === null || value === "" || value === "theme") return true;
-  return typeof value === "string" && /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value);
+  return typeof value === "string" && /^(#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|var\(--[\w-]+\))$/i.test(value);
 }
 
 export const colorError = (value: unknown): string | undefined =>

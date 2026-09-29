@@ -8,6 +8,8 @@ export interface Field {
   selector: Record<string, unknown>;
   label: string;
   required?: boolean;
+  /** value shown (and behavior applied) while the option is unset in the config */
+  default?: unknown;
   /** show only when the edited object matches */
   when?: (obj: any) => boolean;
   /** rendered as color picker + hex field instead of a selector */
@@ -19,20 +21,47 @@ export interface Field {
 const power = { entity: { domain: "sensor", device_class: "power" } };
 const text = { text: {} };
 const icon = { icon: {} };
-const color = (path: string, label: string): Field => ({ path, selector: text, label, kind: "color" });
+export const COLOR_KEYS = ["accent", "flow", "inactive", "bar", "background", "text"];
+
+/** Individual colors are editable with the "custom" preset, or when the YAML already sets some. */
+const customColors = (cfg: any): boolean =>
+  cfg?.colors?.preset === "custom" || COLOR_KEYS.some((k) => !!cfg?.colors?.[k]);
+
+const color = (path: string, label: string): Field => ({
+  path,
+  selector: text,
+  label,
+  kind: "color",
+  when: path.startsWith("colors.") ? customColors : undefined,
+});
+
+/** Quick choices for the color rows; "" means: use the Home Assistant theme. */
+export const PALETTE: Array<{ value: string; label: string }> = [
+  { value: "", label: "Theme" },
+  { value: "var(--primary-color)", label: "Primärfarbe" },
+  { value: "var(--accent-color)", label: "Akzentfarbe" },
+  { value: "#9184d9", label: "Violett" },
+  { value: "#b5abfc", label: "Hellviolett" },
+  { value: "#f2c94c", label: "Gelb" },
+  { value: "#4caf50", label: "Grün" },
+  { value: "#03a9f4", label: "Blau" },
+  { value: "#f44336", label: "Rot" },
+  { value: "#ff9800", label: "Orange" },
+  { value: "#9e9e9e", label: "Grau" },
+];
 const opts = (values: string[]) => ({ select: { mode: "box", options: values.map((v) => ({ value: v, label: v })) } });
 
 export const GENERAL: Field[] = [
   { path: "title", selector: text, label: "Titel" },
-  { path: "options.unit", selector: opts(["auto", "W", "kW"]), label: "Einheit" },
-  { path: "options.decimals", selector: { number: { min: 0, max: 4, mode: "box" } }, label: "Nachkommastellen" },
-  { path: "options.animation", selector: { boolean: {} }, label: "Animation" },
-  { path: "options.show_unassigned", selector: { boolean: {} }, label: "„Nicht erfasst“ anzeigen" },
-  { path: "options.remember_selection", selector: { boolean: {} }, label: "Auswahl merken" },
+  { path: "options.unit", selector: opts(["W", "kW", "auto"]), label: "Einheit", default: "W" },
+  { path: "options.decimals", selector: { number: { min: 0, max: 4, mode: "box" } }, label: "Nachkommastellen", default: 2 },
+  { path: "options.animation", selector: { boolean: {} }, label: "Animation", default: true },
+  { path: "options.show_unassigned", selector: { boolean: {} }, label: "„Nicht erfasst“ anzeigen", default: true },
+  { path: "options.remember_selection", selector: { boolean: {} }, label: "Auswahl merken", default: true },
 ];
 
 export const COLORS: Field[] = [
-  { path: "colors.preset", selector: opts(["theme", "nocturne", "custom"]), label: "Voreinstellung" },
+  { path: "colors.preset", selector: opts(["theme", "nocturne", "custom"]), label: "Voreinstellung", default: "theme" },
   color("colors.accent", "Akzent / Auswahl"),
   color("colors.flow", "Fluss-Linien"),
   color("colors.inactive", "Inaktive Linien"),

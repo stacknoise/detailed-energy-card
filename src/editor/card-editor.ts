@@ -15,6 +15,8 @@ import {
 } from "./config-utils";
 import {
   COLORS,
+  COLOR_KEYS,
+  PALETTE,
   CONSUMER,
   GENERAL,
   HOME,
@@ -171,14 +173,36 @@ export class EnergyCardEditor extends LitElement {
       user-select: none;
     }
     .color {
-      display: grid;
-      grid-template-columns: 1fr auto 110px auto;
+      margin: 12px 0;
+    }
+    .color label {
+      display: block;
+      margin-bottom: 6px;
+    }
+    .swatches,
+    .inputs {
+      display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      margin: 8px 0;
+      margin-bottom: 6px;
     }
-    .color .warn {
-      grid-column: 1 / -1;
+    .swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid var(--divider-color, #3f424d);
+      cursor: pointer;
+      padding: 0;
+      color: var(--secondary-text-color);
+      font-size: 0.75em;
+    }
+    .swatch.theme {
+      background: none;
+    }
+    .swatch.on {
+      border-color: var(--primary-text-color, #fff);
+      box-shadow: 0 0 0 2px var(--primary-color, #9184d9);
     }
     .color input[type="text"] {
       background: none;
@@ -215,8 +239,14 @@ export class EnergyCardEditor extends LitElement {
     this._update(ptr, (obj: object) => {
       let next = obj ?? {};
       for (const f of fields.filter((x) => x.kind !== "color")) {
-        if (!(f.path in data) && getPath(next, f.path) === undefined) continue;
-        if (data[f.path] !== getPath(next, f.path)) next = setPath(next, f.path, data[f.path]);
+        const current = getPath(next, f.path) ?? f.default;
+        if (!(f.path in data) && current === undefined) continue;
+        if (data[f.path] !== current) next = setPath(next, f.path, data[f.path]);
+      }
+      // Choosing a non-custom preset drops the individual colors, so nothing hidden keeps applying.
+      const preset = getPath(next, "colors.preset");
+      if (preset !== getPath(obj, "colors.preset") && preset !== "custom") {
+        for (const k of COLOR_KEYS) next = setPath(next, `colors.${k}`, undefined);
       }
       return next;
     });
@@ -233,9 +263,9 @@ export class EnergyCardEditor extends LitElement {
   private _form(ptr: Pointer, fields: Field[]): TemplateResult {
     const obj = ptr.length ? getIn(this._config, ptr) : this._config;
     const data: Record<string, unknown> = {};
-    for (const f of fields) data[f.path] = getPath(obj, f.path);
+    for (const f of fields) data[f.path] = getPath(obj, f.path) ?? f.default;
     const plain = fields.filter((f) => f.kind !== "color");
-    const colors = fields.filter((f) => f.kind === "color");
+    const colors = fields.filter((f) => f.kind === "color" && (!f.when || f.when(obj)));
     const states = (this.hass?.states ?? {}) as Record<string, StateLike | undefined>;
     return html`<ha-form
         .hass=${this.hass}
@@ -256,10 +286,23 @@ export class EnergyCardEditor extends LitElement {
     const set = (v: string) => this._update(ptr, (obj: object) => setPath(obj ?? {}, f.path, v));
     return html`<div class="color">
       <label>${f.label}</label>
-      <input type="color" .value=${swatch} @input=${(e: Event) => set((e.target as HTMLInputElement).value)} />
-      <input type="text" placeholder="Theme" .value=${text}
-        @change=${(e: Event) => set((e.target as HTMLInputElement).value.trim())} />
-      <button class="icon" title="Zurücksetzen" ?disabled=${!text} @click=${() => set("")}>↺</button>
+      <div class="swatches">
+        ${PALETTE.map(
+          (c) => html`<button
+            class="swatch ${c.value === text ? "on" : ""} ${c.value ? "" : "theme"}"
+            title=${c.label}
+            style=${c.value ? `background:${c.value}` : ""}
+            @click=${() => set(c.value)}
+          >${c.value ? "" : "T"}</button>`,
+        )}
+      </div>
+      <div class="inputs">
+        <input type="color" title="Eigene Farbe wählen" .value=${swatch}
+          @input=${(e: Event) => set((e.target as HTMLInputElement).value)} />
+        <input type="text" placeholder="Theme" .value=${text}
+          @change=${(e: Event) => set((e.target as HTMLInputElement).value.trim())} />
+        <button class="icon" title="Zurücksetzen auf Theme" ?disabled=${!text} @click=${() => set("")}>↺</button>
+      </div>
       ${error ? html`<div class="warn">${error}</div>` : nothing}
     </div>`;
   }
