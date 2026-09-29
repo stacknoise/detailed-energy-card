@@ -167,3 +167,14 @@ describe("flow speed", () => {
     expect(flowDuration(-800)).toBe(flowDuration(800));
   });
 });
+
+import { FLOOR_H } from "../src/view/layout";
+
+describe("floors without a visible room row", () => {
+  it("sit closer to the home and are fully inside the layout", () => {
+    const withRooms = computeLayout({ width: 400, sources: 3, floors: 3, rooms: 3 });
+    const noRooms = computeLayout({ width: 400, sources: 3, floors: 3, rooms: 0 });
+    expect(noRooms.yFloor - noRooms.yHome).toBeLessThan(withRooms.yFloor - withRooms.yHome);
+    expect(noRooms.height).toBeGreaterThanOrEqual(noRooms.yFloor + FLOOR_H);
+  });
+});

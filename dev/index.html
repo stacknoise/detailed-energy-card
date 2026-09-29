@@ -180,7 +180,10 @@
         invalid: { title: "Ungültig", rooms: [{ name: "ohne area_id" }] },
       };
 
-      const name = new URLSearchParams(location.search).get("scenario") ?? "floors";
+      const params = new URLSearchParams(location.search);
+      // ?width=900 lets the card grow wider than the default 480px preview column
+      if (params.get("width")) document.body.style.maxWidth = params.get("width") + "px";
+      const name = params.get("scenario") ?? "floors";
       const el = document.getElementById("c");
       el.setConfig({ type: "custom:energy-card", ...scenarios[name] });
       el.hass = {

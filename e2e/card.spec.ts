@@ -152,3 +152,25 @@ test.describe("consumer list on small screens", () => {
     expect(cut.some(Boolean)).toBe(true);
   });
 });
+
+test("floors are fully visible when no rooms are shown", async ({ page }) => {
+  await open(page, "floors");
+  await node(page, "Zuhause").click();
+  const scroll = await page.locator("energy-card .scroll").boundingBox();
+  const pills = await page.locator("energy-card .pill").evaluateAll((els) =>
+    els.map((e) => e.getBoundingClientRect().bottom),
+  );
+  expect(pills).toHaveLength(3);
+  for (const bottom of pills) expect(bottom).toBeLessThanOrEqual(scroll!.y + scroll!.height);
+});
+
+test("on wide screens the bar uses the free space next to the name", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto("/dev/index.html?scenario=floors&width=900");
+  await expect(page.locator("energy-card .path")).not.toHaveText("");
+  const box = await page.locator("energy-card .detail").boundingBox();
+  const bar = await page.locator("energy-card .row .bar").first().boundingBox();
+  // the bar starts in the left half and stretches over at least 40 % of the list
+  expect(bar!.x - box!.x).toBeLessThan(box!.width * 0.5);
+  expect(bar!.width).toBeGreaterThan(box!.width * 0.4);
+});
