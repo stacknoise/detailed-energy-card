@@ -10,11 +10,16 @@ export interface Field {
   required?: boolean;
   /** show only when the edited object matches */
   when?: (obj: any) => boolean;
+  /** rendered as color picker + hex field instead of a selector */
+  kind?: "color";
+  /** sensor kind validated against the live HA state */
+  check?: "power" | "battery";
 }
 
 const power = { entity: { domain: "sensor", device_class: "power" } };
 const text = { text: {} };
 const icon = { icon: {} };
+const color = (path: string, label: string): Field => ({ path, selector: text, label, kind: "color" });
 const opts = (values: string[]) => ({ select: { mode: "box", options: values.map((v) => ({ value: v, label: v })) } });
 
 export const GENERAL: Field[] = [
@@ -28,28 +33,29 @@ export const GENERAL: Field[] = [
 
 export const COLORS: Field[] = [
   { path: "colors.preset", selector: opts(["theme", "nocturne", "custom"]), label: "Voreinstellung" },
-  { path: "colors.accent", selector: text, label: "Akzent / Auswahl (Hex)" },
-  { path: "colors.flow", selector: text, label: "Fluss-Linien (Hex)" },
-  { path: "colors.inactive", selector: text, label: "Inaktive Linien (Hex)" },
-  { path: "colors.bar", selector: text, label: "Verbraucher-Balken (Hex)" },
-  { path: "colors.background", selector: text, label: "Hintergrund (Hex, leer = transparent)" },
-  { path: "colors.text", selector: text, label: "Text (Hex oder theme)" },
+  color("colors.accent", "Akzent / Auswahl"),
+  color("colors.flow", "Fluss-Linien"),
+  color("colors.inactive", "Inaktive Linien"),
+  color("colors.bar", "Verbraucher-Balken"),
+  color("colors.background", "Hintergrund (leer = transparent)"),
+  color("colors.text", "Text (leer = Theme)"),
 ];
 
 export const HOME: Field[] = [
-  { path: "home.total_entity", selector: power, label: "Gesamt-Sensor (optional)" },
+  { path: "home.total_entity", selector: power, label: "Gesamt-Sensor (optional)", check: "power" },
 ];
 
 export const SOURCE: Field[] = [
-  { path: "entity", selector: power, label: "Sensor", required: true },
+  { path: "entity", selector: power, label: "Sensor", required: true, check: "power" },
   { path: "type", selector: opts(["solar", "battery", "grid", "generic"]), label: "Typ" },
   { path: "name", selector: text, label: "Name" },
   { path: "icon", selector: icon, label: "Icon" },
-  { path: "color", selector: text, label: "Farbe (Hex)" },
+  color("color", "Farbe"),
   {
     path: "soc_entity",
-    selector: { entity: { domain: "sensor", device_class: "battery" } },
+    selector: { entity: { domain: "sensor" } },
     label: "Ladezustand (SoC)",
+    check: "battery",
     when: (s) => s?.type === "battery",
   },
   { path: "invert", selector: { boolean: {} }, label: "Vorzeichen invertieren" },
@@ -64,17 +70,17 @@ const dropdown = (choices: Choice[]) => ({ select: { mode: "dropdown", options: 
 /** Floors can only be picked from the Home Assistant floor registry. */
 export const floorFields = (choices: Choice[] = []): Field[] => [
   { path: "floor_id", selector: dropdown(choices), label: "Etage", required: true },
-  { path: "color", selector: text, label: "Farbe (Hex)" },
+  color("color", "Farbe"),
 ];
 
 /** Rooms can only be picked from the Home Assistant area registry. */
 export const roomFields = (choices: Choice[] = []): Field[] => [
   { path: "area_id", selector: dropdown(choices), label: "Bereich (Raum)", required: true },
-  { path: "color", selector: text, label: "Farbe (Hex)" },
+  color("color", "Farbe"),
 ];
 
 export const CONSUMER: Field[] = [
-  { path: "entity", selector: power, label: "Sensor", required: true },
+  { path: "entity", selector: power, label: "Sensor", required: true, check: "power" },
   { path: "name", selector: text, label: "Name (optional)" },
 ];
 

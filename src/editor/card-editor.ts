@@ -26,6 +26,8 @@ import {
   type Field,
 } from "./schema";
 import { loadRegistries, type Registries } from "../model/registry";
+import type { StateLike } from "../model/units";
+import { colorError, fieldErrors, sumConflict } from "./validation";
 
 interface Hass {
   states: Record<string, unknown>;
@@ -161,6 +163,31 @@ export class EnergyCardEditor extends LitElement {
     ha-form {
       display: block;
     }
+    .color {
+      display: grid;
+      grid-template-columns: 1fr auto 110px auto;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+    }
+    .color .warn {
+      grid-column: 1 / -1;
+    }
+    .color input[type="text"] {
+      background: none;
+      border: 1px solid var(--divider-color, #3f424d);
+      border-radius: 6px;
+      color: inherit;
+      font: inherit;
+      padding: 6px 8px;
+    }
+    .color input[type="color"] {
+      border: none;
+      background: none;
+      height: 32px;
+      width: 40px;
+      padding: 0;
+    }
   `;
 
   // ---------- config mutation ----------
@@ -180,7 +207,7 @@ export class EnergyCardEditor extends LitElement {
     const data = ev.detail.value as Record<string, unknown>;
     this._update(ptr, (obj: object) => {
       let next = obj ?? {};
-      for (const f of fields) {
+      for (const f of fields.filter((x) => x.kind !== "color")) {
         if (!(f.path in data) && getPath(next, f.path) === undefined) continue;
         if (data[f.path] !== getPath(next, f.path)) next = setPath(next, f.path, data[f.path]);
       }
@@ -200,13 +227,34 @@ export class EnergyCardEditor extends LitElement {
     const obj = ptr.length ? getIn(this._config, ptr) : this._config;
     const data: Record<string, unknown> = {};
     for (const f of fields) data[f.path] = getPath(obj, f.path);
+    const plain = fields.filter((f) => f.kind !== "color");
+    const colors = fields.filter((f) => f.kind === "color");
+    const states = (this.hass?.states ?? {}) as Record<string, StateLike | undefined>;
     return html`<ha-form
-      .hass=${this.hass}
-      .data=${data}
-      .schema=${toSchema(fields, obj)}
-      .computeLabel=${(s: { name: string }) => labelFor(fields, s.name)}
-      @value-changed=${(ev: CustomEvent) => this._onForm(ptr, fields, ev)}
-    ></ha-form>`;
+        .hass=${this.hass}
+        .data=${data}
+        .schema=${toSchema(plain, obj)}
+        .error=${fieldErrors(obj, plain, states, getPath)}
+        .computeLabel=${(s: { name: string }) => labelFor(fields, s.name)}
+        @value-changed=${(ev: CustomEvent) => this._onForm(ptr, fields, ev)}
+      ></ha-form>
+      ${colors.map((f) => this._colorRow(ptr, f, getPath(obj, f.path)))}`;
+  }
+
+  /** Color picker + hex field + reset (an empty value falls back to the HA theme). */
+  private _colorRow(ptr: Pointer, f: Field, value: unknown): TemplateResult {
+    const text = typeof value === "string" ? value : "";
+    const swatch = /^#[0-9a-f]{6}$/i.test(text) ? text : "#808080";
+    const error = colorError(value);
+    const set = (v: string) => this._update(ptr, (obj: object) => setPath(obj ?? {}, f.path, v));
+    return html`<div class="color">
+      <label>${f.label}</label>
+      <input type="color" .value=${swatch} @input=${(e: Event) => set((e.target as HTMLInputElement).value)} />
+      <input type="text" placeholder="Theme" .value=${text}
+        @change=${(e: Event) => set((e.target as HTMLInputElement).value.trim())} />
+      <button class="icon" title="Zurücksetzen" ?disabled=${!text} @click=${() => set("")}>↺</button>
+      ${error ? html`<div class="warn">${error}</div>` : nothing}
+    </div>`;
   }
 
   private _itemHead(key: string, title: string, sub: string, ptr: Pointer, index: number, count: number): TemplateResult {
@@ -340,11 +388,15 @@ export class EnergyCardEditor extends LitElement {
   protected render(): TemplateResult {
     if (!this._config) return html``;
     const dups = findDuplicates(this._config);
+    const conflict = sumConflict(this._config, (this.hass?.states ?? {}) as Record<string, StateLike | undefined>);
     return html`
       <section><h3>Allgemein</h3>${this._form([], GENERAL)}</section>
       <section><h3>Farben</h3>${this._form([], COLORS)}</section>
       <section><h3>Zuhause</h3>${this._form([], HOME)}</section>
       ${this._renderSources()} ${this._renderStructure()}
+      ${conflict
+        ? html`<div class="warn">⚠ Die Räume verbrauchen zusammen ${Math.round(conflict.rooms)} W, mehr als der Gesamt-Sensor (${Math.round(conflict.total)} W). „Nicht erfasst“ wird nicht angezeigt.</div>`
+        : nothing}
       ${dups.map(
         (d) => html`<div class="warn">⚠ ${d.entity} ist mehrfach zugeordnet: ${d.places.join(", ")}</div>`,
       )}
