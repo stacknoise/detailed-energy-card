@@ -31,7 +31,7 @@ interface Hass {
 interface Selection {
   /** undefined = default (largest floor), null = explicitly none selected, i.e. all floors */
   floor?: string | null;
-  /** undefined = default (largest room), null = explicitly none selected */
+  /** a room name selects just that room; undefined / null select all rooms of the row */
   room?: string | null;
 }
 
@@ -186,7 +186,7 @@ export class EnergyCard extends LitElement {
     }
   }
 
-  /** Applies the stored selection, falling back to the largest floor / room. */
+  /** Applies the stored selection: the largest floor by default, all of its rooms unless one is chosen. */
   private _resolve(model: EnergyModel): { floor?: number; rooms: RoomNode[]; room?: number } {
     const largest = <T extends { watts: number }>(list: T[]) =>
       list.reduce((best, x, i) => (x.watts > list[best].watts ? i : best), 0);
@@ -199,7 +199,7 @@ export class EnergyCard extends LitElement {
       rooms = floor === undefined ? [] : model.floors[floor].rooms;
     }
     const r = rooms.findIndex((x) => x.name === this._sel.room);
-    const room = !rooms.length || this._sel.room === null ? undefined : r >= 0 ? r : largest(rooms);
+    const room = r >= 0 ? r : undefined;
     return { floor, rooms, room };
   }
 

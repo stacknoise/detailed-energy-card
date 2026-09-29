@@ -2,16 +2,28 @@ import { expect, test } from "@playwright/test";
 
 // Renders the images used in README.md. Run: npm run screenshots
 const shots: Array<{ scenario: string; file: string; before?: (page: import("@playwright/test").Page) => Promise<void> }> = [
-  { scenario: "floors", file: "card-with-floors" },
-  { scenario: "flat", file: "card-without-floors" },
-  { scenario: "wrap", file: "card-many-rooms-wrapped" },
   {
     scenario: "floors",
-    file: "card-all-rooms",
+    file: "card-with-floors",
     before: async (page) => {
       await page.locator("energy-card button.node[title=Küche]").click();
     },
   },
+  {
+    scenario: "flat",
+    file: "card-without-floors",
+    before: async (page) => {
+      await page.locator("energy-card button.node[title=Küche]").click();
+    },
+  },
+  {
+    scenario: "wrap",
+    file: "card-many-rooms-wrapped",
+    before: async (page) => {
+      await page.locator("energy-card button.node[title=Garage]").click();
+    },
+  },
+  { scenario: "floors", file: "card-all-rooms" }, // all rooms of the floor are selected by default
 ];
 
 for (const { scenario, file, before } of shots) {
