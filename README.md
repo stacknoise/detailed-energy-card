@@ -4,6 +4,15 @@ Home Assistant Lovelace card showing the power flow from sources (PV, battery, g
 
 Status: **0.1 MVP** (YAML configuration). The visual editor follows in 0.2.
 
+## Preview
+
+![Card with floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/mockups/3a-card-mit-etagen.png)
+![Card without floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/mockups/3b-card-ohne-etagen.png)
+
+These are design mockups; the visual editor (mockup below) is planned for 0.2.
+
+![Editor mockup](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/mockups/4a-editor.png)
+
 ## Install (HACS)
 
 HACS → ⋮ → Custom repositories → add this repository as type *Dashboard* → download *Energy Card*.
