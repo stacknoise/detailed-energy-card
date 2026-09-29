@@ -1,3 +1,5 @@
+import type { ThresholdConfig } from "./thresholds";
+
 export type SourceType = "solar" | "battery" | "grid" | "generic";
 
 export interface SourceConfig {
@@ -43,6 +45,8 @@ export interface ColorsConfig {
   bar?: string;
   background?: string;
   text?: string;
+  /** color of lines and bars by power range, in watts */
+  thresholds?: ThresholdConfig[];
 }
 
 export interface OptionsConfig {
@@ -104,6 +108,16 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     }
     if (s.soc_entity) checkEntity(s.soc_entity, `sources[${i}].soc_entity`);
   });
+  const thresholds = cfg.colors?.thresholds;
+  if (thresholds !== undefined) {
+    if (!Array.isArray(thresholds)) throw new ConfigError("colors.thresholds must be a list");
+    thresholds.forEach((t, i) => {
+      if (!isObj(t) || typeof t.from !== "number" || !Number.isFinite(t.from) || t.from < 0) {
+        throw new ConfigError(`colors.thresholds[${i}].from must be a number of watts (0 or more)`);
+      }
+      if (typeof t.color !== "string" || !t.color) throw new ConfigError(`colors.thresholds[${i}].color is required`);
+    });
+  }
   (cfg.floors ?? []).forEach((f, i) => {
     if (!isObj(f) || typeof f.floor_id !== "string" || !f.floor_id) {
       throw new ConfigError(`floors[${i}]: floor needs a floor_id (a Home Assistant floor)`);

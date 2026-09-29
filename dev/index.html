@@ -97,9 +97,9 @@
         "sensor.backofen": s(820),
         "sensor.spuel": s(310),
         "sensor.kuehl": s(120),
-        "sensor.kaffee": s(70),
+        "sensor.kaffee": s(0), // idle consumer
         "sensor.wz": s(540),
-        "sensor.flur": s(240),
+        "sensor.flur": s(0), // idle room
         "sensor.og": s(1050),
         "sensor.keller": s(1100),
         // flat apartment
@@ -116,6 +116,12 @@
         ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`sensor.r${i}`, s(100 + i * 60)])),
       };
 
+      const thresholds = [
+        { from: 0, color: "#4caf50" },
+        { from: 500, color: "#ff9800" },
+        { from: 2000, color: "#f44336" },
+      ];
+
       const sources = [
         { entity: "sensor.pv", type: "solar" },
         { entity: "sensor.akku", type: "battery", soc_entity: "sensor.soc" },
@@ -129,6 +135,7 @@
           title: "Energiefluss",
           home: { total_entity: "sensor.total" },
           sources,
+          colors: { thresholds },
           options: { unit: "kW" },
           floors: [
             {
@@ -155,6 +162,7 @@
             { entity: "sensor.balkon", type: "solar", name: "Balkon-PV" },
             { entity: "sensor.netz2", type: "grid" },
           ],
+          colors: { thresholds },
           options: { unit: "kW" },
           rooms: [
             room("kueche", [c("sensor.herd", "Herd"), c("sensor.spuel2", "Spülmaschine"), c("sensor.kuehl2", "Kühlschrank")]),

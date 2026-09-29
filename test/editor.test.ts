@@ -26,7 +26,16 @@ const FULL: EnergyCardConfig = {
     },
   ],
   rooms: [{ area_id: "bad", color: "#fff", consumers: [{ entity: "sensor.b", name: "Boiler" }] }],
-  colors: { preset: "custom", accent: "#1", flow: "#2", inactive: "#3", bar: "#4", background: "#5", text: "#6" },
+  colors: {
+    preset: "custom",
+    accent: "#1",
+    flow: "#2",
+    inactive: "#3",
+    bar: "#4",
+    background: "#5",
+    text: "#6",
+    thresholds: [{ from: 500, color: "#ff9800" }],
+  },
   options: { unit: "auto", decimals: 2, animation: true, show_unassigned: true, remember_selection: true, wrap_rooms: false },
 };
 

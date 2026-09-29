@@ -5,6 +5,7 @@ import { cardStyles, colorVars } from "./styles/theme";
 import { collectEntityIds, validateConfig, type EnergyCardConfig } from "./model/config";
 import { computeModel, type EnergyModel, type RoomNode, type SourceNode } from "./model/compute";
 import { formatPower, stateToWatts, type StateLike } from "./model/units";
+import { isIdle, sortThresholds, thresholdColor, type ThresholdConfig } from "./model/thresholds";
 import { localize, type Key } from "./localize";
 import "./editor/card-editor";
 import { loadRegistries, resolveNames, type Registries } from "./model/registry";
@@ -214,6 +215,10 @@ export class EnergyCard extends LitElement {
     return formatPower(watts, o?.unit ?? "W", o?.decimals ?? 2, this._hass?.locale?.language ?? this._hass?.language);
   }
 
+  private get _thresholds(): ThresholdConfig[] {
+    return sortThresholds(this._config?.colors?.thresholds);
+  }
+
   private _moreInfo(entityId: string): void {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
@@ -285,13 +290,16 @@ export class EnergyCard extends LitElement {
 
   private _renderLines(model: EnergyModel, l: Layout, floorIdx?: number, roomIdx?: number, allRooms = false, allFloors = false): TemplateResult {
     const animate = this._config?.options?.animation !== false;
+    const thresholds = this._thresholds;
     const line = (d: string, watts: number, active: boolean, reverse = false) => {
       const dur = flowDuration(watts);
+      // only lines of the selected path take the threshold color, the others stay muted
+      const color = active && !isIdle(watts) ? thresholdColor(thresholds, watts) : undefined;
       return svg`<path
         class="line ${active ? "active" : ""} ${dur && animate ? "flowing" : ""} ${reverse ? "reverse" : ""}"
         d=${d}
         stroke-width=${strokeWidth(watts)}
-        style=${dur ? `--dur:${dur}s` : ""}
+        style=${(dur ? `--dur:${dur}s;` : "") + (color ? `stroke:${color}` : "")}
       />`;
     };
     const parts: TemplateResult[] = [];
@@ -363,7 +371,7 @@ export class EnergyCard extends LitElement {
   private _renderFloor(name: string, watts: number, color: string | undefined, x: number, y: number, selected: boolean, allFloors = false): TemplateResult {
     return html`
       <button
-        class="node"
+        class="node ${isIdle(watts) ? "idle" : ""}"
         style=${styleMap({ left: `${x}px`, top: `${y}px`, "--node-color": color ?? "" })}
         aria-pressed=${selected}
         title=${name}
@@ -377,7 +385,7 @@ export class EnergyCard extends LitElement {
   private _renderRoom(r: RoomNode, x: number, y: number, selected: boolean, allRooms = false): TemplateResult {
     return html`
       <button
-        class="node"
+        class="node ${isIdle(r.watts) ? "idle" : ""}"
         style=${styleMap({ left: `${x}px`, top: `${y}px`, "--node-color": r.color ?? "" })}
         aria-pressed=${selected}
         title=${r.name}
@@ -397,6 +405,7 @@ export class EnergyCard extends LitElement {
     const sorted = [...room.consumers].sort((a, b) => b.watts - a.watts);
     const max = Math.max(1, ...sorted.map((c) => c.watts));
     const showUnassigned = this._config?.options?.show_unassigned !== false && model.unassigned >= 1;
+    const thresholds = this._thresholds;
     return html`
       <div class="detail">
         <div class="detail-head">
@@ -408,10 +417,11 @@ export class EnergyCard extends LitElement {
         <div class="list">
         ${sorted.map((c) => {
           const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
+          const barColor = thresholdColor(thresholds, c.watts);
           return html`
-            <button class="row ${c.valid ? "" : "warn"}" @click=${() => this._moreInfo(c.entity)}>
+            <button class="row ${c.valid ? "" : "warn"} ${c.valid && isIdle(c.watts) ? "idle" : ""}" @click=${() => this._moreInfo(c.entity)}>
               <span class="name">${name}<small>${c.entity}</small></span>
-              <span class="bar"><div style=${styleMap({ width: `${(c.watts / max) * 100}%` })}></div></span>
+              <span class="bar"><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
             </button>
           `;
