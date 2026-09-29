@@ -71,6 +71,12 @@ export const COLORS: Field[] = [
   color("colors.text", "Text (leer = Theme)"),
 ];
 
+/** One color range: from `from` watts upwards lines and bars use `color`. */
+export const THRESHOLD: Field[] = [
+  { path: "from", selector: { number: { min: 0, mode: "box", unit_of_measurement: "W" } }, label: "ab (W)", required: true },
+  color("color", "Farbe"),
+];
+
 export const HOME: Field[] = [
   { path: "home.total_entity", selector: power, label: "Gesamt-Sensor (optional)", check: "power" },
 ];
@@ -136,6 +142,7 @@ export function coveredPaths(): string[] {
     ...prefix("", GENERAL),
     ...prefix("", COLORS),
     ...prefix("", HOME),
+    ...prefix("colors.thresholds[].", THRESHOLD),
     ...prefix("sources[].", SOURCE),
     ...prefix("floors[].", floorFields()),
     ...prefix("floors[].rooms[].", roomFields()),

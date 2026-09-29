@@ -60,7 +60,19 @@ floors:
             name: Backofen
 ```
 
-Floors and rooms are not free text: they are picked from the floors and areas that already exist in Home Assistant (`floor_id`, `area_id`); names and icons come from there, and the home name is your instance's location name. Options: `options.unit` (`W`, `kW`, `auto`; default `W`), `options.decimals`, `options.animation`, `options.show_unassigned`, `options.remember_selection` and `options.wrap_rooms` (wrap more than 6 rooms into two rows instead of scrolling). Use either `floors` or `rooms` on the top level. Only `sensor.*` power entities (W / kW / MW) are supported. All options are documented in the concept, section 3.
+Floors and rooms are not free text: they are picked from the floors and areas that already exist in Home Assistant (`floor_id`, `area_id`); names and icons come from there, and the home name is your instance's location name. Options: `options.unit` (`W`, `kW`, `auto`; default `W`), `options.decimals`, `options.animation`, `options.show_unassigned`, `options.remember_selection` and `options.wrap_rooms` (wrap more than 6 rooms into two rows instead of scrolling). Use either `floors` or `rooms` on the top level.
+
+**Idle and thresholds:** consumers that draw no power (under 1 W) are shown faded in the list, and rooms and floors without consumption are faded in the diagram. To color lines and list bars by power, add thresholds (in watts); from each `from` value upwards the color applies, below the first one the normal color is used:
+
+```yaml
+colors:
+  thresholds:
+    - { from: 0, color: "#4caf50" }
+    - { from: 500, color: "#ff9800" }
+    - { from: 2000, color: "#f44336" }
+```
+
+In the visual editor they are under *Colors → Thresholds* (with a traffic-light preset). Only `sensor.*` power entities (W / kW / MW) are supported. All options are documented in the concept, section 3.
 
 ## Development
 

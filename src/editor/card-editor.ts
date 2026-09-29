@@ -16,6 +16,7 @@ import {
 import {
   COLORS,
   COLOR_KEYS,
+  THRESHOLD,
   PALETTE,
   CONSUMER,
   GENERAL,
@@ -30,6 +31,7 @@ import {
 } from "./schema";
 import { loadRegistries, type Registries } from "../model/registry";
 import type { StateLike } from "../model/units";
+import { DEFAULT_THRESHOLDS, duplicateThresholds, type ThresholdConfig } from "../model/thresholds";
 import { colorError, contrastWarning, fieldErrors, sumConflict } from "./validation";
 import { makeTr, type Tr } from "../localize/editor";
 
@@ -185,6 +187,15 @@ export class EnergyCardEditor extends LitElement {
       display: block;
       margin-bottom: 6px;
     }
+    h4 {
+      font-size: 0.95em;
+      margin: 16px 0 4px;
+    }
+    .hint {
+      color: var(--secondary-text-color);
+      font-size: 0.85em;
+      margin-bottom: 8px;
+    }
     .swatches,
     .inputs {
       display: flex;
@@ -311,6 +322,39 @@ export class EnergyCardEditor extends LitElement {
       </div>
       ${error ? html`<div class="warn">${error}</div>` : nothing}
     </div>`;
+  }
+
+  // ---------- color thresholds ----------
+
+  private _setThresholds(list: ThresholdConfig[]): void {
+    if (this._config) this._emit(setPath(this._config, "colors.thresholds", list.length ? list : undefined));
+  }
+
+  private _renderThresholds(): TemplateResult {
+    const list: ThresholdConfig[] = this._config?.colors?.thresholds ?? [];
+    const dups = duplicateThresholds(list);
+    const next = (): ThresholdConfig =>
+      DEFAULT_THRESHOLDS[list.length] ?? { from: Math.max(100, ...list.map((t) => t.from || 0)) * 2, color: "#f44336" };
+    return html`
+      <h4>${this._tr("Schwellwerte (Farbe nach Leistung)")}</h4>
+      <div class="hint">${this._tr("Ab dem jeweiligen Wert (in W) bekommen Linien und Balken diese Farbe, darunter gilt die normale Farbe.")}</div>
+      ${list.map(
+        (t, i) => html`<div class="item">
+          <div class="head">
+            <span class="title">${this._tr("ab {0} W", t.from ?? 0)}</span>
+            <button class="icon" title=${this._tr("Entfernen")}
+              @click=${() => this._setThresholds(removeItem(list, i))}>✕</button>
+          </div>
+          ${this._form(["colors", "thresholds", i], THRESHOLD)}
+        </div>`,
+      )}
+      <button class="add" @click=${() => this._setThresholds([...list, next()])}>${this._tr("+ Schwellwert")}</button>
+      ${list.length === 0
+        ? html`<button class="add" @click=${() => this._setThresholds(DEFAULT_THRESHOLDS.map((t) => ({ ...t })))}>
+            ${this._tr("Ampel-Farben einfügen")}</button>`
+        : nothing}
+      ${dups.map((d) => html`<div class="warn">⚠ ${this._tr("Mehrere Schwellwerte ab {0} W: nur einer davon gilt.", d)}</div>`)}
+    `;
   }
 
   // ---------- drag and drop (reorder within one list) ----------
@@ -488,7 +532,7 @@ export class EnergyCardEditor extends LitElement {
     const conflict = sumConflict(this._config, (this.hass?.states ?? {}) as Record<string, StateLike | undefined>);
     return html`
       <section><h3>${this._tr("Allgemein")}</h3>${this._form([], GENERAL)}</section>
-      <section><h3>${this._tr("Farben")}</h3>${this._form([], COLORS)}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
+      <section><h3>${this._tr("Farben")}</h3>${this._form([], COLORS)}${this._renderThresholds()}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
       <section><h3>${this._tr("Zuhause")}</h3>${this._form([], HOME)}</section>
       ${this._renderSources()} ${this._renderStructure()}
       ${conflict

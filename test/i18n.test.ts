@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { editorKeys, makeTr } from "../src/localize/editor";
-import { COLORS, CONSUMER, GENERAL, HOME, PALETTE, SOURCE, floorFields, roomFields } from "../src/editor/schema";
+import { COLORS, CONSUMER, GENERAL, HOME, PALETTE, SOURCE, THRESHOLD, floorFields, roomFields } from "../src/editor/schema";
 import { checkSensor, contrastWarning } from "../src/editor/validation";
 
 describe("editor translations", () => {
   const keys = new Set(editorKeys());
 
   it("translates every field label and palette entry", () => {
-    const labels = [...GENERAL, ...COLORS, ...HOME, ...SOURCE, ...floorFields(), ...roomFields(), ...CONSUMER].map((f) => f.label);
+    const labels = [...GENERAL, ...COLORS, ...HOME, ...THRESHOLD, ...SOURCE, ...floorFields(), ...roomFields(), ...CONSUMER].map((f) => f.label);
     const missing = [...labels, ...PALETTE.map((c) => c.label)].filter((l) => l && l !== "Theme" && !keys.has(l));
     expect(missing).toEqual([]);
   });

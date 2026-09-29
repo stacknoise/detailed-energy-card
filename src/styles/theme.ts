@@ -186,6 +186,11 @@ export const cardStyles = css`
     color: var(--_muted);
     margin-left: 4px;
   }
+  /* nodes and consumers that draw no power are shown faded */
+  .node.idle,
+  .row.idle {
+    opacity: 0.45;
+  }
   .label {
     color: var(--_muted);
     font-size: 0.85em;

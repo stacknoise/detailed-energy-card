@@ -189,3 +189,47 @@ test("on wide screens the bar uses the free space next to the name", async ({ pa
   expect(bar!.x - box!.x).toBeLessThan(box!.width * 0.5);
   expect(bar!.width).toBeGreaterThan(box!.width * 0.4);
 });
+
+test.describe("idle nodes and color thresholds", () => {
+  test("consumers without power are faded in the list", async ({ page }) => {
+    await open(page, "floors");
+    const idle = page.locator("energy-card .row.idle");
+    await expect(idle).toHaveCount(2); // coffee machine and the hallway light (room Flur is off)
+    await expect(idle.first()).toHaveCSS("opacity", "0.45");
+    await expect(page.locator("energy-card .row", { hasText: "Kaffeemaschine" })).toHaveClass(/idle/);
+    await expect(page.locator("energy-card .row", { hasText: "Backofen" })).not.toHaveClass(/idle/);
+  });
+
+  test("rooms and floors without power are faded in the diagram", async ({ page }) => {
+    await open(page, "floors");
+    await expect(node(page, "Flur")).toHaveClass(/idle/);
+    await expect(node(page, "Küche")).not.toHaveClass(/idle/);
+    await expect(node(page, "EG")).not.toHaveClass(/idle/);
+  });
+
+  test("bars in the list take the color of their power range", async ({ page }) => {
+    await open(page, "floors");
+    const bg = (name: string) =>
+      page
+        .locator("energy-card .row", { hasText: name })
+        .locator(".bar > div")
+        .evaluate((e) => getComputedStyle(e).backgroundColor);
+    expect(await bg("Backofen")).toBe("rgb(255, 152, 0)"); // 820 W -> orange
+    expect(await bg("Spülmaschine")).toBe("rgb(76, 175, 80)"); // 310 W -> green
+  });
+
+  test("active lines take the color of their power range", async ({ page }) => {
+    await open(page, "floors");
+    const strokes = await page
+      .locator("energy-card path.line.active")
+      .evaluateAll((els) => els.map((e) => getComputedStyle(e).stroke));
+    expect(strokes).toContain("rgb(244, 67, 54)"); // PV 3.42 kW -> red
+    expect(strokes).toContain("rgb(255, 152, 0)"); // e.g. battery / floor lines in the orange range
+  });
+
+  test("without thresholds the normal colors stay", async ({ page }) => {
+    await open(page, "many");
+    const bg = await page.locator("energy-card .bar > div").first().evaluate((e) => (e as HTMLElement).style.background);
+    expect(bg).toBe("");
+  });
+});
