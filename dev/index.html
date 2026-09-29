@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;padding:16px;background:#161826;font-family:system-ui,sans-serif;color:#e9e9ed;max-width:480px}
+ha-card{display:block;border-radius:12px;border:1px solid #3f424d}
+ha-icon{display:inline-block;width:24px;height:24px;font-size:11px;text-align:center;line-height:24px}
+</style></head><body>
+<energy-card id="c"></energy-card>
+<script type="module">
+await import("../dist/energy-card.js?v="+Date.now());
+const s=(v,u="W")=>({state:String(v),attributes:{unit_of_measurement:u}});
+const hass={language:"de",states:{
+ "sensor.pv":s(3.42,"kW"),"sensor.akku":s(480),"sensor.soc":s(76,"%"),"sensor.netz":s(350),
+ "sensor.total":s(4.25,"kW"),"sensor.backofen":s(820),"sensor.spuel":s(310),"sensor.kuehl":s(120),"sensor.kaffee":s(70),
+ "sensor.wz":s(540),"sensor.flur":s(240),"sensor.og":s(1050),"sensor.keller":s(1100)}};
+const room=(name,icon,c)=>({name,icon,consumers:c});
+const el=document.getElementById("c");
+el.setConfig({type:"custom:energy-card",title:"Energiefluss",home:{total_entity:"sensor.total"},
+ sources:[{entity:"sensor.pv",type:"solar"},{entity:"sensor.akku",type:"battery",soc_entity:"sensor.soc"},{entity:"sensor.netz",type:"grid"}],
+ colors:{preset:"nocturne"},
+ floors:[{name:"EG",rooms:[room("Küche","mdi:stove",[{entity:"sensor.backofen",name:"Backofen"},{entity:"sensor.spuel",name:"Spülmaschine"},{entity:"sensor.kuehl",name:"Kühlschrank"},{entity:"sensor.kaffee",name:"Kaffeemaschine"}]),room("Wohnzimmer","mdi:sofa",[{entity:"sensor.wz"}]),room("Flur","mdi:door",[{entity:"sensor.flur"}])]},
+ {name:"OG",rooms:[room("Bad","mdi:shower",[{entity:"sensor.og"}])]},{name:"Keller",rooms:[room("Werkstatt","mdi:tools",[{entity:"sensor.keller"}])]}]});
+el.hass=hass;
+</script></body></html>
