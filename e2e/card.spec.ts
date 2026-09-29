@@ -81,3 +81,33 @@ test("lines with more power animate faster", async ({ page }) => {
   expect(sorted[0].d).toBeGreaterThan(sorted[sorted.length - 1].d);
   expect(new Set(durations.map((x) => x.d)).size).toBeGreaterThan(3);
 });
+
+test("clicking the selected floor selects all floors", async ({ page }) => {
+  await open(page, "floors");
+  await node(page, "EG").click();
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause");
+  await expect(page.locator("energy-card .pill.selected")).toHaveCount(3);
+  await expect(page.locator("energy-card .circle.room")).toHaveCount(0);
+  await expect(page.locator("energy-card .detail-head")).toContainText("8 Verbraucher");
+  await node(page, "OG").click();
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › OG › Bad");
+  await expect(page.locator("energy-card .pill.selected")).toHaveCount(1);
+});
+
+test("clicking the home selects everything again", async ({ page }) => {
+  await open(page, "floors");
+  await node(page, "OG").click();
+  await node(page, "Zuhause").click();
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause");
+  await expect(page.locator("energy-card .pill.selected")).toHaveCount(3);
+  await expect(page.locator("energy-card .detail-head")).toContainText("8 Verbraucher");
+});
+
+test("flat: clicking the home selects all rooms", async ({ page }) => {
+  await open(page, "flat");
+  await node(page, "Zuhause").click();
+  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(5);
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause");
+  await node(page, "Bad").click();
+  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(1);
+});

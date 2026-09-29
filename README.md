@@ -6,7 +6,7 @@ Status: **0.3**. Configure it in the visual editor (German and English) or in YA
 
 ## Preview
 
-Home → floor → room → consumers. Click a floor to show its rooms, click a room to list its consumers, click the selected room again to see all rooms of the floor together.
+Home → floor → room → consumers. Click a floor to show its rooms, click a room to list its consumers. Click the selected room again to see all rooms of the floor together, click the selected floor again (or the home) to select all floors and list every consumer.
 
 | With floors | Without floors |
 | --- | --- |
