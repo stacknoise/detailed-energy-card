@@ -98,3 +98,12 @@ export function findDuplicates(cfg: EnergyCardConfig): Duplicate[] {
   (cfg.floors ?? []).forEach((f) => rooms(f.rooms ?? [], `${f.name ?? f.floor_id} › `));
   return [...seen].filter(([, p]) => p.length > 1).map(([entity, places]) => ({ entity, places }));
 }
+
+/** Moves the item at `from` so that it ends up at index `to`. */
+export function reorder<T>(list: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
+  const copy = [...list];
+  const [item] = copy.splice(from, 1);
+  copy.splice(to, 0, item);
+  return copy;
+}

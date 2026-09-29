@@ -7,6 +7,7 @@ import {
   getPath,
   moveItem,
   removeItem,
+  reorder,
   setPath,
   toggleFloors,
   updateIn,
@@ -27,7 +28,7 @@ import {
 } from "./schema";
 import { loadRegistries, type Registries } from "../model/registry";
 import type { StateLike } from "../model/units";
-import { colorError, fieldErrors, sumConflict } from "./validation";
+import { colorError, contrastWarning, fieldErrors, sumConflict } from "./validation";
 
 interface Hass {
   states: Record<string, unknown>;
@@ -163,6 +164,12 @@ export class EnergyCardEditor extends LitElement {
     ha-form {
       display: block;
     }
+    .handle {
+      cursor: grab;
+      color: var(--secondary-text-color);
+      padding: 4px 6px;
+      user-select: none;
+    }
     .color {
       display: grid;
       grid-template-columns: 1fr auto 110px auto;
@@ -257,9 +264,42 @@ export class EnergyCardEditor extends LitElement {
     </div>`;
   }
 
+  // ---------- drag and drop (reorder within one list) ----------
+
+  private _drag?: { list: string; index: number };
+
+  private _handle(listPtr: Pointer, index: number): TemplateResult {
+    return html`<span class="handle" draggable="true" title="Ziehen zum Sortieren"
+      @dragstart=${(e: DragEvent) => this._onDragStart(e, listPtr, index)}
+      @dragend=${() => (this._drag = undefined)}>⠿</span>`;
+  }
+
+  private _onDragStart(e: DragEvent, listPtr: Pointer, index: number): void {
+    this._drag = { list: listPtr.join("."), index };
+    if (!e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+    const item = (e.target as HTMLElement).closest(".item");
+    if (item) e.dataTransfer.setDragImage(item, 0, 0);
+  }
+
+  private _onOver(e: DragEvent, listPtr: Pointer): void {
+    if (this._drag?.list === listPtr.join(".")) e.preventDefault();
+  }
+
+  private _onDrop(e: DragEvent, listPtr: Pointer, to: number): void {
+    const drag = this._drag;
+    if (!drag || drag.list !== listPtr.join(".")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this._drag = undefined;
+    this._update(listPtr, (l) => reorder(l, drag.index, to));
+  }
+
   private _itemHead(key: string, title: string, sub: string, ptr: Pointer, index: number, count: number): TemplateResult {
     const listPtr = ptr.slice(0, -1);
     return html`<div class="head">
+      ${this._handle(listPtr, index)}
       <button class="title" @click=${() => this._toggleOpen(key)}>
         ${this._open.has(key) ? "▾" : "▸"} ${title}<small>${sub}</small>
       </button>
@@ -280,7 +320,7 @@ export class EnergyCardEditor extends LitElement {
         ${sources.map((s: SourceConfig, i) => {
           const ptr: Pointer = ["sources", i];
           const key = `s${i}`;
-          return html`<div class="item">
+          return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, ["sources"])} @drop=${(e: DragEvent) => this._onDrop(e, ["sources"], i)}>
             ${this._itemHead(key, s.name ?? s.type ?? "Quelle", s.entity ?? "", ptr, i, sources.length)}
             ${this._open.has(key) ? this._form(ptr, SOURCE) : nothing}
           </div>`;
@@ -301,8 +341,9 @@ export class EnergyCardEditor extends LitElement {
       <h3>Verbraucher (${consumers.length})</h3>
       ${consumers.map((_c: unknown, i: number) => {
         const ptr: Pointer = [...roomPtr, "consumers", i];
-        return html`<div class="item">
+        return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, [...roomPtr, "consumers"])} @drop=${(e: DragEvent) => this._onDrop(e, [...roomPtr, "consumers"], i)}>
           <div class="head">
+            ${this._handle([...roomPtr, "consumers"], i)}
             <div class="title" style="flex:1">${this._form(ptr, CONSUMER)}</div>
             <button class="icon" ?disabled=${i === 0}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => moveItem(l, i, -1))}>↑</button>
@@ -327,7 +368,7 @@ export class EnergyCardEditor extends LitElement {
       ${rooms.map((r, i) => {
         const ptr: Pointer = [...listPtr, i];
         const key = ptr.join(".");
-        return html`<div class="item ${nested ? "nested" : ""}">
+        return html`<div class="item ${nested ? "nested" : ""}" @dragover=${(e: DragEvent) => this._onOver(e, listPtr)} @drop=${(e: DragEvent) => this._onDrop(e, listPtr, i)}>
           ${this._itemHead(key, this._areaName(r.area_id), `${r.consumers?.length ?? 0} Verbraucher`, ptr, i, rooms.length)}
           ${this._open.has(key)
             ? html`${this._form(ptr, roomFields(this._areaOptions(floorId, r.area_id)))}${this._renderConsumers(ptr)}`
@@ -366,7 +407,7 @@ export class EnergyCardEditor extends LitElement {
               ${floors.map((f, i) => {
                 const ptr: Pointer = ["floors", i];
                 const key = ptr.join(".");
-                return html`<div class="item">
+                return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, ["floors"])} @drop=${(e: DragEvent) => this._onDrop(e, ["floors"], i)}>
                   ${this._itemHead(key, this._floorName(f.floor_id), `${f.rooms?.length ?? 0} Räume`, ptr, i, floors.length)}
                   ${this._open.has(key)
                     ? html`${this._form(ptr, floorFields(this._floorChoices(f.floor_id)))}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
@@ -388,10 +429,16 @@ export class EnergyCardEditor extends LitElement {
   protected render(): TemplateResult {
     if (!this._config) return html``;
     const dups = findDuplicates(this._config);
+    const theme = getComputedStyle(this);
+    const contrast = contrastWarning(
+      this._config.colors,
+      theme.getPropertyValue("--primary-text-color"),
+      theme.getPropertyValue("--card-background-color"),
+    );
     const conflict = sumConflict(this._config, (this.hass?.states ?? {}) as Record<string, StateLike | undefined>);
     return html`
       <section><h3>Allgemein</h3>${this._form([], GENERAL)}</section>
-      <section><h3>Farben</h3>${this._form([], COLORS)}</section>
+      <section><h3>Farben</h3>${this._form([], COLORS)}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
       <section><h3>Zuhause</h3>${this._form([], HOME)}</section>
       ${this._renderSources()} ${this._renderStructure()}
       ${conflict

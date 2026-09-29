@@ -67,3 +67,43 @@ describe("sumConflict", () => {
     expect(sumConflict(c, states)).toBeUndefined();
   });
 });
+
+import { contrastRatio, contrastWarning, parseColor } from "../src/editor/validation";
+import { reorder } from "../src/editor/config-utils";
+
+describe("contrast", () => {
+  it("parses hex and rgb colors", () => {
+    expect(parseColor("#fff")).toEqual([255, 255, 255]);
+    expect(parseColor("#9184d9")).toEqual([145, 132, 217]);
+    expect(parseColor("#9184d9cc")).toEqual([145, 132, 217]);
+    expect(parseColor("rgb(10, 20, 30)")).toEqual([10, 20, 30]);
+    expect(parseColor("red")).toBeUndefined();
+  });
+  it("computes WCAG ratios", () => {
+    expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21);
+    expect(contrastRatio([255, 255, 255], [255, 255, 255])).toBeCloseTo(1);
+  });
+  it("warns below 4.5 : 1 and uses theme values for unset colors", () => {
+    expect(contrastWarning({ text: "#777", background: "#888" }, undefined, undefined)).toMatch(/Kontrast/);
+    expect(contrastWarning({ text: "#000", background: "#fff" }, undefined, undefined)).toBeUndefined();
+    expect(contrastWarning({ text: "#eee" }, "#111", "#fff")).toMatch(/Kontrast/);
+    expect(contrastWarning({ background: "#000" }, "#fff", "#fff")).toBeUndefined();
+  });
+  it("stays silent when nothing is customized or values are unparsable", () => {
+    expect(contrastWarning({}, "#fff", "#fff")).toBeUndefined();
+    expect(contrastWarning({ text: "banana" }, "#fff", "#fff")).toBeUndefined();
+  });
+});
+
+describe("reorder", () => {
+  it("moves an item to a new index", () => {
+    expect(reorder([1, 2, 3, 4], 0, 2)).toEqual([2, 3, 1, 4]);
+    expect(reorder([1, 2, 3, 4], 3, 0)).toEqual([4, 1, 2, 3]);
+  });
+  it("ignores no-ops and out-of-range indices", () => {
+    const l = [1, 2, 3];
+    expect(reorder(l, 1, 1)).toBe(l);
+    expect(reorder(l, 0, 5)).toBe(l);
+    expect(reorder(l, -1, 1)).toBe(l);
+  });
+});
