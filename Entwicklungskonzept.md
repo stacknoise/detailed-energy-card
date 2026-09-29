@@ -158,7 +158,7 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 - **x-Position:** Knoten einer Ebene werden gleichmäßig verteilt: `x = W · (i + 0.5) / n`.
 - **Linien:** kubische Bézier-Kurven von Knoten zu Knoten, `M x0 y0 C x0 m x1 m x1 y1`.
 - **Linienstärke:** `1 + kW · 0.7`.
-- **Animationsdauer:** `clamp(2.2 − kW · 0.5, 0.5 s, 2.2 s)`. Ohne Leistung gibt es keine Animation.
+- **Animationsdauer:** logarithmisch in der Leistung, von 3,2 s (bis 10 W) bis 0,35 s (ab 5 kW). Je mehr ein Knoten zieht, desto schneller bewegen sich seine Linien; der Unterschied zwischen 100 W und 1 kW ist so gut sichtbar wie der zwischen 1 kW und 10 kW. Ohne Leistung (< 1 W) gibt es keine Animation.
 - **Hervorhebung:** Die gewählte Etage und der gewählte Raum bekommen Akzentfarbe und Glow. Die übrigen Linien sind gedämpft.
 - **Viele Räume:** Ab 7 Räumen in einer Ebene wird die Raumzeile horizontal scrollbar, mit fester Spaltenbreite von 64 px. Alternativ lässt sich per Option auf zwei Reihen umbrechen.
 - **Responsive:** Die SVG-Breite folgt der Kartenbreite (`ResizeObserver`). Knoten werden absolut über dem SVG positioniert.

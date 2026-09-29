@@ -107,8 +107,8 @@ describe("layout", () => {
   });
   it("animation duration is clamped and absent without power", () => {
     expect(flowDuration(0)).toBeNull();
-    expect(flowDuration(100)).toBeCloseTo(2.15);
-    expect(flowDuration(10_000)).toBe(0.5);
+    expect(flowDuration(5)).toBe(3.2);
+    expect(flowDuration(10_000)).toBeCloseTo(0.35);
   });
 });
 
@@ -151,5 +151,19 @@ describe("wrapped room geometry", () => {
   it("routes second-row lines above the first row and straight down", () => {
     expect(roomPath(100, 50, 40, 200, 200)).toBe("M 100 50 C 100 125 40 125 40 200");
     expect(roomPath(100, 50, 40, 296, 200)).toBe("M 100 50 C 100 122 40 122 40 194 L 40 296");
+  });
+});
+
+describe("flow speed", () => {
+  it("gets faster with every step up in power", () => {
+    const powers = [5, 50, 100, 300, 800, 1500, 3000, 4500];
+    const durations = powers.map((w) => flowDuration(w)!);
+    for (let i = 1; i < durations.length; i++) expect(durations[i]).toBeLessThan(durations[i - 1]);
+  });
+  it("makes 100 W and 1 kW clearly distinguishable", () => {
+    expect(flowDuration(100)! - flowDuration(1000)!).toBeGreaterThan(0.8);
+  });
+  it("is the same for reversed flow", () => {
+    expect(flowDuration(-800)).toBe(flowDuration(800));
   });
 });

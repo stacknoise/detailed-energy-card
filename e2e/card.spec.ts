@@ -69,3 +69,15 @@ test("an invalid configuration shows a readable error", async ({ page }) => {
   await page.goto("/dev/index.html?scenario=invalid");
   await expect(page.locator("energy-card .error")).toContainText("area_id");
 });
+
+test("lines with more power animate faster", async ({ page }) => {
+  await open(page, "floors");
+  const durations = await page.locator("energy-card path.line.flowing").evaluateAll((els) =>
+    els.map((e) => ({ w: Number(e.getAttribute("stroke-width")), d: parseFloat(getComputedStyle(e).getPropertyValue("--dur")) })),
+  );
+  expect(durations.length).toBeGreaterThan(3);
+  // thicker line = more power = shorter cycle
+  const sorted = [...durations].sort((a, b) => a.w - b.w);
+  expect(sorted[0].d).toBeGreaterThan(sorted[sorted.length - 1].d);
+  expect(new Set(durations.map((x) => x.d)).size).toBeGreaterThan(3);
+});
