@@ -111,3 +111,44 @@ test("flat: clicking the home selects all rooms", async ({ page }) => {
   await node(page, "Bad").click();
   await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(1);
 });
+
+test.describe("consumer list on small screens", () => {
+  for (const width of [420, 340, 280]) {
+    test(`values stay visible and aligned at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await open(page, "long");
+      const card = await page.locator("energy-card ha-card").boundingBox();
+      const vals = await page.locator("energy-card .row .val").evaluateAll((els) =>
+        els.map((e) => {
+          const r = e.getBoundingClientRect();
+          return { right: r.right, left: r.left, width: r.width };
+        }),
+      );
+      expect(vals.length).toBeGreaterThanOrEqual(3);
+      for (const v of vals) {
+        expect(v.width).toBeGreaterThan(20);
+        expect(v.right).toBeLessThanOrEqual(card!.x + card!.width + 0.5);
+      }
+      // all values end at the same x, so the numbers stand exactly below each other
+      expect(new Set(vals.map((v) => Math.round(v.right))).size).toBe(1);
+    });
+  }
+
+  test("the bar is shown when there is room and hidden when there is not", async ({ page }) => {
+    await page.setViewportSize({ width: 480, height: 900 });
+    await open(page, "long");
+    await expect(page.locator("energy-card .row .bar").first()).toBeVisible();
+    await page.setViewportSize({ width: 300, height: 900 });
+    await expect(page.locator("energy-card .row .bar").first()).toBeHidden();
+    await expect(page.locator("energy-card .row .val").first()).toBeVisible();
+  });
+
+  test("long names are cut off with an ellipsis instead of pushing the values", async ({ page }) => {
+    await page.setViewportSize({ width: 340, height: 900 });
+    await open(page, "long");
+    const cut = await page.locator("energy-card .row .name").evaluateAll((els) =>
+      els.map((e) => e.scrollWidth > e.clientWidth),
+    );
+    expect(cut.some(Boolean)).toBe(true);
+  });
+});
