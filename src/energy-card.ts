@@ -11,6 +11,7 @@ import { loadRegistries, resolveNames, type Registries } from "./model/registry"
 import {
   computeLayout,
   curve,
+  roomPath,
   flowDuration,
   strokeWidth,
   FLOOR_H,
@@ -299,7 +300,7 @@ export class EnergyCard extends LitElement {
     });
     const rooms = floorIdx !== undefined ? model.floors[floorIdx].rooms : model.rooms;
     rooms.forEach((r, i) => {
-      parts.push(line(curve(roomFromX, roomFromY, l.roomXs[i], l.roomYs[i]), r.watts, allRooms || i === roomIdx));
+      parts.push(line(roomPath(roomFromX, roomFromY, l.roomXs[i], l.roomYs[i], l.yRoom), r.watts, allRooms || i === roomIdx));
     });
     return html`<svg class="lines" width=${l.width} height=${l.height}>${parts}</svg>`;
   }

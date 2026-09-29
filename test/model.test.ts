@@ -128,9 +128,28 @@ describe("wrapped rooms", () => {
     const flat = computeLayout({ width: 300, sources: 1, floors: 0, rooms: 10 });
     const wrapped = computeLayout({ width: 300, sources: 1, floors: 0, rooms: 10, wrap: true });
     expect(flat.width).toBe(640);
-    expect(wrapped.width).toBe(320);
+    expect(wrapped.width).toBe(384);
     expect(wrapped.roomRows).toBe(2);
     expect(wrapped.height).toBe(flat.height + 96);
     expect(new Set(wrapped.roomYs).size).toBe(2);
+  });
+});
+
+import { roomPath } from "../src/view/layout";
+
+describe("wrapped room geometry", () => {
+  it("puts the second row into the gaps of the first row (odd and even counts)", () => {
+    for (const n of [7, 8, 9, 10, 13]) {
+      const { xs, row } = roomPositions(n, 600, true);
+      const first = xs.filter((_, i) => row[i] === 0);
+      const second = xs.filter((_, i) => row[i] === 1);
+      const gaps = first.slice(1).map((x, i) => (x + first[i]) / 2);
+      for (const x of second) expect(gaps.some((g) => Math.abs(g - x) < 0.001)).toBe(true);
+      expect(first.length + second.length).toBe(n);
+    }
+  });
+  it("routes second-row lines above the first row and straight down", () => {
+    expect(roomPath(100, 50, 40, 200, 200)).toBe("M 100 50 C 100 125 40 125 40 200");
+    expect(roomPath(100, 50, 40, 296, 200)).toBe("M 100 50 C 100 122 40 122 40 194 L 40 296");
   });
 });
