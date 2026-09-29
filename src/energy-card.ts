@@ -208,7 +208,7 @@ export class EnergyCard extends LitElement {
 
   private _fmt(watts: number): string {
     const o = this._config?.options;
-    return formatPower(watts, o?.unit ?? "auto", o?.decimals ?? 2, this._hass?.locale?.language ?? this._hass?.language);
+    return formatPower(watts, o?.unit ?? "W", o?.decimals ?? 2, this._hass?.locale?.language ?? this._hass?.language);
   }
 
   private _moreInfo(entityId: string): void {

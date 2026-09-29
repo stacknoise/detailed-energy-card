@@ -46,8 +46,8 @@ describe("fieldErrors", () => {
 });
 
 describe("isValidColor", () => {
-  it.each(["", undefined, "theme", "#fff", "#9184d9", "#9184D9cc"])("accepts %s", (v) => expect(isValidColor(v)).toBe(true));
-  it.each(["red", "#12", "9184d9", "#gggggg"])("rejects %s", (v) => expect(isValidColor(v)).toBe(false));
+  it.each(["", undefined, "theme", "#fff", "#9184d9", "#9184D9cc", "var(--primary-color)"])("accepts %s", (v) => expect(isValidColor(v)).toBe(true));
+  it.each(["red", "#12", "9184d9", "#gggggg", "var(primary)"])("rejects %s", (v) => expect(isValidColor(v)).toBe(false));
 });
 
 describe("sumConflict", () => {
@@ -105,5 +105,28 @@ describe("reorder", () => {
     expect(reorder(l, 1, 1)).toBe(l);
     expect(reorder(l, 0, 5)).toBe(l);
     expect(reorder(l, -1, 1)).toBe(l);
+  });
+});
+
+import { COLOR_KEYS, GENERAL, PALETTE } from "../src/editor/schema";
+
+describe("editor defaults", () => {
+  const def = (path: string) => [...GENERAL, ...COLORS].find((f) => f.path === path)?.default;
+  it("preselects W, animation on and the theme preset", () => {
+    expect(def("options.unit")).toBe("W");
+    expect(def("options.animation")).toBe(true);
+    expect(def("colors.preset")).toBe("theme");
+  });
+  it("shows individual colors only for the custom preset or when already set", () => {
+    const accent = COLORS.find((f) => f.path === "colors.accent")!;
+    expect(accent.when!({})).toBe(false);
+    expect(accent.when!({ colors: { preset: "theme" } })).toBe(false);
+    expect(accent.when!({ colors: { preset: "custom" } })).toBe(true);
+    expect(accent.when!({ colors: { flow: "#fff" } })).toBe(true);
+    expect(COLOR_KEYS).toHaveLength(6);
+  });
+  it("palette starts with the theme choice and only offers valid colors", () => {
+    expect(PALETTE[0].value).toBe("");
+    expect(PALETTE.every((c) => isValidColor(c.value))).toBe(true);
   });
 });

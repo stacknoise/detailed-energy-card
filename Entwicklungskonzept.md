@@ -80,7 +80,7 @@ colors:                    # optional – leer = HA-Theme
   background: theme        # theme oder Hex
   text: theme
 options:
-  unit: auto               # auto | W | kW
+  unit: W                  # W | kW | auto
   decimals: 2
   animation: true
   show_unassigned: true
