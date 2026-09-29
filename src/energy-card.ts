@@ -405,6 +405,7 @@ export class EnergyCard extends LitElement {
           <span class="muted">${room.consumers.length} ${this._t("consumers")}</span>
         </div>
         ${sorted.length === 0 ? html`<div class="empty">${this._t("no_consumers")}</div>` : nothing}
+        <div class="list">
         ${sorted.map((c) => {
           const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
           return html`
@@ -417,10 +418,11 @@ export class EnergyCard extends LitElement {
         })}
         ${showUnassigned
           ? html`<div class="row" style="cursor:default">
-              <span class="name">${this._t("unassigned")}</span><span></span>
+              <span class="name">${this._t("unassigned")}</span><span class="spacer"></span>
               <span class="val">${this._fmt(model.unassigned)}</span>
             </div>`
           : nothing}
+        </div>
       </div>
     `;
   }
