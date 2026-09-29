@@ -29,7 +29,8 @@ interface Hass {
 
 interface Selection {
   floor?: string;
-  room?: string;
+  /** undefined = default (largest room), null = explicitly none selected */
+  room?: string | null;
 }
 
 const SOURCE_ICONS: Record<string, string> = {
@@ -195,7 +196,7 @@ export class EnergyCard extends LitElement {
       rooms = model.floors[floor].rooms;
     }
     const r = rooms.findIndex((x) => x.name === this._sel.room);
-    const room = rooms.length ? (r >= 0 ? r : largest(rooms)) : undefined;
+    const room = !rooms.length || this._sel.room === null ? undefined : r >= 0 ? r : largest(rooms);
     return { floor, rooms, room };
   }
 
@@ -254,7 +255,7 @@ export class EnergyCard extends LitElement {
             ${sel.rooms.map((r, i) => this._renderRoom(r, layout.roomXs[i], layout.yRoom, i === sel.room))}
           </div>
         </div>
-        ${this._renderDetail(model, room)}
+        ${sel.rooms.length && !room ? nothing : this._renderDetail(model, room)}
       </ha-card>
     `;
   }
@@ -350,7 +351,7 @@ export class EnergyCard extends LitElement {
         style=${styleMap({ left: `${x}px`, top: `${y}px`, "--node-color": r.color ?? "" })}
         aria-pressed=${selected}
         title=${r.name}
-        @click=${() => this._select({ ...this._sel, room: r.name })}
+        @click=${() => this._select({ ...this._sel, room: selected ? null : r.name })}
       >
         <span class="circle room ${selected ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon></span>
         <span class="label">${r.name}</span>
