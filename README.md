@@ -16,9 +16,17 @@ Home → floor → room → consumers. Click a floor to show its rooms, click a 
 | --- | --- |
 | ![All rooms selected](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-all-rooms.png) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-many-rooms-wrapped.png) |
 
-The screenshots are rendered from mock data with `npm run screenshots`. The visual editor has a German and an English UI; its design mockup:
+The card screenshots are rendered from mock data with `npm run screenshots`.
 
-![Editor mockup](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/mockups/4a-editor.png)
+### Visual editor
+
+Everything can be configured without YAML. Floors and rooms are picked from the floors and areas of your Home Assistant; the editor has a German and an English UI.
+
+| General and colors | Sources and structure |
+| --- | --- |
+| ![Editor: general and colors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/editor-general.png) | ![Editor: sources and structure](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/editor-structure.png) |
+
+The editor screenshots are taken in a real Home Assistant.
 
 ## Install (HACS)
 
