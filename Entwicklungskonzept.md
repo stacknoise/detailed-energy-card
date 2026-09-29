@@ -170,7 +170,7 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 
 | Aktion | Ergebnis |
 |---|---|
-| Klick auf Etage | Räume dieser Etage einblenden. Der größte Raum wird vorgewählt. |
+| Klick auf Etage | Räume dieser Etage einblenden, alle Räume sind ausgewählt. Erneuter Klick wählt alle Etagen. |
 | Klick auf Raum | Die Liste zeigt die Verbraucher des Raums, absteigend nach Leistung. |
 | Klick auf Verbraucher | Öffnet den HA-More-Info-Dialog (`hass-more-info`). |
 | Klick auf Quelle | Öffnet ebenfalls den More-Info-Dialog. |

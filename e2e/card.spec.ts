@@ -11,39 +11,54 @@ test("floors: shows sources, floors, rooms and the consumer list", async ({ page
   await open(page, "floors");
   await expect(page.locator("energy-card h2")).toHaveText("Energiefluss");
   await expect(page.locator("energy-card .badge")).toContainText("Autarkie 92 %");
-  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › EG › Küche");
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › EG");
   for (const t of ["PV", "Batterie", "Netz", "EG", "OG", "Keller", "Küche", "Wohnzimmer", "Flur"]) {
     await expect(node(page, t)).toBeVisible();
   }
   await expect(page.locator("energy-card .detail .row").first()).toContainText("Backofen");
-  await expect(page.locator("energy-card .detail-head")).toContainText("4 Verbraucher");
+  await expect(page.locator("energy-card .detail-head")).toContainText("6 Verbraucher");
 });
 
 test("floors: choosing a floor swaps the room row", async ({ page }) => {
   await open(page, "floors");
   await node(page, "OG").click();
-  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › OG › Bad");
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › OG");
   await expect(node(page, "Bad")).toBeVisible();
+  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(1); // OG has one room
   await expect(node(page, "Küche")).toHaveCount(0);
 });
 
-test("clicking the selected room selects all rooms of the floor", async ({ page }) => {
+test("opening a floor selects all of its rooms", async ({ page }) => {
   await open(page, "floors");
-  await node(page, "Küche").click();
+  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(3);
+  await node(page, "Küche").click(); // narrow down to one room ...
+  await node(page, "OG").click();
+  await node(page, "EG").click(); // ... opening a floor again selects all of its rooms
   await expect(page.locator("energy-card .path")).toHaveText("Zuhause › EG");
   await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(3);
-  await expect(page.locator("energy-card .detail-head")).toContainText("EG");
   await expect(page.locator("energy-card .detail-head")).toContainText("6 Verbraucher");
+});
+
+test("choosing a room selects just that room, clicking it again selects all again", async ({ page }) => {
+  await open(page, "floors");
+  await node(page, "Küche").click();
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › EG › Küche");
+  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(1);
+  await expect(page.locator("energy-card .detail-head")).toContainText("4 Verbraucher");
   await node(page, "Flur").click();
   await expect(page.locator("energy-card .path")).toHaveText("Zuhause › EG › Flur");
-  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(1);
+  await node(page, "Flur").click();
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › EG");
+  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(3);
+  await expect(page.locator("energy-card .detail-head")).toContainText("6 Verbraucher");
 });
 
 test("flat without floors: rooms hang directly under the home", async ({ page }) => {
   await open(page, "flat");
   await expect(page.locator("energy-card button.node[title=EG]")).toHaveCount(0);
-  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › Küche");
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause");
   await expect(page.locator("energy-card .circle.room")).toHaveCount(5);
+  await expect(page.locator("energy-card .circle.room.selected")).toHaveCount(5);
   await expect(node(page, "Balkon-PV")).toBeVisible();
 });
 
@@ -90,7 +105,7 @@ test("clicking the selected floor selects all floors", async ({ page }) => {
   await expect(page.locator("energy-card .circle.room")).toHaveCount(0);
   await expect(page.locator("energy-card .detail-head")).toContainText("8 Verbraucher");
   await node(page, "OG").click();
-  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › OG › Bad");
+  await expect(page.locator("energy-card .path")).toHaveText("Zuhause › OG");
   await expect(page.locator("energy-card .pill.selected")).toHaveCount(1);
 });
 
