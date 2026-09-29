@@ -32,7 +32,8 @@ export function colorVars(c: ColorsConfig | undefined): string {
 }
 
 export const cardStyles = css`
-  :host {
+  :host,
+  ha-card {
     --_accent: var(--efc-accent, var(--primary-color, #9184d9));
     --_flow: var(--efc-flow, var(--primary-color, #b5abfc));
     --_inactive: var(--efc-inactive, var(--disabled-text-color, #75798c));
