@@ -15,7 +15,7 @@ Repository: **`energy-card`** · Lovelace-Typ `custom:energy-card` · Installati
 Eine Lovelace-Card, die den aktuellen Leistungsfluss im Haus zeigt:
 
 - **Quellen** (1…n): z. B. PV, Batterie, Netz, Generator.
-- **Zuhause** als zentraler Knoten.
+- **Zuhause** als zentraler Knoten. Der Name ist der Standortname der HA-Instanz (`location_name`).
 - **Etagen** (optional, 0…n).
 - **Räume** (1…n), direkt am Zuhause oder unter einer Etage.
 - **Verbraucher** (unbegrenzt) je Raum. Jeder Verbraucher ist genau ein Sensor.
@@ -47,7 +47,6 @@ Interaktion: Etage wählen → Räume dieser Etage werden gezeigt. Raum wählen 
 type: custom:energy-card
 title: Energiefluss
 home:
-  name: Zuhause
   total_entity: sensor.hausverbrauch_power   # optional, für "Nicht erfasst"
 sources:
   - entity: sensor.pv_leistung
@@ -63,11 +62,10 @@ sources:
     name: Netz
     type: grid
 floors:                    # optional – weglassen = Räume direkt am Zuhause
-  - name: EG
+  - floor_id: erdgeschoss   # Etage aus Home Assistant (Floor-Registry)
     color: ""              # optional, auch je Raum möglich
     rooms:
-      - name: Küche
-        icon: mdi:stove
+      - area_id: kueche      # Bereich aus Home Assistant (Area-Registry)
         consumers:
           - entity: sensor.backofen_power
             name: Backofen      # optional, sonst friendly_name
@@ -90,6 +88,9 @@ options:
 ```
 
 **Regeln**
+
+- **Etagen und Räume kommen ausschließlich aus Home Assistant.** Die Config speichert nur `floor_id` und `area_id`. Name und Icon werden zur Laufzeit aus der Floor- bzw. Area-Registry gelesen (WebSocket `config/floor_registry/list`, `config/area_registry/list`). Freie Namen sind nicht möglich; ein Eintrag ohne ID ist ein Validierungsfehler. Ist eine ID in HA nicht mehr vorhanden, zeigt die Card die ID.
+- Jede Etage und jeder Bereich kann nur einmal vorkommen. Unter einer Etage sind nur Bereiche wählbar, die in HA dieser Etage zugeordnet sind.
 
 - Es gibt entweder `floors` oder `rooms` auf oberster Ebene. Sind beide gesetzt, gibt es einen Validierungsfehler.
 - Räume sind nie leer: Ein Raum ohne Verbraucher wird mit einem Hinweis angezeigt, aber mit 0 gerechnet.
@@ -228,15 +229,15 @@ src/
 |---|---|
 | Allgemein | Titel, Einheit (auto/W/kW), Nachkommastellen, Animation, „Nicht erfasst“ anzeigen, Auswahl merken |
 | Farben | Voreinstellung (HA-Theme / Nocturne / Eigene), Akzent, Fluss-Linien, inaktive Linien, Verbraucher-Balken, Hintergrund, Text |
-| Zuhause | Name, Gesamt-Sensor (optional) |
+| Zuhause | Gesamt-Sensor (optional). Der Name ist fest (Standortname der Instanz). |
 | Stromquellen | Liste; je Quelle: Sensor, Typ, Name, Icon, Farbe, Invertieren, SoC-Sensor (nur Batterie) |
-| Struktur | Umschalter „Etagen verwenden“; Baum Etage → Raum → Verbraucher; je Knoten: Name, Icon, Farbe; je Verbraucher: Sensor, Name |
+| Struktur | Umschalter „Etagen verwenden“; Baum Etage → Raum → Verbraucher; Etagen und Räume nur per Auswahl aus HA, je Knoten zusätzlich Farbe; je Verbraucher: Sensor, Name |
 
 **Details:**
 
 - **Stromquellen:** Liste mit Hinzufügen, Entfernen und Sortieren. Pro Quelle: Entität, Typ, Name, Invertieren und optional SoC.
 - **Struktur:** Baum Zuhause → (Etage) → Raum → Verbraucher.
-  - Umschalter „Etagen verwenden“. Beim Ausschalten werden die Räume flach übernommen.
+  - Umschalter „Etagen verwenden“. Beim Ausschalten werden die Räume flach übernommen, beim Einschalten nach der HA-Etage ihres Bereichs gruppiert (Bereiche ohne Etage entfallen).
   - Drag-and-drop zum Sortieren und zum Verschieben von Räumen zwischen Etagen.
 - **Entitätsauswahl:** `ha-entity-picker` mit `include-domains: ["sensor"]` und einem `entity-filter` auf `device_class === "power"`. Bereits vergebene Sensoren werden markiert, Doppelbelegung ist möglich, erzeugt aber eine Warnung.
 - **Validierung live im Editor:** ungültige Sensoren, doppelte Zuordnung und Summenkonflikte werden am Feld angezeigt, nicht erst in der Card.

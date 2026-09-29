@@ -15,15 +15,21 @@ export interface ConsumerConfig {
   name?: string;
 }
 
+/** Rooms are Home Assistant areas; name and icon are resolved from the area registry. */
 export interface RoomConfig {
-  name: string;
+  area_id: string;
+  /** resolved at runtime, not user configurable */
+  name?: string;
   icon?: string;
   color?: string;
   consumers?: ConsumerConfig[];
 }
 
+/** Floors are Home Assistant floors; name and icon are resolved from the floor registry. */
 export interface FloorConfig {
-  name: string;
+  floor_id: string;
+  /** resolved at runtime, not user configurable */
+  name?: string;
   icon?: string;
   color?: string;
   rooms?: RoomConfig[];
@@ -50,7 +56,7 @@ export interface OptionsConfig {
 export interface EnergyCardConfig {
   type: string;
   title?: string;
-  home?: { name?: string; total_entity?: string };
+  home?: { total_entity?: string };
   sources?: SourceConfig[];
   floors?: FloorConfig[];
   rooms?: RoomConfig[];
@@ -72,8 +78,8 @@ function checkEntity(id: unknown, where: string): void {
 }
 
 function checkRoom(room: unknown, where: string): void {
-  if (!isObj(room) || typeof room.name !== "string" || !room.name) {
-    throw new ConfigError(`${where}: room needs a name`);
+  if (!isObj(room) || typeof room.area_id !== "string" || !room.area_id) {
+    throw new ConfigError(`${where}: room needs an area_id (a Home Assistant area)`);
   }
   const consumers = room.consumers ?? [];
   if (!Array.isArray(consumers)) throw new ConfigError(`${where}: consumers must be a list`);
@@ -98,8 +104,8 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     if (s.soc_entity) checkEntity(s.soc_entity, `sources[${i}].soc_entity`);
   });
   (cfg.floors ?? []).forEach((f, i) => {
-    if (!isObj(f) || typeof f.name !== "string" || !f.name) {
-      throw new ConfigError(`floors[${i}]: floor needs a name`);
+    if (!isObj(f) || typeof f.floor_id !== "string" || !f.floor_id) {
+      throw new ConfigError(`floors[${i}]: floor needs a floor_id (a Home Assistant floor)`);
     }
     (f.rooms ?? []).forEach((r, j) => checkRoom(r, `floors[${i}].rooms[${j}]`));
   });

@@ -31,23 +31,21 @@ Click the button above to add the repository to HACS on your Home Assistant inst
 type: custom:energy-card
 title: Energiefluss
 home:
-  name: Zuhause
   total_entity: sensor.hausverbrauch_power
 sources:
   - { entity: sensor.pv_leistung, type: solar, name: PV }
   - { entity: sensor.akku_leistung, type: battery, soc_entity: sensor.akku_soc }
   - { entity: sensor.netz_leistung, type: grid }
 floors:
-  - name: EG
+  - floor_id: erdgeschoss   # a floor from Home Assistant
     rooms:
-      - name: Küche
-        icon: mdi:stove
+      - area_id: kueche   # an area from Home Assistant
         consumers:
           - entity: sensor.backofen_power
             name: Backofen
 ```
 
-Use either `floors` or `rooms` on the top level. Only `sensor.*` power entities (W / kW / MW) are supported. All options are documented in the concept, section 3.
+Floors and rooms are not free text: they are picked from the floors and areas that already exist in Home Assistant (`floor_id`, `area_id`); names and icons come from there, and the home name is your instance's location name. Use either `floors` or `rooms` on the top level. Only `sensor.*` power entities (W / kW / MW) are supported. All options are documented in the concept, section 3.
 
 ## Development
 

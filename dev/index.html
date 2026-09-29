@@ -9,16 +9,16 @@ ha-icon{display:inline-block;width:24px;height:24px;font-size:11px;text-align:ce
 <script type="module">
 await import("../dist/energy-card.js?v="+Date.now());
 const s=(v,u="W")=>({state:String(v),attributes:{unit_of_measurement:u}});
-const hass={language:"de",states:{
+const hass={language:"de",config:{location_name:"Zuhause"},callWS:async(m)=>m.type.includes("floor")?[{floor_id:"eg",name:"EG"},{floor_id:"og",name:"OG"},{floor_id:"keller",name:"Keller"}]:[{area_id:"kueche",name:"Küche",icon:"mdi:stove",floor_id:"eg"},{area_id:"wz",name:"Wohnzimmer",icon:"mdi:sofa",floor_id:"eg"},{area_id:"flur",name:"Flur",icon:"mdi:door",floor_id:"eg"},{area_id:"bad",name:"Bad",icon:"mdi:shower",floor_id:"og"},{area_id:"werk",name:"Werkstatt",icon:"mdi:tools",floor_id:"keller"}],states:{
  "sensor.pv":s(3.42,"kW"),"sensor.akku":s(480),"sensor.soc":s(76,"%"),"sensor.netz":s(350),
  "sensor.total":s(4.25,"kW"),"sensor.backofen":s(820),"sensor.spuel":s(310),"sensor.kuehl":s(120),"sensor.kaffee":s(70),
  "sensor.wz":s(540),"sensor.flur":s(240),"sensor.og":s(1050),"sensor.keller":s(1100)}};
-const room=(name,icon,c)=>({name,icon,consumers:c});
+const room=(area_id,_i,c)=>({area_id,consumers:c});
 const el=document.getElementById("c");
 el.setConfig({type:"custom:energy-card",title:"Energiefluss",home:{total_entity:"sensor.total"},
  sources:[{entity:"sensor.pv",type:"solar"},{entity:"sensor.akku",type:"battery",soc_entity:"sensor.soc"},{entity:"sensor.netz",type:"grid"}],
  colors:{preset:"nocturne"},
- floors:[{name:"EG",rooms:[room("Küche","mdi:stove",[{entity:"sensor.backofen",name:"Backofen"},{entity:"sensor.spuel",name:"Spülmaschine"},{entity:"sensor.kuehl",name:"Kühlschrank"},{entity:"sensor.kaffee",name:"Kaffeemaschine"}]),room("Wohnzimmer","mdi:sofa",[{entity:"sensor.wz"}]),room("Flur","mdi:door",[{entity:"sensor.flur"}])]},
- {name:"OG",rooms:[room("Bad","mdi:shower",[{entity:"sensor.og"}])]},{name:"Keller",rooms:[room("Werkstatt","mdi:tools",[{entity:"sensor.keller"}])]}]});
+ floors:[{floor_id:"eg",rooms:[room("kueche",[{entity:"sensor.backofen",name:"Backofen"},{entity:"sensor.spuel",name:"Spülmaschine"},{entity:"sensor.kuehl",name:"Kühlschrank"},{entity:"sensor.kaffee",name:"Kaffeemaschine"}]),room("wz",[{entity:"sensor.wz"}]),room("flur",[{entity:"sensor.flur"}])]},
+ {floor_id:"og",rooms:[room("bad",[{entity:"sensor.og"}])]},{floor_id:"keller",rooms:[room("werk",[{entity:"sensor.keller"}])]}]});
 el.hass=hass;
 </script></body></html>
