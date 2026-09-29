@@ -122,8 +122,8 @@ export function toSchema(fields: Field[], obj: unknown) {
 }
 
 /** Translates a field-path -> label lookup for ha-form's computeLabel. */
-export function labelFor(fields: Field[], name: string): string {
-  return fields.find((f) => f.path === name)?.label ?? name;
+export function labelFor(fields: Field[], name: string, tr: (s: string) => string = (s) => s): string {
+  return tr(fields.find((f) => f.path === name)?.label ?? name);
 }
 
 /**
