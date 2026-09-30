@@ -37,6 +37,7 @@ const EN: Record<string, string> = {
   "ab {0} W": "from {0} W",
   "+ Schwellwert": "+ Threshold",
   "Ampel-Farben einfügen": "Insert traffic-light colors",
+  "Dieser Sensor ist bereits einem Verbraucher zugewiesen.": "This sensor is already assigned to a consumer.",
   "Mehrere Schwellwerte ab {0} W: nur einer davon gilt.": "Several thresholds from {0} W: only one of them applies.",
   Primärfarbe: "Primary color",
   Akzentfarbe: "Accent color",

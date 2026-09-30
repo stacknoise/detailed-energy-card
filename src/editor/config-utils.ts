@@ -88,6 +88,25 @@ export interface Duplicate {
   places: string[];
 }
 
+/**
+ * Consumer sensors that are taken by any slot other than `ptr` (a pointer like
+ * ["floors", 0, "rooms", 1, "consumers", 2]); these must not be offered again.
+ */
+export function consumerEntitiesExcept(cfg: EnergyCardConfig | undefined, ptr: Pointer): string[] {
+  const own = ptr.join(".");
+  const taken: string[] = [];
+  const scan = (rooms: RoomConfig[] | undefined, base: Pointer) =>
+    (rooms ?? []).forEach((r, i) =>
+      (r.consumers ?? []).forEach((c, j) => {
+        const at = [...base, i, "consumers", j].join(".");
+        if (c.entity && at !== own) taken.push(c.entity);
+      }),
+    );
+  scan(cfg?.rooms, ["rooms"]);
+  (cfg?.floors ?? []).forEach((f, i) => scan(f.rooms, ["floors", i, "rooms"]));
+  return taken;
+}
+
 /** Sensors assigned to more than one consumer slot (allowed, but warned about). */
 export function findDuplicates(cfg: EnergyCardConfig): Duplicate[] {
   const seen = new Map<string, string[]>();

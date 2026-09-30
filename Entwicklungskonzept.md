@@ -94,6 +94,7 @@ options:
 **Regeln**
 
 - **Etagen und Räume kommen ausschließlich aus Home Assistant.** Die Config speichert nur `floor_id` und `area_id`. Name und Icon werden zur Laufzeit aus der Floor- bzw. Area-Registry gelesen (WebSocket `config/floor_registry/list`, `config/area_registry/list`). Freie Namen sind nicht möglich; ein Eintrag ohne ID ist ein Validierungsfehler. Ist eine ID in HA nicht mehr vorhanden, zeigt die Card die ID.
+- Ein Verbraucher-Sensor kann nur einem einzigen Verbraucher zugewiesen werden (Validierungsfehler in YAML). Der Editor blendet bereits vergebene Sensoren in der Auswahl aus (`exclude_entities`) und lehnt eine doppelte Eingabe ab.
 - Jede Etage und jeder Bereich kann nur einmal vorkommen. Unter einer Etage sind nur Bereiche wählbar, die in HA dieser Etage zugeordnet sind.
 
 - Es gibt entweder `floors` oder `rooms` auf oberster Ebene. Sind beide gesetzt, gibt es einen Validierungsfehler.

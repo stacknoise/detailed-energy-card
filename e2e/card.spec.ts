@@ -233,3 +233,9 @@ test.describe("idle nodes and color thresholds", () => {
     expect(bg).toBe("");
   });
 });
+
+test("a sensor assigned to two consumers is reported as a configuration error", async ({ page }) => {
+  await page.goto("/dev/index.html?scenario=duplicate");
+  await expect(page.locator("energy-card .error")).toContainText("already assigned");
+  await expect(page.locator("energy-card .error")).toContainText("sensor.backofen");
+});
