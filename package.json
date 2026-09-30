@@ -10,7 +10,8 @@
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "test:e2e": "playwright test --project=e2e",
-    "screenshots": "playwright test --project=screenshots"
+    "screenshots": "playwright test --project=screenshots",
+    "icon": "node scripts/render-icon.mjs"
   },
   "dependencies": {
     "lit": "^3.2.0"

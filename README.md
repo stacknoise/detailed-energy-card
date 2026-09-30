@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/icon.png" alt="Energy Card icon" width="96" align="right">
+
 # Energy Card
 
 Home Assistant Lovelace card showing the power flow from sources (PV, battery, grid) through the home, optional floors and rooms down to individual consumers. See [Entwicklungskonzept.md](Entwicklungskonzept.md) for the full concept and roadmap.
@@ -82,6 +84,7 @@ npm test            # unit tests (Vitest)
 npm run build       # dist/energy-card.js
 npm run test:e2e    # browser tests (Playwright) against dev/index.html
 npm run screenshots # re-render docs/screenshots/*.png
+npm run icon        # re-render docs/icon.png and docs/social-preview.png
 ```
 
 `npx vite` serves `dev/index.html`, a mock-data preview. Pick a scenario with `?scenario=floors|flat|many|wrap|invalid`.

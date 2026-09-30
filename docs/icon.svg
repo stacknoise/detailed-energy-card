@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#111318"/>
+  <path d="M116 124 C116 190 256 170 256 226" fill="none" stroke="#ff9800" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 22"/>
+  <path d="M256 124 L256 226" fill="none" stroke="#03a9f4" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 22"/>
+  <path d="M396 124 C396 190 256 170 256 226" fill="none" stroke="#4caf50" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 22"/>
+  <path d="M256 314 C256 360 116 350 116 396" fill="none" stroke="#03a9f4" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 22"/>
+  <path d="M256 314 L256 396" fill="none" stroke="#03a9f4" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 22"/>
+  <path d="M256 314 C256 360 396 350 396 396" fill="none" stroke="#03a9f4" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 22"/>
+  <circle cx="116" cy="100" r="44" fill="#1c1f26" stroke="#ff9800" stroke-width="10"/>
+  <circle cx="256" cy="100" r="44" fill="#1c1f26" stroke="#03a9f4" stroke-width="10"/>
+  <circle cx="396" cy="100" r="44" fill="#1c1f26" stroke="#4caf50" stroke-width="10"/>
+  <circle cx="256" cy="270" r="62" fill="#1c1f26" stroke="#03a9f4" stroke-width="10"/>
+  <circle cx="116" cy="420" r="44" fill="#1c1f26" stroke="#03a9f4" stroke-width="10"/>
+  <circle cx="256" cy="420" r="44" fill="#1c1f26" stroke="#03a9f4" stroke-width="10"/>
+  <circle cx="396" cy="420" r="44" fill="#1c1f26" stroke="#03a9f4" stroke-width="10"/>
+  <g transform="translate(219 233) scale(3.08)" fill="#e1e1e1"><path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/></g>
+</svg>
