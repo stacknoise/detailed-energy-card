@@ -6,7 +6,7 @@ Basis: Entwürfe 3a, 3b und 4a.
 - `3a-card-mit-etagen.png`: Card mit Zuhause → Etage → Raum → Verbraucher
 - `3b-card-ohne-etagen.png`: Card ohne Etagen, Räume direkt am Zuhause
 - `4a-editor.png`: Visueller Editor mit allen Optionen
-Repository: **`energy-card`** · Lovelace-Typ `custom:energy-card` · Installation über **HACS**.
+Repository: **`detailed-energy-card`** · Lovelace-Typ `custom:detailed-energy-card` · Installation über **HACS**.
 
 ---
 
@@ -32,7 +32,7 @@ Interaktion: Etage wählen → Räume dieser Etage werden gezeigt. Raum wählen 
 |---|---|
 | Sprache | TypeScript |
 | UI | Lit 3 (`LitElement`), wie HA-Frontend |
-| Build | Vite oder Rollup → ein ES-Modul `energy-card.js` |
+| Build | Vite oder Rollup → ein ES-Modul `detailed-energy-card.js` |
 | Grafik | Inline-SVG für Linien, HTML für Knoten und Liste |
 | Animation | CSS `stroke-dashoffset`, keine JS-Loops |
 | Icons | `ha-icon` mit MDI-Namen (in HA verfügbar). Die Phosphor-Icons im Entwurf werden auf MDI gemappt. |
@@ -44,7 +44,7 @@ Interaktion: Etage wählen → Räume dieser Etage werden gezeigt. Raum wählen 
 ## 3. Konfiguration (YAML)
 
 ```yaml
-type: custom:energy-card
+type: custom:detailed-energy-card
 title: Energiefluss
 home:
   total_entity: sensor.hausverbrauch_power   # optional, für "Nicht erfasst"
@@ -191,7 +191,7 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 
 ```
 src/
-  energy-card.ts   // Custom Element, hass-Setter, Auswahlzustand
+  detailed-energy-card.ts   // Custom Element, hass-Setter, Auswahlzustand
   editor/
     card-editor.ts            // visueller Editor
     tree-editor.ts            // Zuhause / Etagen / Räume / Verbraucher
@@ -314,12 +314,12 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 
 ## 13. Repository und HACS-Installation
 
-**Repository:** `github.com/<owner>/energy-card`, öffentlich.
+**Repository:** `github.com/<owner>/detailed-energy-card`, öffentlich.
 
 ```
-energy-card/
+detailed-energy-card/
   src/                       // siehe Abschnitt 8
-  dist/energy-card.js        // Build-Artefakt (nicht eingecheckt, nur im Release)
+  dist/detailed-energy-card.js        // Build-Artefakt (nicht eingecheckt, nur im Release)
   hacs.json
   README.md                  // wird in HACS als Beschreibung angezeigt
   LICENSE                    // z. B. MIT
@@ -335,8 +335,8 @@ energy-card/
 
 ```json
 {
-  "name": "Energy Card",
-  "filename": "energy-card.js",
+  "name": "Detailed Energy Card",
+  "filename": "detailed-energy-card.js",
   "render_readme": true,
   "homeassistant": "2024.8.0"
 }
@@ -344,33 +344,33 @@ energy-card/
 
 **Anforderungen, damit HACS das Repo akzeptiert**
 
-- Der Dateiname der JS-Datei muss zum Repo-Namen passen: `energy-card.js`. HACS findet sie dann im Release-Asset, in `dist/` oder im Root.
-- Jede Version ist ein **GitHub Release** mit SemVer-Tag (`v0.1.0`), und `energy-card.js` hängt als Asset daran.
+- Der Dateiname der JS-Datei muss zum Repo-Namen passen: `detailed-energy-card.js`. HACS findet sie dann im Release-Asset, in `dist/` oder im Root.
+- Jede Version ist ein **GitHub Release** mit SemVer-Tag (`v0.1.0`), und `detailed-energy-card.js` hängt als Asset daran.
 - Das Repository braucht eine Beschreibung und Topics, z. B. `home-assistant`, `hacs`, `lovelace`, `energy`.
 - `hacs/action` (Kategorie `plugin`) muss im Workflow `validate.yml` grün laufen.
 
 **Installation für Nutzer**
 
 1. *Vor Aufnahme in den HACS-Standard:* HACS → ⋮ → Benutzerdefinierte Repositories → URL eintragen, Typ „Dashboard“.
-2. „Energy Card“ suchen → Herunterladen.
-3. HACS registriert die Ressource `/hacsfiles/energy-card/energy-card.js` automatisch als JavaScript-Modul.
-4. Im Dashboard Karte hinzufügen → „Energy Card“, oder per YAML `type: custom:energy-card`.
+2. „Detailed Energy Card“ suchen → Herunterladen.
+3. HACS registriert die Ressource `/hacsfiles/detailed-energy-card/detailed-energy-card.js` automatisch als JavaScript-Modul.
+4. Im Dashboard Karte hinzufügen → „Detailed Energy Card“, oder per YAML `type: custom:detailed-energy-card`.
 
-**Registrierung im Card-Picker** (in `energy-card.ts`):
+**Registrierung im Card-Picker** (in `detailed-energy-card.ts`):
 
 ```ts
-customElements.define('energy-card', EnergyCard);
-customElements.define('energy-card-editor', EnergyCardEditor);
+customElements.define('detailed-energy-card', EnergyCard);
+customElements.define('detailed-energy-card-editor', EnergyCardEditor);
 (window as any).customCards ??= [];
 (window as any).customCards.push({
-  type: 'energy-card',
-  name: 'Energy Card',
+  type: 'detailed-energy-card',
+  name: 'Detailed Energy Card',
   description: 'Energiefluss von Quellen über Etagen und Räume bis zu den Verbrauchern',
   preview: true,
 });
 ```
 
-**Release-Ablauf:** Version in `package.json` erhöhen, Tag `vX.Y.Z` pushen. `release.yml` baut dann die Datei, hängt `energy-card.js` an das Release und erzeugt die Release-Notes. Optional folgt danach der PR zur Aufnahme in `hacs/default`.
+**Release-Ablauf:** Version in `package.json` erhöhen, Tag `vX.Y.Z` pushen. `release.yml` baut dann die Datei, hängt `detailed-energy-card.js` an das Release und erzeugt die Release-Notes. Optional folgt danach der PR zur Aufnahme in `hacs/default`.
 
 ---
 

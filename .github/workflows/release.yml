@@ -16,5 +16,5 @@ jobs:
       - run: npm run build
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/energy-card.js
+          files: dist/detailed-energy-card.js
           generate_release_notes: true

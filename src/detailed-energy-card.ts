@@ -49,8 +49,8 @@ const hashOf = (s: string): string => {
   return (h >>> 0).toString(36);
 };
 
-@customElement("energy-card")
-export class EnergyCard extends LitElement {
+@customElement("detailed-energy-card")
+export class DetailedEnergyCard extends LitElement {
   static styles = cardStyles;
 
   @state() private _config?: EnergyCardConfig;
@@ -66,7 +66,7 @@ export class EnergyCard extends LitElement {
   private _regLoading = false;
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("energy-card-editor");
+    return document.createElement("detailed-energy-card-editor");
   }
 
   static getStubConfig(hass?: Hass): Record<string, unknown> {
@@ -165,7 +165,7 @@ export class EnergyCard extends LitElement {
   }
 
   private get _storageKey(): string {
-    return `energy-card:${hashOf(JSON.stringify(this._config ?? {}))}`;
+    return `detailed-energy-card:${hashOf(JSON.stringify(this._config ?? {}))}`;
   }
 
   private _loadSelection(): Selection {
@@ -445,8 +445,8 @@ declare global {
 }
 window.customCards ??= [];
 window.customCards.push({
-  type: "energy-card",
-  name: "Energy Card",
+  type: "detailed-energy-card",
+  name: "Detailed Energy Card",
   description: "Energiefluss von Quellen über Etagen und Räume bis zu den Verbrauchern",
   preview: true,
 });

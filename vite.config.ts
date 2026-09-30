@@ -3,9 +3,9 @@ import { defineConfig } from "vite";
 export default defineConfig({
   build: {
     lib: {
-      entry: "src/energy-card.ts",
+      entry: "src/detailed-energy-card.ts",
       formats: ["es"],
-      fileName: () => "energy-card.js",
+      fileName: () => "detailed-energy-card.js",
     },
     outDir: "dist",
     minify: "esbuild",
