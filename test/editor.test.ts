@@ -105,3 +105,59 @@ describe("config utils", () => {
     expect(findDuplicates(cfg)).toEqual([{ entity: "sensor.x", places: ["A", "B"] }]);
   });
 });
+
+import { consumerEntitiesExcept } from "../src/editor/config-utils";
+import { consumerFields } from "../src/editor/schema";
+import { ConfigError } from "../src/model/config";
+
+describe("consumers are unique", () => {
+  const cfg: EnergyCardConfig = {
+    type: "x",
+    rooms: [
+      { area_id: "a", consumers: [{ entity: "sensor.one" }, { entity: "sensor.two" }] },
+      { area_id: "b", consumers: [{ entity: "sensor.three" }] },
+    ],
+    floors: [{ floor_id: "eg", rooms: [{ area_id: "c", consumers: [{ entity: "sensor.four" }] }] }],
+  };
+
+  it("lists the sensors taken by all other slots", () => {
+    expect(consumerEntitiesExcept({ ...cfg, floors: undefined }, ["rooms", 0, "consumers", 0]).sort()).toEqual([
+      "sensor.three",
+      "sensor.two",
+    ]);
+    expect(consumerEntitiesExcept(cfg, ["floors", 0, "rooms", 0, "consumers", 0]).sort()).toEqual([
+      "sensor.one",
+      "sensor.three",
+      "sensor.two",
+    ]);
+  });
+  it("keeps the own sensor selectable and ignores empty slots", () => {
+    const withEmpty: EnergyCardConfig = { type: "x", rooms: [{ area_id: "a", consumers: [{ entity: "sensor.one" }, { entity: "" }] }] };
+    expect(consumerEntitiesExcept(withEmpty, ["rooms", 0, "consumers", 1])).toEqual(["sensor.one"]);
+    expect(consumerEntitiesExcept(withEmpty, ["rooms", 0, "consumers", 0])).toEqual([]);
+  });
+  it("hands the taken sensors to the entity picker as excluded", () => {
+    const [entity] = consumerFields(["sensor.two"]);
+    expect(entity.selector).toEqual({ entity: { domain: "sensor", device_class: "power", exclude_entities: ["sensor.two"] } });
+  });
+  it("rejects a sensor that is assigned twice, across rooms and floors", () => {
+    const dup = (rooms: unknown, floors?: unknown) => () => validateConfig({ type: "x", rooms, floors });
+    expect(dup([{ area_id: "a", consumers: [{ entity: "sensor.x" }, { entity: "sensor.x" }] }])).toThrow(ConfigError);
+    expect(
+      dup([{ area_id: "a", consumers: [{ entity: "sensor.x" }] }, { area_id: "b", consumers: [{ entity: "sensor.x" }] }]),
+    ).toThrow(/rooms\[1\]\.consumers\[0\].*already assigned to rooms\[0\]\.consumers\[0\]/);
+    expect(() =>
+      validateConfig({
+        type: "x",
+        floors: [
+          { floor_id: "eg", rooms: [{ area_id: "a", consumers: [{ entity: "sensor.x" }] }] },
+          { floor_id: "og", rooms: [{ area_id: "b", consumers: [{ entity: "sensor.x" }] }] },
+        ],
+      }),
+    ).toThrow(/floors\[1\]\.rooms\[0\]\.consumers\[0\]/);
+  });
+  it("accepts distinct sensors", () => {
+    expect(() => validateConfig({ ...cfg, floors: undefined })).not.toThrow();
+    expect(() => validateConfig({ ...cfg, rooms: undefined })).not.toThrow();
+  });
+});

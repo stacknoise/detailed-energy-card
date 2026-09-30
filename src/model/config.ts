@@ -91,6 +91,22 @@ function checkRoom(room: unknown, where: string): void {
   consumers.forEach((c, i) => checkEntity(isObj(c) ? c.entity : undefined, `${where}.consumers[${i}]`));
 }
 
+/** A sensor may be assigned to one consumer slot only. */
+function checkUniqueConsumers(cfg: EnergyCardConfig): void {
+  const seen = new Map<string, string>();
+  const scan = (rooms: RoomConfig[] | undefined, prefix: string) =>
+    (rooms ?? []).forEach((r, i) =>
+      (r.consumers ?? []).forEach((c, j) => {
+        const where = `${prefix}[${i}].consumers[${j}]`;
+        const first = seen.get(c.entity);
+        if (first) throw new ConfigError(`${where}: "${c.entity}" is already assigned to ${first}; a sensor can be assigned only once`);
+        seen.set(c.entity, where);
+      }),
+    );
+  scan(cfg.rooms, "rooms");
+  (cfg.floors ?? []).forEach((f, i) => scan(f.rooms, `floors[${i}].rooms`));
+}
+
 /** Validates a raw Lovelace config; throws ConfigError with a readable message. */
 export function validateConfig(raw: unknown): EnergyCardConfig {
   if (!isObj(raw)) throw new ConfigError("Invalid configuration");
@@ -125,6 +141,7 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     (f.rooms ?? []).forEach((r, j) => checkRoom(r, `floors[${i}].rooms[${j}]`));
   });
   (cfg.rooms ?? []).forEach((r, i) => checkRoom(r, `rooms[${i}]`));
+  checkUniqueConsumers(cfg);
   return cfg;
 }
 

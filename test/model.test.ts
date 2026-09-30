@@ -36,10 +36,13 @@ describe("config", () => {
     const cfg = validateConfig({
       type: "x",
       home: { total_entity: "sensor.total" },
-      sources: [{ entity: "sensor.bat", type: "battery", soc_entity: "sensor.soc" }],
-      rooms: [{ area_id: "k", consumers: [{ entity: "sensor.a" }, { entity: "sensor.a" }] }],
+      sources: [
+        { entity: "sensor.bat", type: "battery", soc_entity: "sensor.soc" },
+        { entity: "sensor.bat2", type: "battery", soc_entity: "sensor.soc" }, // same SoC sensor twice is fine
+      ],
+      rooms: [{ area_id: "k", consumers: [{ entity: "sensor.a" }, { entity: "sensor.b" }] }],
     });
-    expect(collectEntityIds(cfg).sort()).toEqual(["sensor.a", "sensor.bat", "sensor.soc", "sensor.total"]);
+    expect(collectEntityIds(cfg).sort()).toEqual(["sensor.a", "sensor.b", "sensor.bat", "sensor.bat2", "sensor.soc", "sensor.total"]);
   });
 });
 

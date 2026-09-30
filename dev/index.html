@@ -185,6 +185,10 @@
         },
         many: { title: "Viele Räume", sources, options: { unit: "kW" }, rooms: manyRooms },
         wrap: { title: "Viele Räume", sources, options: { unit: "kW", wrap_rooms: true }, rooms: manyRooms },
+        duplicate: {
+          title: "Doppelt",
+          rooms: [room("kueche", [c("sensor.backofen")]), room("bad", [c("sensor.backofen")])],
+        },
         invalid: { title: "Ungültig", rooms: [{ name: "ohne area_id" }] },
       };
 

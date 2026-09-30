@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { EnergyCardConfig, FloorConfig, RoomConfig, SourceConfig } from "../model/config";
 import {
+  consumerEntitiesExcept,
   findDuplicates,
   getIn,
   getPath,
@@ -18,7 +19,7 @@ import {
   COLOR_KEYS,
   THRESHOLD,
   PALETTE,
-  CONSUMER,
+  consumerFields,
   GENERAL,
   HOME,
   SOURCE,
@@ -50,6 +51,8 @@ export class EnergyCardEditor extends LitElement {
   @state() private _open = new Set<string>();
 
   @state() private _reg?: Registries;
+  /** short message when an edit was refused, cleared by the next accepted change */
+  @state() private _notice?: string;
   private _regLoading = false;
 
   setConfig(config: EnergyCardConfig): void {
@@ -242,6 +245,7 @@ export class EnergyCardEditor extends LitElement {
 
   private _emit(config: EnergyCardConfig): void {
     this._config = config;
+    this._notice = undefined;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }
 
@@ -253,6 +257,13 @@ export class EnergyCardEditor extends LitElement {
   private _onForm(ptr: Pointer, fields: Field[], ev: CustomEvent): void {
     ev.stopPropagation();
     const data = ev.detail.value as Record<string, unknown>;
+    // A sensor may belong to one consumer only; the picker hides taken ones, this catches the rest.
+    if (ptr.includes("consumers") && typeof data.entity === "string" && data.entity) {
+      if (consumerEntitiesExcept(this._config, ptr).includes(data.entity)) {
+        this._notice = this._tr("Dieser Sensor ist bereits einem Verbraucher zugewiesen.");
+        return;
+      }
+    }
     this._update(ptr, (obj: object) => {
       let next = obj ?? {};
       for (const f of fields.filter((x) => x.kind !== "color")) {
@@ -437,7 +448,7 @@ export class EnergyCardEditor extends LitElement {
         return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, [...roomPtr, "consumers"])} @drop=${(e: DragEvent) => this._onDrop(e, [...roomPtr, "consumers"], i)}>
           <div class="head">
             ${this._handle([...roomPtr, "consumers"], i)}
-            <div class="title" style="flex:1">${this._form(ptr, CONSUMER)}</div>
+            <div class="title" style="flex:1">${this._form(ptr, consumerFields(consumerEntitiesExcept(this._config, ptr)))}</div>
             <button class="icon" ?disabled=${i === 0}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => moveItem(l, i, -1))}>↑</button>
             <button class="icon" ?disabled=${i === consumers.length - 1}
@@ -535,6 +546,7 @@ export class EnergyCardEditor extends LitElement {
       <section><h3>${this._tr("Farben")}</h3>${this._form([], COLORS)}${this._renderThresholds()}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
       <section><h3>${this._tr("Zuhause")}</h3>${this._form([], HOME)}</section>
       ${this._renderSources()} ${this._renderStructure()}
+      ${this._notice ? html`<div class="warn">⚠ ${this._notice}</div>` : nothing}
       ${conflict
         ? html`<div class="warn">⚠ ${this._tr("Die Räume verbrauchen zusammen {0} W, mehr als der Gesamt-Sensor ({1} W). „Nicht erfasst“ wird nicht angezeigt.", Math.round(conflict.rooms), Math.round(conflict.total))}</div>`
         : nothing}

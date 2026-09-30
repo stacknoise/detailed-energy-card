@@ -115,10 +115,19 @@ export const roomFields = (choices: Choice[] = []): Field[] => [
   color("color", "Farbe"),
 ];
 
-export const CONSUMER: Field[] = [
-  { path: "entity", selector: power, label: "Sensor", required: true, check: "power" },
+/** Consumer sensors: power sensors that are not yet assigned to another consumer. */
+export const consumerFields = (exclude: string[] = []): Field[] => [
+  {
+    path: "entity",
+    selector: { entity: { domain: "sensor", device_class: "power", exclude_entities: exclude } },
+    label: "Sensor",
+    required: true,
+    check: "power",
+  },
   { path: "name", selector: text, label: "Name (optional)" },
 ];
+
+export const CONSUMER: Field[] = consumerFields();
 
 /** Builds the ha-form schema for the fields visible for `obj`. */
 export function toSchema(fields: Field[], obj: unknown) {
