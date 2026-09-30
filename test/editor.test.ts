@@ -12,7 +12,7 @@ import { validateConfig, type EnergyCardConfig } from "../src/model/config";
 
 // A config that uses every documented option (concept, section 3).
 const FULL: EnergyCardConfig = {
-  type: "custom:energy-card",
+  type: "custom:detailed-energy-card",
   title: "Energiefluss",
   home: { total_entity: "sensor.total" },
   sources: [

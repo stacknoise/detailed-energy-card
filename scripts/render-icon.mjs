@@ -36,7 +36,7 @@ writeFileSync("docs/icon.svg", icon);
 const social = `<html><body style="margin:0;width:1280px;height:640px;background:#111318;display:flex;align-items:center;justify-content:center;gap:56px;font-family:Roboto,Segoe UI,system-ui,sans-serif">
   <div style="width:400px;height:400px">${icon.replace('width="512" height="512"', 'width="400" height="400"')}</div>
   <div style="color:#e1e1e1">
-    <div style="font-size:88px;font-weight:700;line-height:1.05">Energy Card</div>
+    <div style="font-size:76px;font-weight:700;line-height:1.05">Detailed Energy Card</div>
     <div style="font-size:34px;color:#9b9b9b;margin-top:18px;max-width:520px;line-height:1.3">Home Assistant power flow from sources via floors and rooms to consumers</div>
   </div></body></html>`;
 

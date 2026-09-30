@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Energy Card – dev preview</title>
+    <title>Detailed Energy Card – dev preview</title>
     <style>
       /* HA-like dark theme variables */
       :root {
@@ -32,10 +32,10 @@
     </style>
   </head>
   <body>
-    <energy-card id="c"></energy-card>
+    <detailed-energy-card id="c"></detailed-energy-card>
     <script type="module">
       import * as mdi from "@mdi/js";
-      import "../src/energy-card.ts";
+      import "../src/detailed-energy-card.ts";
 
       // Minimal stand-in for Home Assistant's <ha-icon>, drawing MDI icons.
       customElements.define(
@@ -197,7 +197,7 @@
       if (params.get("width")) document.body.style.maxWidth = params.get("width") + "px";
       const name = params.get("scenario") ?? "floors";
       const el = document.getElementById("c");
-      el.setConfig({ type: "custom:energy-card", ...scenarios[name] });
+      el.setConfig({ type: "custom:detailed-energy-card", ...scenarios[name] });
       el.hass = {
         language: "de",
         config: { location_name: "Zuhause" },

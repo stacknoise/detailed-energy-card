@@ -6,21 +6,21 @@ const shots: Array<{ scenario: string; file: string; before?: (page: import("@pl
     scenario: "floors",
     file: "card-with-floors",
     before: async (page) => {
-      await page.locator("energy-card button.node[title=Küche]").click();
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
     },
   },
   {
     scenario: "flat",
     file: "card-without-floors",
     before: async (page) => {
-      await page.locator("energy-card button.node[title=Küche]").click();
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
     },
   },
   {
     scenario: "wrap",
     file: "card-many-rooms-wrapped",
     before: async (page) => {
-      await page.locator("energy-card button.node[title=Garage]").click();
+      await page.locator("detailed-energy-card button.node[title=Garage]").click();
     },
   },
   { scenario: "floors", file: "card-all-rooms" }, // all rooms of the floor are selected by default
@@ -29,9 +29,9 @@ const shots: Array<{ scenario: string; file: string; before?: (page: import("@pl
 for (const { scenario, file, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {
     await page.goto(`/dev/index.html?scenario=${scenario}`);
-    await expect(page.locator("energy-card .path")).toContainText("Zuhause");
-    await expect(page.locator("energy-card .path")).not.toContainText("eg");
+    await expect(page.locator("detailed-energy-card .path")).toContainText("Zuhause");
+    await expect(page.locator("detailed-energy-card .path")).not.toContainText("eg");
     await before?.(page);
-    await page.locator("energy-card").screenshot({ path: `docs/screenshots/${file}.png` });
+    await page.locator("detailed-energy-card").screenshot({ path: `docs/screenshots/${file}.png` });
   });
 }

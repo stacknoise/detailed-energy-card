@@ -43,8 +43,8 @@ interface Hass {
 }
 
 /** Visual editor: every config option has a field (see schema.ts and the coverage test). */
-@customElement("energy-card-editor")
-export class EnergyCardEditor extends LitElement {
+@customElement("detailed-energy-card-editor")
+export class DetailedEnergyCardEditor extends LitElement {
   @property({ attribute: false }) hass?: Hass;
   @state() private _config?: EnergyCardConfig;
   /** open state of collapsible tree/source items, keyed by pointer */

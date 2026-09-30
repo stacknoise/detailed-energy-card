@@ -1,6 +1,6 @@
-<img src="https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/icon.png" alt="Energy Card icon" width="96" align="right">
+<img src="https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/icon.png" alt="Detailed Energy Card icon" width="96" align="right">
 
-# Energy Card
+# Detailed Energy Card
 
 Home Assistant Lovelace card showing the power flow from sources (PV, battery, grid) through the home, optional floors and rooms down to individual consumers. See [Entwicklungskonzept.md](Entwicklungskonzept.md) for the full concept and roadmap.
 
@@ -12,11 +12,11 @@ Home → floor → room → consumers. Click a floor to show its rooms (all of t
 
 | With floors | Without floors |
 | --- | --- |
-| ![Card with floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-with-floors.png) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-without-floors.png) |
+| ![Card with floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-with-floors.png) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-without-floors.png) |
 
 | All rooms of a floor selected | Many rooms wrapped into two rows |
 | --- | --- |
-| ![All rooms selected](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-all-rooms.png) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/card-many-rooms-wrapped.png) |
+| ![All rooms selected](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-all-rooms.png) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-many-rooms-wrapped.png) |
 
 The card screenshots are rendered from mock data with `npm run screenshots`.
 
@@ -26,26 +26,30 @@ Everything can be configured without YAML. Floors and rooms are picked from the 
 
 | General and colors | Sources and structure |
 | --- | --- |
-| ![Editor: general and colors](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/editor-general.png) | ![Editor: sources and structure](https://raw.githubusercontent.com/stacknoise/energy-card/main/docs/screenshots/editor-structure.png) |
+| ![Editor: general and colors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-general.png) | ![Editor: sources and structure](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-structure.png) |
 
 The editor screenshots are taken in a real Home Assistant.
 
 ## Install (HACS)
 
-[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stacknoise&repository=energy-card&category=plugin)
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stacknoise&repository=detailed-energy-card&category=plugin)
 
 Click the button above to add the repository to HACS on your Home Assistant instance, or do it manually:
 
 1. Open HACS → ⋮ → **Custom repositories**.
-2. Enter `https://github.com/stacknoise/energy-card` and choose the type **Dashboard**.
-3. Search for *Energy Card* in HACS and click **Download**.
-4. Reload the browser. HACS registers the resource `/hacsfiles/energy-card/energy-card.js` automatically.
-5. Add the card to a dashboard: **Add card → Energy Card**, or use `type: custom:energy-card` in YAML.
+2. Enter `https://github.com/stacknoise/detailed-energy-card` and choose the type **Dashboard**.
+3. Search for *Detailed Energy Card* in HACS and click **Download**.
+4. Reload the browser. HACS registers the resource `/hacsfiles/detailed-energy-card/detailed-energy-card.js` automatically.
+5. Add the card to a dashboard: **Add card → Detailed Energy Card**, or use `type: custom:detailed-energy-card` in YAML.
+
+## Renamed from `energy-card`
+
+The card was renamed to `detailed-energy-card` (HACS needs the file name to match the repository name). Existing dashboards must change `type: custom:energy-card` to `type: custom:detailed-energy-card`. In HACS remove the old *Energy Card* entry and add `https://github.com/stacknoise/detailed-energy-card` as custom repository; the old resource `/hacsfiles/energy-card/energy-card.js` can be deleted from the dashboard resources. The stored room selection is reset once.
 
 ## Example
 
 ```yaml
-type: custom:energy-card
+type: custom:detailed-energy-card
 title: Energiefluss
 home:
   total_entity: sensor.hausverbrauch_power
@@ -81,7 +85,7 @@ In the visual editor they are under *Colors → Thresholds* (with a traffic-ligh
 ```bash
 npm install
 npm test            # unit tests (Vitest)
-npm run build       # dist/energy-card.js
+npm run build       # dist/detailed-energy-card.js
 npm run test:e2e    # browser tests (Playwright) against dev/index.html
 npm run screenshots # re-render docs/screenshots/*.png
 npm run icon        # re-render docs/icon.png and docs/social-preview.png

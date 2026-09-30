@@ -1,5 +1,5 @@
 {
-  "name": "energy-card",
+  "name": "detailed-energy-card",
   "version": "0.6.1",
   "description": "Home Assistant Lovelace card showing power flow from sources via floors and rooms to consumers",
   "type": "module",
