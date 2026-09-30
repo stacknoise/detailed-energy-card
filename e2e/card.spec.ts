@@ -239,3 +239,20 @@ test("a sensor assigned to two consumers is reported as a configuration error", 
   await expect(page.locator("detailed-energy-card .error")).toContainText("already assigned");
   await expect(page.locator("detailed-energy-card .error")).toContainText("sensor.backofen");
 });
+
+test("the card picker suggests a complete starting configuration from the areas of Home Assistant", async ({ page }) => {
+  await open(page, "floors");
+  const stub = await page.evaluate(() => {
+    const card = customElements.get("detailed-energy-card") as unknown as { getStubConfig(h: unknown): unknown };
+    const power = { attributes: { device_class: "power" } };
+    return card.getStubConfig({
+      states: { "sensor.a": power, "sensor.b": power, "sensor.c": power },
+      floors: { eg: { floor_id: "eg", level: 0 } },
+      areas: { kueche: { area_id: "kueche", floor_id: "eg" } },
+    });
+  });
+  expect(stub).toMatchObject({
+    sources: [{ entity: "sensor.a" }],
+    floors: [{ floor_id: "eg", rooms: [{ area_id: "kueche", consumers: [{ entity: "sensor.b" }, { entity: "sensor.c" }] }] }],
+  });
+});
