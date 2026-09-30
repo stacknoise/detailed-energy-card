@@ -7,6 +7,7 @@ import { computeModel, type EnergyModel, type RoomNode, type SourceNode } from "
 import { formatPower, stateToWatts, type StateLike } from "./model/units";
 import { isIdle, sortThresholds, thresholdColor, type ThresholdConfig } from "./model/thresholds";
 import { localize, type Key } from "./localize";
+import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
 import { loadRegistries, resolveNames, type Registries } from "./model/registry";
 import {
@@ -69,14 +70,8 @@ export class DetailedEnergyCard extends LitElement {
     return document.createElement("detailed-energy-card-editor");
   }
 
-  static getStubConfig(hass?: Hass): Record<string, unknown> {
-    const power = Object.entries(hass?.states ?? {})
-      .filter(([id, s]) => id.startsWith("sensor.") && s?.attributes?.device_class === "power")
-      .map(([id]) => id);
-    return {
-      title: "Energiefluss",
-      sources: power.slice(0, 1).map((entity) => ({ entity, type: "grid", name: "Netz" })),
-    };
+  static getStubConfig(hass?: StubHass): Record<string, unknown> {
+    return buildStubConfig(hass);
   }
 
   setConfig(config: EnergyCardConfig): void {
