@@ -54,6 +54,9 @@ export class DetailedEnergyCard extends LitElement {
   private _entityIds: string[] = [];
   private _model?: EnergyModel;
   private _ro?: ResizeObserver;
+  private _observed?: Element;
+  /** Config with names from the registry; rebuilt only when the config or the registry changes. */
+  private _resolved?: { reg: object; cfg: EnergyCardConfig };
   private _registries = new RegistrySource(() => {
     this._recompute();
     this.requestUpdate();
@@ -72,6 +75,8 @@ export class DetailedEnergyCard extends LitElement {
       this._config = validateConfig(config);
       this._error = undefined;
       this._entityIds = collectEntityIds(this._config);
+      this._thresholds = sortThresholds(this._config.colors?.thresholds);
+      this._resolved = undefined;
       this._sel = this._loadSelection();
     } catch (e) {
       this._error = (e as Error).message;
@@ -86,7 +91,12 @@ export class DetailedEnergyCard extends LitElement {
     this._registries.ensure(hass);
     // Only re-render when a referenced entity or the floor / area registry changed.
     const registryChanged = !!old && (old.areas !== hass.areas || old.floors !== hass.floors);
-    if (old && !registryChanged && this._entityIds.every((id) => old.states[id] === hass.states[id])) return;
+    const displayChanged =
+      !!old &&
+      (old.locale?.language !== hass.locale?.language ||
+        old.language !== hass.language ||
+        old.config?.location_name !== hass.config?.location_name);
+    if (old && !registryChanged && !displayChanged && this._entityIds.every((id) => old.states[id] === hass.states[id])) return;
     this._recompute();
     this.requestUpdate();
   }
@@ -109,14 +119,16 @@ export class DetailedEnergyCard extends LitElement {
 
   disconnectedCallback(): void {
     this._ro?.disconnect();
+    this._observed = undefined;
     super.disconnectedCallback();
   }
 
   protected updated(): void {
     const el = this.renderRoot.querySelector(".scroll");
-    if (el && this._ro) {
-      this._ro.disconnect();
-      this._ro.observe(el);
+    if (el && el !== this._observed) {
+      this._ro?.disconnect();
+      this._ro?.observe(el);
+      this._observed = el;
     }
   }
 
@@ -126,7 +138,11 @@ export class DetailedEnergyCard extends LitElement {
     if (!this._config || !this._hass) return;
     const states = this._hass.states;
     const reg = this._registries.get(this._hass);
-    const cfg = reg ? resolveNames(this._config, reg) : this._config;
+    let cfg = this._config;
+    if (reg) {
+      if (this._resolved?.reg !== reg) this._resolved = { reg, cfg: resolveNames(this._config, reg) };
+      cfg = this._resolved.cfg;
+    }
     this._model = computeModel(cfg, powerReader(states), socReader(states));
   }
 
@@ -182,9 +198,7 @@ export class DetailedEnergyCard extends LitElement {
     return formatPower(watts, o?.unit ?? "W", o?.decimals ?? 2, this._hass?.locale?.language ?? this._hass?.language);
   }
 
-  private get _thresholds(): ThresholdConfig[] {
-    return sortThresholds(this._config?.colors?.thresholds);
-  }
+  private _thresholds: ThresholdConfig[] = [];
 
   private _moreInfo(entityId: string): void {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));

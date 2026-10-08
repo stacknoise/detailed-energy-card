@@ -30,6 +30,19 @@ export function stateToPercent(st: StateLike | undefined): number | null {
 
 export type UnitOption = "auto" | "W" | "kW";
 
+const formats = new Map<string, Intl.NumberFormat>();
+
+/** Intl.NumberFormat is expensive to create, so one instance per locale and number of decimals is reused. */
+function numberFormat(locale: string | undefined, decimals: number): Intl.NumberFormat {
+  const key = `${locale ?? ""}|${decimals}`;
+  let nf = formats.get(key);
+  if (!nf) {
+    nf = new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    formats.set(key, nf);
+  }
+  return nf;
+}
+
 /** Formats watts, e.g. 3420 -> "3.42 kW" (auto). Values below 1 W show "0 W". */
 export function formatPower(watts: number, unit: UnitOption = "auto", decimals = 2, locale?: string): string {
   const abs = Math.abs(watts);
@@ -37,7 +50,5 @@ export function formatPower(watts: number, unit: UnitOption = "auto", decimals =
   // Intl.NumberFormat throws outside 0..20; never let a bad option break rendering.
   const d = Number.isFinite(decimals) ? Math.min(20, Math.max(0, Math.trunc(decimals))) : 2;
   const useKw = unit === "kW" || (unit === "auto" && abs >= 1000);
-  const nf = (n: number, d: number) =>
-    new Intl.NumberFormat(locale, { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
-  return useKw ? `${nf(abs / 1000, d)} kW` : `${nf(abs, 0)} W`;
+  return useKw ? `${numberFormat(locale, d).format(abs / 1000)} kW` : `${numberFormat(locale, 0).format(abs)} W`;
 }
