@@ -49,7 +49,7 @@ export interface EnergyModel {
   rooms: RoomNode[];
   homeWatts: number;
   unassigned: number;
-  /** 0..1, null when home consumption is zero */
+  /** 0..1, null when home consumption is zero or the grid is not measured (no grid source, or unreadable) */
   autarky: number | null;
   totalValid: boolean;
 }
@@ -119,10 +119,13 @@ export function computeModel(cfg: EnergyCardConfig, read: Reader, readSoc: Reade
   const homeWatts = totalValid ? Math.max(0, total!.watts) : roomSum;
   const unassigned = totalValid ? Math.max(0, homeWatts - roomSum) : 0;
 
-  const gridImport = sources
-    .filter((s) => s.type === "grid")
-    .reduce((sum, s) => sum + Math.max(0, s.watts), 0);
-  const autarky = homeWatts > 0 ? Math.min(1, Math.max(0, 1 - gridImport / homeWatts)) : null;
+  // Self-sufficiency is "the part of the consumption not drawn from the grid", so it is only
+  // known when the grid is measured: without a grid source, or with a grid sensor that
+  // cannot be read, there is nothing to subtract and the badge is left out (not shown as 100 %).
+  const grids = sources.filter((s) => s.type === "grid");
+  const gridKnown = grids.length > 0 && grids.every((s) => s.valid);
+  const gridImport = grids.reduce((sum, s) => sum + Math.max(0, s.watts), 0);
+  const autarky = gridKnown && homeWatts > 0 ? Math.min(1, Math.max(0, 1 - gridImport / homeWatts)) : null;
 
   return { sources, floors, rooms, homeWatts, unassigned, autarky, totalValid };
 }

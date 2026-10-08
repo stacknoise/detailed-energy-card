@@ -141,7 +141,7 @@ Mit `invert: true` wird das Vorzeichen eines Sensors gedreht.
 **Kennzahlen**
 
 - Anteil einer Quelle = Quelle / Σ positive Quellen
-- Autarkie = 1 − Netzbezug / Zuhause, begrenzt auf 0…100 %
+- Autarkie = 1 − Netzbezug / Zuhause, begrenzt auf 0…100 %. Das Badge erscheint nur, wenn mindestens eine Quelle vom Typ `grid` konfiguriert ist, alle Netz-Sensoren lesbar sind und das Zuhause Leistung verbraucht; ohne gemessenes Netz wäre der Wert immer 100 % und wird deshalb weggelassen.
 
 **Ungültige Werte:** `unavailable`, `unknown` und nicht numerische Werte zählen als 0. Der Knoten wird dann gedimmt und mit einem Warn-Icon versehen.
 
