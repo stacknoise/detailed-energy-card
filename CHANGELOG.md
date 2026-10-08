@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+
+- Loading the card script twice (for example as two dashboard resources) no longer throws "already defined" and no longer adds a second entry to the card picker.
 ### Changed
 
 - The remembered floor and room selection is stored by `floor_id` / `area_id` instead of by name. It now survives renaming a floor or area and changing colors, names or consumers. The selection is reset once on upgrade, and old storage entries are removed.

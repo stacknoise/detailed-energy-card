@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { property, state } from "lit/decorators.js";
 import type { EnergyCardConfig, FloorConfig, RoomConfig, SourceConfig } from "../model/config";
 import {
   consumerEntitiesExcept,
@@ -35,6 +35,7 @@ import { RegistrySource, type Registries, type RegistryHass } from "../model/reg
 import type { StateLike } from "../model/units";
 import { DEFAULT_THRESHOLDS, duplicateThresholds, type ThresholdConfig } from "../model/thresholds";
 import { colorError, contrastWarning, fieldErrors, sumConflict } from "./validation";
+import { defineOnce } from "../register";
 import { makeTr, type Tr } from "../localize/editor";
 
 interface Hass {
@@ -44,7 +45,6 @@ interface Hass {
 }
 
 /** Visual editor: every config option has a field (see schema.ts and the coverage test). */
-@customElement("detailed-energy-card-editor")
 export class DetailedEnergyCardEditor extends LitElement {
   @property({ attribute: false }) hass?: Hass;
   @state() private _config?: EnergyCardConfig;
@@ -586,3 +586,5 @@ export class DetailedEnergyCardEditor extends LitElement {
     `;
   }
 }
+
+defineOnce("detailed-energy-card-editor", DetailedEnergyCardEditor);
