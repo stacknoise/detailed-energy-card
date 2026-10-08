@@ -203,6 +203,7 @@ src/
     compute.ts                // Summen, Vorzeichen, Autarkie
     units.ts                  // W/kW/MW-Normalisierung, Formatierung, SoC in %
     readers.ts                // powerReader / socReader über die hass-States
+    selection.ts              // gemerkte Auswahl: Key aus Struktur-IDs, typgeprüftes Laden
     registry.ts               // Floors/Areas aus hass, WebSocket-Fallback mit Backoff
   view/
     flow-graph.ts             // SVG-Linien + Knoten-Layout

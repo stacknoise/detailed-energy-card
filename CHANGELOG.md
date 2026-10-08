@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- The remembered floor and room selection is stored by `floor_id` / `area_id` instead of by name. It now survives renaming a floor or area and changing colors, names or consumers. The selection is reset once on upgrade, and old storage entries are removed.
+- A damaged stored selection is ignored instead of causing errors.
+
 ## 0.7.2
 
 ### Fixed
