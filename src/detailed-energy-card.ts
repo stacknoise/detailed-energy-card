@@ -11,6 +11,7 @@ import { localize, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
+import { parseSelection, removeLegacyKeys, selectionKey, type Selection } from "./model/selection";
 import {
   computeLayout,
   curve,
@@ -33,24 +34,11 @@ interface Hass {
   states: Record<string, StateLike | undefined>;
 }
 
-interface Selection {
-  /** undefined = default (largest floor), null = explicitly none selected, i.e. all floors */
-  floor?: string | null;
-  /** a room name selects just that room; undefined / null select all rooms of the row */
-  room?: string | null;
-}
-
 const SOURCE_ICONS: Record<string, string> = {
   solar: "mdi:white-balance-sunny",
   battery: "mdi:battery-high",
   grid: "mdi:transmission-tower",
   generic: "mdi:flash",
-};
-
-const hashOf = (s: string): string => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  return (h >>> 0).toString(36);
 };
 
 @customElement("detailed-energy-card")
@@ -143,13 +131,14 @@ export class DetailedEnergyCard extends LitElement {
   }
 
   private get _storageKey(): string {
-    return `detailed-energy-card:${hashOf(JSON.stringify(this._config ?? {}))}`;
+    return selectionKey(this._config);
   }
 
   private _loadSelection(): Selection {
     if (this._config?.options?.remember_selection === false) return {};
     try {
-      return JSON.parse(localStorage.getItem(this._storageKey) ?? "{}");
+      removeLegacyKeys(localStorage);
+      return parseSelection(localStorage.getItem(this._storageKey));
     } catch {
       return {};
     }
@@ -172,12 +161,12 @@ export class DetailedEnergyCard extends LitElement {
     let floor: number | undefined;
     let rooms = model.rooms;
     if (model.floors.length) {
-      const i = model.floors.findIndex((f) => f.name === this._sel.floor);
+      const i = model.floors.findIndex((f) => f.id === this._sel.floor);
       // no single floor selected: all floors count as selected and the room row is hidden
       floor = this._sel.floor === null ? undefined : i >= 0 ? i : largest(model.floors);
       rooms = floor === undefined ? [] : model.floors[floor].rooms;
     }
-    const r = rooms.findIndex((x) => x.name === this._sel.room);
+    const r = rooms.findIndex((x) => x.id === this._sel.room);
     const room = r >= 0 ? r : undefined;
     return { floor, rooms, room };
   }
@@ -225,6 +214,7 @@ export class DetailedEnergyCard extends LitElement {
     const allRooms = sel.rooms.length > 0 && !room;
     const detailRoom: RoomNode | undefined = allFloors
       ? {
+          id: "",
           name: home,
           icon: "mdi:home",
           watts: model.floors.reduce((sum, f) => sum + f.watts, 0),
@@ -232,6 +222,7 @@ export class DetailedEnergyCard extends LitElement {
         }
       : allRooms
       ? {
+          id: floor?.id ?? "",
           name: floor?.name ?? home,
           icon: floor?.icon ?? "mdi:home",
           color: floor?.color,
@@ -257,7 +248,7 @@ export class DetailedEnergyCard extends LitElement {
             ${this._renderLines(model, layout, sel.floor, sel.room, allRooms, allFloors)}
             ${model.sources.map((s, i) => this._renderSource(s, layout.sourceXs[i]))}
             ${this._renderHome(model, layout, home, allFloors || (!model.floors.length && allRooms))}
-            ${model.floors.map((f, i) => this._renderFloor(f.name, f.watts, f.color, layout.floorXs[i], layout.yFloor, i === sel.floor, allFloors))}
+            ${model.floors.map((f, i) => this._renderFloor(f.id, f.name, f.watts, f.color, layout.floorXs[i], layout.yFloor, i === sel.floor, allFloors))}
             ${sel.rooms.map((r, i) => this._renderRoom(r, layout.roomXs[i], layout.roomYs[i], i === sel.room, allRooms))}
           </div>
         </div>
@@ -346,14 +337,14 @@ export class DetailedEnergyCard extends LitElement {
     `;
   }
 
-  private _renderFloor(name: string, watts: number, color: string | undefined, x: number, y: number, selected: boolean, allFloors = false): TemplateResult {
+  private _renderFloor(id: string, name: string, watts: number, color: string | undefined, x: number, y: number, selected: boolean, allFloors = false): TemplateResult {
     return html`
       <button
         class="node ${isIdle(watts) ? "idle" : ""}"
         style=${styleMap({ left: `${x}px`, top: `${y}px`, "--node-color": color ?? "" })}
         aria-pressed=${selected}
         title=${name}
-        @click=${() => this._select(selected ? { floor: null } : { floor: name })}
+        @click=${() => this._select(selected ? { floor: null } : { floor: id })}
       >
         <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${this._fmt(watts)}</small></span>
       </button>
@@ -367,7 +358,7 @@ export class DetailedEnergyCard extends LitElement {
         style=${styleMap({ left: `${x}px`, top: `${y}px`, "--node-color": r.color ?? "" })}
         aria-pressed=${selected}
         title=${r.name}
-        @click=${() => this._select({ ...this._sel, room: selected ? null : r.name })}
+        @click=${() => this._select({ ...this._sel, room: selected ? null : r.id })}
       >
         <span class="circle room ${selected || allRooms ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon></span>
         <span class="label">${r.name}</span>
