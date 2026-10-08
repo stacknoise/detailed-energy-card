@@ -4,7 +4,7 @@
 
 Home Assistant Lovelace card showing the power flow from sources (PV, battery, grid) through the home, optional floors and rooms down to individual consumers. See [Entwicklungskonzept.md](Entwicklungskonzept.md) for the full concept and roadmap.
 
-Status: **0.3**. Configure it in the visual editor (German and English) or in YAML.
+Status: **0.7.2** (see the [changelog](CHANGELOG.md)). Configure it in the visual editor (German and English) or in YAML.
 
 ## Preview
 
@@ -78,7 +78,7 @@ colors:
     - { from: 2000, color: "#f44336" }
 ```
 
-In the visual editor they are under *Colors → Thresholds* (with a traffic-light preset). Every color field takes a single CSS color: hex (`#9184d9`), `rgb()`/`hsl()`, a named color (`orange`) or a theme variable (`var(--primary-color)`); anything else is a configuration error. Only `sensor.*` power entities (W / kW / MW) are supported. All options are documented in the concept, section 3.
+In the visual editor they are under *Colors → Thresholds* (with a traffic-light preset). Every color field takes a single CSS color: hex (`#9184d9`), `rgb()`/`hsl()`, a named color (`orange`) or a theme variable (`var(--primary-color)`); anything else is a configuration error. Only `sensor.*` power entities (W / kW / MW) are supported; a sensor with another unit (for example kWh or V) is not counted as watts and shows a warning on its node. A battery state-of-charge sensor (`soc_entity`) must report `%`. All options are documented in the concept, section 3.
 
 ## Development
 
@@ -90,6 +90,8 @@ npm run test:e2e    # browser tests (Playwright) against dev/index.html
 npm run screenshots # re-render docs/screenshots/*.png
 npm run icon        # re-render docs/icon.png and docs/social-preview.png
 ```
+
+Releases: raise `version` in `package.json`, merge, then push the tag `v<version>`; the release workflow refuses a tag that does not match. Add the changes to [CHANGELOG.md](CHANGELOG.md) first.
 
 `npx vite` serves `dev/index.html`, a mock-data preview. Pick a scenario with `?scenario=floors|flat|many|wrap|invalid`.
 

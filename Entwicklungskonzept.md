@@ -32,12 +32,12 @@ Interaktion: Etage wählen → Räume dieser Etage werden gezeigt. Raum wählen 
 |---|---|
 | Sprache | TypeScript |
 | UI | Lit 3 (`LitElement`), wie HA-Frontend |
-| Build | Vite oder Rollup → ein ES-Modul `detailed-energy-card.js` |
+| Build | Vite → ein ES-Modul `detailed-energy-card.js` |
 | Grafik | Inline-SVG für Linien, HTML für Knoten und Liste |
 | Animation | CSS `stroke-dashoffset`, keine JS-Loops |
 | Icons | `ha-icon` mit MDI-Namen (in HA verfügbar). Die Phosphor-Icons im Entwurf werden auf MDI gemappt. |
 | Verteilung | HACS (Typ „Dashboard“/Plugin) über GitHub Releases, siehe Abschnitt 13 |
-| Tests | Vitest (Berechnung, Layout), Playwright (visuelle Snapshots) |
+| Tests | Vitest (Berechnung, Validierung, Registry), Playwright (E2E und Screenshots) |
 
 ---
 
@@ -93,13 +93,15 @@ options:
 
 **Regeln**
 
-- **Etagen und Räume kommen ausschließlich aus Home Assistant.** Die Config speichert nur `floor_id` und `area_id`. Name und Icon werden zur Laufzeit aus der Floor- bzw. Area-Registry gelesen (WebSocket `config/floor_registry/list`, `config/area_registry/list`). Freie Namen sind nicht möglich; ein Eintrag ohne ID ist ein Validierungsfehler. Ist eine ID in HA nicht mehr vorhanden, zeigt die Card die ID.
+- **Etagen und Räume kommen ausschließlich aus Home Assistant.** Die Config speichert nur `floor_id` und `area_id`. Name und Icon werden zur Laufzeit aus der Floor- bzw. Area-Registry gelesen: bevorzugt aus `hass.areas` und `hass.floors`, wenn beide vorhanden sind (so erscheinen Umbenennungen ohne Reload). Fehlen sie (ältere HA-Frontends), lädt die Card per WebSocket (`config/floor_registry/list`, `config/area_registry/list`); nach einem Fehler wird frühestens nach 30 s erneut versucht. Freie Namen sind nicht möglich; ein Eintrag ohne ID ist ein Validierungsfehler. Ist eine ID in HA nicht mehr vorhanden, zeigt die Card die ID.
 - Ein Verbraucher-Sensor kann nur einem einzigen Verbraucher zugewiesen werden (Validierungsfehler in YAML). Der Editor blendet bereits vergebene Sensoren in der Auswahl aus (`exclude_entities`) und lehnt eine doppelte Eingabe ab.
 - Jede Etage und jeder Bereich kann nur einmal vorkommen. Unter einer Etage sind nur Bereiche wählbar, die in HA dieser Etage zugeordnet sind.
 
 - Es gibt entweder `floors` oder `rooms` auf oberster Ebene. Sind beide gesetzt, gibt es einen Validierungsfehler.
 - Räume sind nie leer: Ein Raum ohne Verbraucher wird mit einem Hinweis angezeigt, aber mit 0 gerechnet.
 - Anzahl von Quellen, Etagen, Räumen und Verbrauchern ist nicht begrenzt.
+- Die gesamte Config wird beim Laden geprüft (`validateConfig`) und meldet Fehler mit Pfad, z. B. `options.decimals`. `options.decimals` ist eine ganze Zahl von 0 bis 20, `options.unit` ist `auto`, `W` oder `kW`, Schalter sind Booleans. Jedes Farbfeld ist genau eine CSS-Farbe (Hex, `rgb()`/`hsl()`, benannte Farbe, `var(--…)` oder `theme`); alles andere ist ein Validierungsfehler, damit keine zusätzlichen CSS-Deklarationen eingeschleust werden können.
+- Schaltet man im Editor Etagen ein, werden Räume ohne Etage ausgeblendet (mit Hinweis); schaltet man Etagen wieder aus, werden sie wiederhergestellt. Der Schalter ist gesperrt, solange die Registry nicht geladen ist.
 
 ---
 
@@ -111,7 +113,7 @@ Nur **Sensoren** sind zulässig. Die Validierung erfolgt im Editor und zur Laufz
 - `device_class: power`, Einheit `W`, `kW` oder `MW`
 - *(Phase 2)* `device_class: energy` (`Wh`/`kWh`) für einen Modus „Tagesverbrauch“
 
-Nicht passende Entitäten werden im Editor ausgefiltert. Kommen sie per YAML trotzdem in die Konfiguration, zeigt die Card eine Warnung am Knoten statt abzustürzen.
+Nicht passende Entitäten werden im Editor ausgefiltert. Kommen sie per YAML trotzdem in die Konfiguration, zeigt die Card eine Warnung am Knoten statt abzustürzen. Eine unbekannte Einheit (z. B. `kWh`, `V`) wird nie als Watt gezählt, sondern gilt als ungültig; der SoC-Sensor einer Batterie wird getrennt gelesen und muss `%` liefern (Wert auf 0…100 begrenzt).
 
 Alle Werte werden intern in **Watt** umgerechnet.
 
@@ -196,9 +198,12 @@ src/
     card-editor.ts            // visueller Editor
     tree-editor.ts            // Zuhause / Etagen / Räume / Verbraucher
   model/
-    config.ts                 // Typen + Validierung (superstruct o. ä.)
+    config.ts                 // Typen + Validierung (validateConfig, Pfad-Fehlermeldungen)
+    colors.ts                 // isValidColor: genau eine CSS-Farbe
     compute.ts                // Summen, Vorzeichen, Autarkie
-    units.ts                  // W/kW/MW-Normalisierung, Formatierung
+    units.ts                  // W/kW/MW-Normalisierung, Formatierung, SoC in %
+    readers.ts                // powerReader / socReader über die hass-States
+    registry.ts               // Floors/Areas aus hass, WebSocket-Fallback mit Backoff
   view/
     flow-graph.ts             // SVG-Linien + Knoten-Layout
     node.ts                   // Quelle / Zuhause / Etage / Raum
@@ -308,6 +313,8 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 | **0.2** | Vollständiger visueller Editor (alle Optionen), Baum, gefilterte Sensorauswahl |
 | **0.3** | Einspeisung, Batterie laden, „Nicht erfasst“, Autarkie |
 | **0.4** | Viele Räume (Scroll/Umbruch), Lokalisierung DE/EN, erstes HACS-Release (Custom Repository) |
+| **0.7.2** | Bugfixes: strengere Config-Validierung, Einheitenprüfung, Autarkie nur mit gemessenem Netz, Etagen-Schalter ohne Datenverlust, Registry aus `hass`; gehärtete CI. Details in [CHANGELOG.md](CHANGELOG.md) |
+| **0.8** | Robustheit und Performance: Auswahl über IDs speichern, Editor-Renders filtern, Caches, Animation nur im Sichtbereich |
 | **1.0** | Energie-Modus (kWh heute/Woche) mit `device_class: energy`, Stabilisierung, Aufnahme in HACS-Standard |
 
 ---
@@ -325,9 +332,11 @@ detailed-energy-card/
   LICENSE                    // z. B. MIT
   package.json
   vite.config.ts
+  CHANGELOG.md
+  .github/dependabot.yml     // wöchentliche Updates für npm und GitHub Actions
   .github/workflows/
-    build.yml                // Lint, Tests, Build bei jedem Push/PR
-    release.yml              // Build + Asset-Upload bei Tag v*
+    build.yml                // Typecheck, Tests, Build, E2E bei jedem Push/PR
+    release.yml              // Build-Job (nur lesen) + Release-Job (schreiben) bei Tag v*
     validate.yml             // HACS-Validierung via hacs/action
 ```
 
@@ -370,7 +379,7 @@ customElements.define('detailed-energy-card-editor', EnergyCardEditor);
 });
 ```
 
-**Release-Ablauf:** Version in `package.json` erhöhen, Tag `vX.Y.Z` pushen. `release.yml` baut dann die Datei, hängt `detailed-energy-card.js` an das Release und erzeugt die Release-Notes. Optional folgt danach der PR zur Aufnahme in `hacs/default`.
+**Release-Ablauf:** Version in `package.json` erhöhen und `CHANGELOG.md` ergänzen, mergen, dann Tag `vX.Y.Z` pushen. `release.yml` bricht ab, wenn der Tag nicht zur Version in `package.json` passt, führt Typecheck, Tests, Build und E2E aus, hängt dann `detailed-energy-card.js` an das Release (mit Build-Provenance-Attestation) und erzeugt die Release-Notes. Alle Actions sind auf Commit-SHAs gepinnt und die Jobs laufen mit minimalen Rechten. Optional folgt danach der PR zur Aufnahme in `hacs/default`.
 
 ---
 
