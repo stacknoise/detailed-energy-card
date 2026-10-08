@@ -75,14 +75,18 @@ function computeRoom(room: RoomConfig, read: Reader): RoomNode {
   };
 }
 
-export function computeModel(cfg: EnergyCardConfig, read: Reader): EnergyModel {
+/**
+ * `read` reads power sensors; `readSoc` reads state-of-charge sensors in percent
+ * (defaults to `read`, which is enough for tests that use one lookup table).
+ */
+export function computeModel(cfg: EnergyCardConfig, read: Reader, readSoc: Reader = read): EnergyModel {
   const sources: SourceNode[] = (cfg.sources ?? []).map((s) => {
     const type = s.type ?? "generic";
     const r = read(s.entity);
     let watts = r.valid ? r.watts : 0;
     if (s.invert) watts = -watts;
     if (type === "solar" || type === "generic") watts = Math.max(0, watts);
-    const soc = s.soc_entity ? read(s.soc_entity) : undefined;
+    const soc = s.soc_entity ? readSoc(s.soc_entity) : undefined;
     return {
       entity: s.entity,
       name: s.name ?? DEFAULT_NAMES[type],

@@ -4,7 +4,8 @@ import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
 import { collectEntityIds, validateConfig, type EnergyCardConfig } from "./model/config";
 import { computeModel, type EnergyModel, type RoomNode, type SourceNode } from "./model/compute";
-import { formatPower, stateToWatts, type StateLike } from "./model/units";
+import { formatPower, type StateLike } from "./model/units";
+import { powerReader, socReader } from "./model/readers";
 import { isIdle, sortThresholds, thresholdColor, type ThresholdConfig } from "./model/thresholds";
 import { localize, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
@@ -148,15 +149,7 @@ export class DetailedEnergyCard extends LitElement {
     if (!this._config || !this._hass) return;
     const states = this._hass.states;
     const cfg = this._reg ? resolveNames(this._config, this._reg) : this._config;
-    this._model = computeModel(cfg, (id) => {
-      const w = stateToWatts(states[id]);
-      // SoC and other non-power sensors are plain numbers: fall back to the raw value
-      if (w === null) {
-        const n = Number(states[id]?.state);
-        return Number.isFinite(n) && states[id]?.state !== "" ? { watts: n, valid: true } : { watts: 0, valid: false };
-      }
-      return { watts: w, valid: true };
-    });
+    this._model = computeModel(cfg, powerReader(states), socReader(states));
   }
 
   private get _storageKey(): string {
