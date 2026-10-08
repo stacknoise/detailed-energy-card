@@ -3,6 +3,7 @@ import {
   findDuplicates,
   getPath,
   moveItem,
+  roomsWithoutFloor,
   setPath,
   toggleFloors,
   updateIn,
@@ -93,6 +94,41 @@ describe("config utils", () => {
     );
     expect(back.floors).toBeUndefined();
     expect(back.rooms!.map((r) => r.area_id)).toEqual(["a", "b"]);
+  });
+  it("names the rooms that cannot move onto a floor", () => {
+    const areas = [{ area_id: "k", floor_id: "eg" }, { area_id: "x", floor_id: null }, { area_id: "y" }];
+    const cfg: EnergyCardConfig = { type: "x", rooms: [{ area_id: "k" }, { area_id: "x" }, { area_id: "y" }, { area_id: "gone" }] };
+    expect(roomsWithoutFloor(cfg, areas).map((r) => r.area_id)).toEqual(["x", "y", "gone"]);
+    // without the registry every room looks floorless: the editor must not toggle then
+    expect(roomsWithoutFloor(cfg).length).toBe(4);
+    expect(roomsWithoutFloor({ type: "x", floors: [] }, areas)).toEqual([]);
+  });
+  it("toggling floors off restores the rooms that were left out", () => {
+    const areas = [{ area_id: "k", floor_id: "eg" }, { area_id: "x", floor_id: null }];
+    const flat: EnergyCardConfig = {
+      type: "x",
+      rooms: [{ area_id: "k", consumers: [{ entity: "sensor.a" }] }, { area_id: "x", consumers: [{ entity: "sensor.b" }] }],
+    };
+    const on = toggleFloors(flat, true, areas);
+    expect(on.floors).toEqual([{ floor_id: "eg", rooms: [flat.rooms![0]] }]);
+    const left = roomsWithoutFloor(flat, areas);
+    const back = toggleFloors(on, false, areas, left);
+    expect(back.floors).toBeUndefined();
+    expect(back.rooms).toEqual(flat.rooms);
+  });
+  it("does not restore a room twice or assign a sensor twice", () => {
+    const cfg: EnergyCardConfig = {
+      type: "x",
+      floors: [{ floor_id: "eg", rooms: [{ area_id: "k", consumers: [{ entity: "sensor.a" }] }, { area_id: "x" }] }],
+    };
+    const left = [
+      { area_id: "x", consumers: [{ entity: "sensor.zz" }] }, // its area is on a floor meanwhile
+      { area_id: "y", consumers: [{ entity: "sensor.a" }, { entity: "sensor.b" }] }, // sensor.a is taken
+    ];
+    const back = toggleFloors(cfg, false, [], left);
+    expect(back.rooms!.map((r) => r.area_id)).toEqual(["k", "x", "y"]);
+    expect(back.rooms![2].consumers).toEqual([{ entity: "sensor.b" }]);
+    expect(() => validateConfig(back)).not.toThrow();
   });
   it("finds duplicate assignments", () => {
     const cfg: EnergyCardConfig = {

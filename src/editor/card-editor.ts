@@ -9,6 +9,7 @@ import {
   moveItem,
   removeItem,
   reorder,
+  roomsWithoutFloor,
   setPath,
   toggleFloors,
   updateIn,
@@ -54,6 +55,8 @@ export class DetailedEnergyCardEditor extends LitElement {
   /** short message when an edit was refused, cleared by the next accepted change */
   @state() private _notice?: string;
   private _regLoading = false;
+  /** rooms left out when floors were switched on; switching floors off puts them back */
+  private _leftOut: RoomConfig[] = [];
 
   setConfig(config: EnergyCardConfig): void {
     this._config = config;
@@ -280,6 +283,33 @@ export class DetailedEnergyCardEditor extends LitElement {
     });
   }
 
+  /**
+   * Floors on: rooms whose area has no floor cannot be shown, so say which ones and keep them
+   * until floors are switched off again. Floors need the area registry to group the rooms;
+   * without it the switch is disabled (an empty registry would drop every room).
+   */
+  private _onFloorsToggle(on: boolean): void {
+    const cfg = this._config;
+    if (!cfg) return;
+    const areas = this._reg?.areas;
+    if (on) {
+      if (!areas) return;
+      const left = roomsWithoutFloor(cfg, areas);
+      this._leftOut = left;
+      this._emit(toggleFloors(cfg, true, areas));
+      if (left.length) {
+        this._notice = this._tr(
+          "Räume ohne Etage wurden ausgeblendet: {0}. Etagen wieder auszuschalten stellt sie wieder her.",
+          left.map((r) => this._areaName(r.area_id)).join(", "),
+        );
+      }
+      return;
+    }
+    const restore = this._leftOut;
+    this._leftOut = [];
+    this._emit(toggleFloors(cfg, false, areas, restore));
+  }
+
   private _toggleOpen(key: string): void {
     const open = new Set(this._open);
     open.has(key) ? open.delete(key) : open.add(key);
@@ -503,7 +533,8 @@ export class DetailedEnergyCardEditor extends LitElement {
         <ha-formfield .label=${this._tr("Etagen verwenden")}>
           <ha-switch
             .checked=${useFloors}
-            @change=${(ev: Event) => this._emit(toggleFloors(cfg!, (ev.target as HTMLInputElement).checked, this._reg?.areas))}
+            .disabled=${!useFloors && !this._reg}
+            @change=${(ev: Event) => this._onFloorsToggle((ev.target as HTMLInputElement).checked)}
           ></ha-switch>
         </ha-formfield>
         ${useFloors
