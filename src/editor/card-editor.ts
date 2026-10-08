@@ -1,6 +1,6 @@
-import { LitElement, css, html, nothing, type TemplateResult } from "lit";
+import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
-import type { EnergyCardConfig, FloorConfig, RoomConfig, SourceConfig } from "../model/config";
+import { collectEntityIds, type EnergyCardConfig, type FloorConfig, type RoomConfig, type SourceConfig } from "../model/config";
 import {
   consumerEntitiesExcept,
   findDuplicates,
@@ -36,6 +36,7 @@ import type { StateLike } from "../model/units";
 import { DEFAULT_THRESHOLDS, duplicateThresholds, type ThresholdConfig } from "../model/thresholds";
 import { colorError, contrastWarning, fieldErrors, sumConflict } from "./validation";
 import { defineOnce } from "../register";
+import { hassChangedForEditor, type EditorHass } from "./hass-change";
 import { makeTr, type Tr } from "../localize/editor";
 
 interface Hass {
@@ -59,6 +60,31 @@ export class DetailedEnergyCardEditor extends LitElement {
 
   setConfig(config: EnergyCardConfig): void {
     this._config = config;
+  }
+
+  private _ids?: { cfg: EnergyCardConfig; ids: string[] };
+
+  /** Entity ids used by the config; recomputed only when the config object changes. */
+  private get _entityIds(): string[] {
+    const cfg = this._config;
+    if (!cfg) return [];
+    if (this._ids?.cfg !== cfg) {
+      let ids: string[] = [];
+      try {
+        ids = collectEntityIds(cfg);
+      } catch {
+        /* a half-edited config: render on every change until it is usable */
+        return [];
+      }
+      this._ids = { cfg, ids };
+    }
+    return this._ids.ids;
+  }
+
+  /** A new `hass` arrives with every state change of the instance; skip those that do not concern the editor. */
+  protected shouldUpdate(changed: PropertyValues): boolean {
+    if (changed.size !== 1 || !changed.has("hass")) return true;
+    return hassChangedForEditor(changed.get("hass") as EditorHass | undefined, this.hass as EditorHass | undefined, this._entityIds);
   }
 
   protected willUpdate(): void {
