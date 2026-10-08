@@ -54,6 +54,7 @@ export class DetailedEnergyCard extends LitElement {
   private _entityIds: string[] = [];
   private _model?: EnergyModel;
   private _ro?: ResizeObserver;
+  private _io?: IntersectionObserver;
   private _observed?: Element;
   /** Config with names from the registry; rebuilt only when the config or the registry changes. */
   private _resolved?: { reg: object; cfg: EnergyCardConfig };
@@ -115,10 +116,21 @@ export class DetailedEnergyCard extends LitElement {
       const w = this.renderRoot.querySelector<HTMLElement>(".scroll")?.clientWidth ?? 0;
       if (w && Math.abs(w - this._width) > 1) this._width = w;
     });
+    // Pause the line animation while the card is not visible; no re-render needed, only a class on the host.
+    if (typeof IntersectionObserver !== "undefined") {
+      this._io = new IntersectionObserver((entries) => {
+        const last = entries[entries.length - 1];
+        if (last) this.classList.toggle("offscreen", !last.isIntersecting);
+      });
+      this._io.observe(this);
+    }
   }
 
   disconnectedCallback(): void {
     this._ro?.disconnect();
+    this._io?.disconnect();
+    this._io = undefined;
+    this.classList.remove("offscreen");
     this._observed = undefined;
     super.disconnectedCallback();
   }
