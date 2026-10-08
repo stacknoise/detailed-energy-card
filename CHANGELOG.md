@@ -9,6 +9,7 @@
 
 ### Changed
 
+- The visual editor no longer renders again for every state change in Home Assistant; it updates only when a sensor used in the card, the language, the theme or the floors and areas change.
 - The remembered floor and room selection is stored by `floor_id` / `area_id` instead of by name. It now survives renaming a floor or area and changing colors, names or consumers. The selection is reset once on upgrade, and old storage entries are removed.
 - A damaged stored selection is ignored instead of causing errors.
 
