@@ -59,14 +59,28 @@ export function removeItem<T>(list: T[], index: number): T[] {
   return list.filter((_, i) => i !== index);
 }
 
+type AreaRef = { area_id: string; floor_id?: string | null };
+
+/**
+ * Rooms that cannot move onto a floor: their area is unknown or has no floor in Home
+ * Assistant. `toggleFloors` leaves them out of the floor layout.
+ */
+export function roomsWithoutFloor(cfg: EnergyCardConfig, areas: AreaRef[] = []): RoomConfig[] {
+  return (cfg.rooms ?? []).filter((r) => !areas.find((a) => a.area_id === r.area_id)?.floor_id);
+}
+
 /**
  * Switches between floors and top-level rooms. Turning floors on groups the rooms by the
- * floor their area belongs to in Home Assistant; rooms whose area has no floor are dropped.
+ * floor their area belongs to in Home Assistant; rooms whose area has no floor are left out
+ * (see `roomsWithoutFloor`; the editor tells the user and keeps them). Turning floors off
+ * flattens the floors again and appends the rooms in `restore` that left out earlier, unless
+ * their area is on a floor meanwhile; a sensor already used elsewhere is not assigned twice.
  */
 export function toggleFloors(
   cfg: EnergyCardConfig,
   useFloors: boolean,
-  areas: Array<{ area_id: string; floor_id?: string | null }> = [],
+  areas: AreaRef[] = [],
+  restore: RoomConfig[] = [],
 ): EnergyCardConfig {
   const { floors, rooms, ...rest } = cfg;
   if (useFloors) {
@@ -80,6 +94,15 @@ export function toggleFloors(
   }
   if (!floors) return cfg;
   const flat: RoomConfig[] = floors.flatMap((f) => f.rooms ?? []);
+  const usedAreas = new Set(flat.map((r) => r.area_id));
+  const usedSensors = new Set(flat.flatMap((r) => (r.consumers ?? []).map((c) => c.entity)));
+  for (const r of restore) {
+    if (usedAreas.has(r.area_id)) continue;
+    usedAreas.add(r.area_id);
+    const consumers = (r.consumers ?? []).filter((c) => !usedSensors.has(c.entity));
+    consumers.forEach((c) => usedSensors.add(c.entity));
+    flat.push({ ...r, consumers });
+  }
   return { ...rest, rooms: flat };
 }
 

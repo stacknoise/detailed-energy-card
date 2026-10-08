@@ -74,6 +74,8 @@ const EN: Record<string, string> = {
   // warnings and errors
   "Keine weiteren Bereiche in Home Assistant verfügbar.": "No more areas available in Home Assistant.",
   "Keine weiteren Etagen in Home Assistant angelegt.": "No more floors defined in Home Assistant.",
+  "Räume ohne Etage wurden ausgeblendet: {0}. Etagen wieder auszuschalten stellt sie wieder her.":
+    "Rooms without a floor were hidden: {0}. Turning floors off again restores them.",
   "{0} ist mehrfach zugeordnet: {1}": "{0} is assigned more than once: {1}",
   "Die Räume verbrauchen zusammen {0} W, mehr als der Gesamt-Sensor ({1} W). „Nicht erfasst“ wird nicht angezeigt.":
     "The rooms use {0} W together, more than the total sensor ({1} W). \"Unassigned\" is not shown.",
