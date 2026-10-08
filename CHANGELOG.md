@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- A changed language or home name (`location_name`) now updates the card without a sensor change.
 - Loading the card script twice (for example as two dashboard resources) no longer throws "already defined" and no longer adds a second entry to the card picker.
 ### Changed
 

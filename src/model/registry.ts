@@ -42,8 +42,10 @@ export async function loadRegistries(hass: WsHass): Promise<Registries> {
 
 /** Fills name and icon of floors and rooms from the registries (ids stay the source of truth). */
 export function resolveNames(cfg: EnergyCardConfig, reg: Registries): EnergyCardConfig {
-  const area = (id: string) => reg.areas.find((a) => a.area_id === id);
-  const floor = (id: string) => reg.floors.find((f) => f.floor_id === id);
+  const areas = new Map(reg.areas.map((a) => [a.area_id, a]));
+  const floors = new Map(reg.floors.map((f) => [f.floor_id, f]));
+  const area = (id: string) => areas.get(id);
+  const floor = (id: string) => floors.get(id);
   const room = <R extends { area_id: string; icon?: string }>(r: R) => ({
     ...r,
     name: area(r.area_id)?.name ?? r.area_id,
