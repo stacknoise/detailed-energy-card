@@ -10,7 +10,7 @@ import { isIdle, sortThresholds, thresholdColor, type ThresholdConfig } from "./
 import { localize, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
-import { loadRegistries, resolveNames, type Registries } from "./model/registry";
+import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import {
   computeLayout,
   curve,
@@ -27,6 +27,8 @@ interface Hass {
   language?: string;
   locale?: { language?: string };
   config?: { location_name?: string };
+  areas?: Record<string, AreaEntry | undefined>;
+  floors?: Record<string, FloorEntry | undefined>;
   callWS<T>(msg: { type: string }): Promise<T>;
   states: Record<string, StateLike | undefined>;
 }
@@ -64,8 +66,10 @@ export class DetailedEnergyCard extends LitElement {
   private _entityIds: string[] = [];
   private _model?: EnergyModel;
   private _ro?: ResizeObserver;
-  private _reg?: Registries;
-  private _regLoading = false;
+  private _registries = new RegistrySource(() => {
+    this._recompute();
+    this.requestUpdate();
+  });
 
   static getConfigElement(): HTMLElement {
     return document.createElement("detailed-energy-card-editor");
@@ -91,27 +95,12 @@ export class DetailedEnergyCard extends LitElement {
   set hass(hass: Hass) {
     const old = this._hass;
     this._hass = hass;
-    this._ensureRegistries();
-    // Only re-render when a referenced entity changed.
-    if (old && this._entityIds.every((id) => old.states[id] === hass.states[id])) return;
+    this._registries.ensure(hass);
+    // Only re-render when a referenced entity or the floor / area registry changed.
+    const registryChanged = !!old && (old.areas !== hass.areas || old.floors !== hass.floors);
+    if (old && !registryChanged && this._entityIds.every((id) => old.states[id] === hass.states[id])) return;
     this._recompute();
     this.requestUpdate();
-  }
-
-  /** Floor and area names come from Home Assistant; load them once. */
-  private _ensureRegistries(): void {
-    if (this._reg || this._regLoading || !this._hass?.callWS) return;
-    this._regLoading = true;
-    loadRegistries(this._hass)
-      .then((reg) => {
-        this._reg = reg;
-        this._recompute();
-        this.requestUpdate();
-      })
-      .catch(() => {
-        /* fall back to ids; retried on the next hass update */
-      })
-      .finally(() => (this._regLoading = false));
   }
 
   getCardSize(): number {
@@ -148,7 +137,8 @@ export class DetailedEnergyCard extends LitElement {
   private _recompute(): void {
     if (!this._config || !this._hass) return;
     const states = this._hass.states;
-    const cfg = this._reg ? resolveNames(this._config, this._reg) : this._config;
+    const reg = this._registries.get(this._hass);
+    const cfg = reg ? resolveNames(this._config, reg) : this._config;
     this._model = computeModel(cfg, powerReader(states), socReader(states));
   }
 
