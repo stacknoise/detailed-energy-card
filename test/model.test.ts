@@ -97,6 +97,38 @@ describe("compute", () => {
   });
 });
 
+describe("autarky", () => {
+  const room = { area_id: "k", name: "K", consumers: [{ entity: "sensor.a" }] };
+  const withSources = (sources: unknown[]) => validateConfig({ type: "x", sources, rooms: [room] });
+
+  it("is 1 - grid import / home consumption", () => {
+    const m = computeModel(withSources([{ entity: "sensor.grid", type: "grid" }]), reader({ "sensor.grid": 250, "sensor.a": 1000 }));
+    expect(m.autarky).toBeCloseTo(0.75);
+  });
+  it("counts export as no import and clamps to 0..1", () => {
+    const grid = withSources([{ entity: "sensor.grid", type: "grid" }]);
+    expect(computeModel(grid, reader({ "sensor.grid": -900, "sensor.a": 1000 })).autarky).toBe(1);
+    expect(computeModel(grid, reader({ "sensor.grid": 5000, "sensor.a": 1000 })).autarky).toBe(0);
+  });
+  it("is left out without a grid source instead of showing 100 %", () => {
+    const pvOnly = withSources([{ entity: "sensor.pv", type: "solar" }]);
+    expect(computeModel(pvOnly, reader({ "sensor.pv": 0, "sensor.a": 1000 })).autarky).toBeNull();
+    expect(computeModel(validateConfig({ type: "x", rooms: [room] }), reader({ "sensor.a": 1000 })).autarky).toBeNull();
+  });
+  it("is left out while a grid sensor is unreadable, even if another one works", () => {
+    const two = withSources([
+      { entity: "sensor.grid", type: "grid" },
+      { entity: "sensor.grid2", type: "grid" },
+    ]);
+    expect(computeModel(two, reader({ "sensor.grid": 100, "sensor.a": 1000 })).autarky).toBeNull();
+    expect(computeModel(two, reader({ "sensor.grid": 100, "sensor.grid2": 100, "sensor.a": 1000 })).autarky).toBeCloseTo(0.8);
+  });
+  it("is left out without consumption", () => {
+    const grid = withSources([{ entity: "sensor.grid", type: "grid" }]);
+    expect(computeModel(grid, reader({ "sensor.grid": 0, "sensor.a": 0 })).autarky).toBeNull();
+  });
+});
+
 describe("layout", () => {
   it("places rows per the concept", () => {
     const l = computeLayout({ width: 300, sources: 3, floors: 3, rooms: 3 });
