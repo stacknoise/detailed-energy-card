@@ -40,14 +40,20 @@ describe("fieldErrors", () => {
     expect(fieldErrors({ home: { total_entity: "sensor.power" } }, HOME, states, getPath)).toEqual({});
   });
   it("validates colors", () => {
-    expect(fieldErrors({ colors: { accent: "red" } }, COLORS, states, getPath)).toHaveProperty(["colors.accent"]);
+    expect(fieldErrors({ colors: { accent: "red;background:url(//x/a)" } }, COLORS, states, getPath)).toHaveProperty(["colors.accent"]);
     expect(fieldErrors({ colors: { accent: "#9184d9" } }, COLORS, states, getPath)).toEqual({});
   });
 });
 
 describe("isValidColor", () => {
-  it.each(["", undefined, "theme", "#fff", "#9184d9", "#9184D9cc", "var(--primary-color)"])("accepts %s", (v) => expect(isValidColor(v)).toBe(true));
-  it.each(["red", "#12", "9184d9", "#gggggg", "var(primary)"])("rejects %s", (v) => expect(isValidColor(v)).toBe(false));
+  it.each(["", undefined, "theme", "#fff", "#9184d9", "#9184D9cc", "var(--primary-color)", "red", "rgb(10, 20, 30)", "rgba(10 20 30 / 50%)", "hsl(120deg 50% 50%)"])(
+    "accepts %s",
+    (v) => expect(isValidColor(v)).toBe(true),
+  );
+  it.each(["#12", "9184d9", "#gggggg", "var(primary)", "red;background:url(//x/a)", "url(//x/a)", "var(--a);color:red", "rgb(1,2,3);x:y", "light-blue"])(
+    "rejects %s",
+    (v) => expect(isValidColor(v)).toBe(false),
+  );
 });
 
 describe("sumConflict", () => {

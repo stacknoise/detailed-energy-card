@@ -1,4 +1,5 @@
 import type { ThresholdConfig } from "./thresholds";
+import { isValidColor } from "./colors";
 
 export type SourceType = "solar" | "battery" | "grid" | "generic";
 
@@ -82,13 +83,68 @@ function checkEntity(id: unknown, where: string): void {
   }
 }
 
+/** `value` must be a list (or absent); returns it as an array for iteration. */
+function list(value: unknown, where: string): unknown[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new ConfigError(`${where} must be a list`);
+  return value;
+}
+
+function checkColor(value: unknown, where: string): void {
+  if (!isValidColor(value)) {
+    throw new ConfigError(`${where}: "${String(value)}" is not a color (use e.g. #9184d9, rgb(…), red or var(--primary-color))`);
+  }
+}
+
+function checkBool(value: unknown, where: string): void {
+  if (value !== undefined && typeof value !== "boolean") throw new ConfigError(`${where} must be true or false`);
+}
+
 function checkRoom(room: unknown, where: string): void {
   if (!isObj(room) || typeof room.area_id !== "string" || !room.area_id) {
     throw new ConfigError(`${where}: room needs an area_id (a Home Assistant area)`);
   }
-  const consumers = room.consumers ?? [];
-  if (!Array.isArray(consumers)) throw new ConfigError(`${where}: consumers must be a list`);
-  consumers.forEach((c, i) => checkEntity(isObj(c) ? c.entity : undefined, `${where}.consumers[${i}]`));
+  checkColor(room.color, `${where}.color`);
+  list(room.consumers, `${where}.consumers`).forEach((c, i) =>
+    checkEntity(isObj(c) ? c.entity : undefined, `${where}.consumers[${i}]`),
+  );
+}
+
+const UNITS = ["auto", "W", "kW"];
+/** Decimal places: Intl.NumberFormat accepts 0..20 everywhere; the editor offers 0..4. */
+export const MAX_DECIMALS = 20;
+const COLOR_KEYS = ["accent", "flow", "inactive", "bar", "background", "text"] as const;
+const PRESETS = ["theme", "nocturne", "custom"];
+
+function checkOptions(options: unknown): void {
+  if (options === undefined || options === null) return;
+  if (!isObj(options)) throw new ConfigError("options must be a mapping");
+  if (options.unit !== undefined && !UNITS.includes(options.unit as string)) {
+    throw new ConfigError(`options.unit: "${String(options.unit)}" must be one of ${UNITS.join(", ")}`);
+  }
+  const d = options.decimals;
+  if (d !== undefined && (typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > MAX_DECIMALS)) {
+    throw new ConfigError(`options.decimals must be a whole number from 0 to ${MAX_DECIMALS}`);
+  }
+  for (const key of ["animation", "show_unassigned", "remember_selection", "wrap_rooms"]) {
+    checkBool(options[key], `options.${key}`);
+  }
+}
+
+function checkColors(colors: unknown): void {
+  if (colors === undefined || colors === null) return;
+  if (!isObj(colors)) throw new ConfigError("colors must be a mapping");
+  if (colors.preset !== undefined && !PRESETS.includes(colors.preset as string)) {
+    throw new ConfigError(`colors.preset: "${String(colors.preset)}" must be one of ${PRESETS.join(", ")}`);
+  }
+  for (const key of COLOR_KEYS) checkColor(colors[key], `colors.${key}`);
+  list(colors.thresholds, "colors.thresholds").forEach((t, i) => {
+    if (!isObj(t) || typeof t.from !== "number" || !Number.isFinite(t.from) || t.from < 0) {
+      throw new ConfigError(`colors.thresholds[${i}].from must be a number of watts (0 or more)`);
+    }
+    if (typeof t.color !== "string" || !t.color) throw new ConfigError(`colors.thresholds[${i}].color is required`);
+    checkColor(t.color, `colors.thresholds[${i}].color`);
+  });
 }
 
 /** A sensor may be assigned to one consumer slot only. */
@@ -110,37 +166,44 @@ function checkUniqueConsumers(cfg: EnergyCardConfig): void {
 /** Validates a raw Lovelace config; throws ConfigError with a readable message. */
 export function validateConfig(raw: unknown): EnergyCardConfig {
   if (!isObj(raw)) throw new ConfigError("Invalid configuration");
-  const cfg = raw as unknown as EnergyCardConfig;
+  if (raw.title !== undefined && typeof raw.title !== "string") throw new ConfigError("title must be text");
 
-  if (cfg.floors?.length && cfg.rooms?.length) {
+  const sources = list(raw.sources, "sources");
+  const floors = list(raw.floors, "floors");
+  const rooms = list(raw.rooms, "rooms");
+  if (floors.length && rooms.length) {
     throw new ConfigError("Use either `floors` or `rooms` on the top level, not both");
   }
-  if (cfg.home?.total_entity) checkEntity(cfg.home.total_entity, "home.total_entity");
 
-  (cfg.sources ?? []).forEach((s, i) => {
-    checkEntity(s?.entity, `sources[${i}].entity`);
-    if (s.type && !SOURCE_TYPES.includes(s.type)) {
-      throw new ConfigError(`sources[${i}].type: unknown type "${s.type}"`);
+  if (raw.home !== undefined && raw.home !== null) {
+    if (!isObj(raw.home)) throw new ConfigError("home must be a mapping");
+    if (raw.home.total_entity) checkEntity(raw.home.total_entity, "home.total_entity");
+  }
+
+  sources.forEach((s, i) => {
+    if (!isObj(s)) throw new ConfigError(`sources[${i}] must be a mapping with an entity`);
+    checkEntity(s.entity, `sources[${i}].entity`);
+    if (s.type && !SOURCE_TYPES.includes(s.type as SourceType)) {
+      throw new ConfigError(`sources[${i}].type: unknown type "${String(s.type)}"`);
     }
     if (s.soc_entity) checkEntity(s.soc_entity, `sources[${i}].soc_entity`);
+    checkBool(s.invert, `sources[${i}].invert`);
+    checkColor(s.color, `sources[${i}].color`);
   });
-  const thresholds = cfg.colors?.thresholds;
-  if (thresholds !== undefined) {
-    if (!Array.isArray(thresholds)) throw new ConfigError("colors.thresholds must be a list");
-    thresholds.forEach((t, i) => {
-      if (!isObj(t) || typeof t.from !== "number" || !Number.isFinite(t.from) || t.from < 0) {
-        throw new ConfigError(`colors.thresholds[${i}].from must be a number of watts (0 or more)`);
-      }
-      if (typeof t.color !== "string" || !t.color) throw new ConfigError(`colors.thresholds[${i}].color is required`);
-    });
-  }
-  (cfg.floors ?? []).forEach((f, i) => {
+
+  checkColors(raw.colors);
+  checkOptions(raw.options);
+
+  floors.forEach((f, i) => {
     if (!isObj(f) || typeof f.floor_id !== "string" || !f.floor_id) {
       throw new ConfigError(`floors[${i}]: floor needs a floor_id (a Home Assistant floor)`);
     }
-    (f.rooms ?? []).forEach((r, j) => checkRoom(r, `floors[${i}].rooms[${j}]`));
+    checkColor(f.color, `floors[${i}].color`);
+    list(f.rooms, `floors[${i}].rooms`).forEach((r, j) => checkRoom(r, `floors[${i}].rooms[${j}]`));
   });
-  (cfg.rooms ?? []).forEach((r, i) => checkRoom(r, `rooms[${i}]`));
+  rooms.forEach((r, i) => checkRoom(r, `rooms[${i}]`));
+
+  const cfg = raw as unknown as EnergyCardConfig;
   checkUniqueConsumers(cfg);
   return cfg;
 }
