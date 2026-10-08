@@ -103,6 +103,10 @@ export const cardStyles = css`
     stroke-dasharray: 4 8;
     animation: flow var(--dur, 2s) linear infinite;
   }
+  /* paused while the card is scrolled out of view (see detailed-energy-card.ts) */
+  :host(.offscreen) path.line.flowing {
+    animation-play-state: paused;
+  }
   path.line.flowing.reverse {
     animation-direction: reverse;
   }
