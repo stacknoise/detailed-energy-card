@@ -1,5 +1,5 @@
 import { LitElement, html, nothing, svg, type TemplateResult } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
 import { collectEntityIds, validateConfig, type EnergyCardConfig } from "./model/config";
@@ -10,6 +10,7 @@ import { isIdle, sortThresholds, thresholdColor, type ThresholdConfig } from "./
 import { localize, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
+import { defineOnce, registerCardOnce } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import {
   computeLayout,
@@ -53,7 +54,6 @@ const hashOf = (s: string): string => {
   return (h >>> 0).toString(36);
 };
 
-@customElement("detailed-energy-card")
 export class DetailedEnergyCard extends LitElement {
   static styles = cardStyles;
 
@@ -421,8 +421,9 @@ declare global {
     customCards?: Array<Record<string, unknown>>;
   }
 }
+defineOnce("detailed-energy-card", DetailedEnergyCard);
 window.customCards ??= [];
-window.customCards.push({
+registerCardOnce(window.customCards, {
   type: "detailed-energy-card",
   name: "Detailed Energy Card",
   description: "Energiefluss von Quellen über Etagen und Räume bis zu den Verbrauchern",
