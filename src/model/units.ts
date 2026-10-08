@@ -21,8 +21,10 @@ export type UnitOption = "auto" | "W" | "kW";
 export function formatPower(watts: number, unit: UnitOption = "auto", decimals = 2, locale?: string): string {
   const abs = Math.abs(watts);
   if (abs < 1) return "0 W";
+  // Intl.NumberFormat throws outside 0..20; never let a bad option break rendering.
+  const d = Number.isFinite(decimals) ? Math.min(20, Math.max(0, Math.trunc(decimals))) : 2;
   const useKw = unit === "kW" || (unit === "auto" && abs >= 1000);
   const nf = (n: number, d: number) =>
     new Intl.NumberFormat(locale, { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
-  return useKw ? `${nf(abs / 1000, decimals)} kW` : `${nf(abs, 0)} W`;
+  return useKw ? `${nf(abs / 1000, d)} kW` : `${nf(abs, 0)} W`;
 }

@@ -3,6 +3,9 @@ import { computeModel } from "../model/compute";
 import { stateToWatts, type StateLike } from "../model/units";
 import type { Field } from "./schema";
 import { makeTr, type Tr } from "../localize/editor";
+import { isValidColor } from "../model/colors";
+
+export { isValidColor };
 
 const DE = makeTr("de");
 
@@ -48,12 +51,6 @@ export function fieldErrors(
     if (msg) errors[f.path] = msg;
   }
   return errors;
-}
-
-/** Accepts empty, "theme", CSS hex colors and var(--theme-variable). */
-export function isValidColor(value: unknown): boolean {
-  if (value === undefined || value === null || value === "" || value === "theme") return true;
-  return typeof value === "string" && /^(#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|var\(--[\w-]+\))$/i.test(value);
 }
 
 export const colorError = (value: unknown, tr: Tr = DE): string | undefined =>
