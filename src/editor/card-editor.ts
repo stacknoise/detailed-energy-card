@@ -31,7 +31,7 @@ import {
   type Choice,
   type Field,
 } from "./schema";
-import { loadRegistries, type Registries } from "../model/registry";
+import { RegistrySource, type Registries, type RegistryHass } from "../model/registry";
 import type { StateLike } from "../model/units";
 import { DEFAULT_THRESHOLDS, duplicateThresholds, type ThresholdConfig } from "../model/thresholds";
 import { colorError, contrastWarning, fieldErrors, sumConflict } from "./validation";
@@ -51,10 +51,9 @@ export class DetailedEnergyCardEditor extends LitElement {
   /** open state of collapsible tree/source items, keyed by pointer */
   @state() private _open = new Set<string>();
 
-  @state() private _reg?: Registries;
   /** short message when an edit was refused, cleared by the next accepted change */
   @state() private _notice?: string;
-  private _regLoading = false;
+  private _registries = new RegistrySource(() => this.requestUpdate());
   /** rooms left out when floors were switched on; switching floors off puts them back */
   private _leftOut: RoomConfig[] = [];
 
@@ -63,12 +62,12 @@ export class DetailedEnergyCardEditor extends LitElement {
   }
 
   protected willUpdate(): void {
-    if (this._reg || this._regLoading || !this.hass?.callWS) return;
-    this._regLoading = true;
-    loadRegistries(this.hass)
-      .then((reg) => (this._reg = reg))
-      .catch(() => undefined)
-      .finally(() => (this._regLoading = false));
+    this._registries.ensure(this.hass as RegistryHass | undefined);
+  }
+
+  /** Floors and areas of Home Assistant; undefined until they are available. */
+  private get _reg(): Registries | undefined {
+    return this._registries.get(this.hass as RegistryHass | undefined);
   }
 
   // ---------- Home Assistant floors and areas (the only allowed choices) ----------
