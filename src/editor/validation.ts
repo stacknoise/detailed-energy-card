@@ -1,6 +1,7 @@
 import type { EnergyCardConfig } from "../model/config";
 import { computeModel } from "../model/compute";
-import { stateToWatts, type StateLike } from "../model/units";
+import { powerReader } from "../model/readers";
+import type { StateLike } from "../model/units";
 import type { Field } from "./schema";
 import { makeTr, type Tr } from "../localize/editor";
 import { isValidColor } from "../model/colors";
@@ -62,10 +63,7 @@ export function sumConflict(
   states: Record<string, StateLike | undefined>,
 ): { rooms: number; total: number } | undefined {
   if (!cfg.home?.total_entity) return undefined;
-  const model = computeModel(cfg, (id) => {
-    const w = stateToWatts(states[id]);
-    return w === null ? { watts: 0, valid: false } : { watts: w, valid: true };
-  });
+  const model = computeModel(cfg, powerReader(states));
   if (!model.totalValid) return undefined;
   const rooms = model.floors.length
     ? model.floors.reduce((s, f) => s + f.watts, 0)

@@ -15,6 +15,19 @@ export function stateToWatts(st: StateLike | undefined): number | null {
   return factor === undefined ? null : value * factor;
 }
 
+/**
+ * State of charge in percent (0..100); null if unavailable, non-numeric or not a percentage.
+ * A missing unit is accepted (some integrations leave it out), any other unit is not.
+ */
+export function stateToPercent(st: StateLike | undefined): number | null {
+  if (!st) return null;
+  const value = Number(st.state);
+  if (st.state === "" || !Number.isFinite(value)) return null;
+  const unit = st.attributes?.unit_of_measurement;
+  if (unit !== undefined && unit !== "%") return null;
+  return Math.min(100, Math.max(0, value));
+}
+
 export type UnitOption = "auto" | "W" | "kW";
 
 /** Formats watts, e.g. 3420 -> "3.42 kW" (auto). Values below 1 W show "0 W". */
