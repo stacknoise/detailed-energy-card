@@ -256,3 +256,21 @@ test("the card picker suggests a complete starting configuration from the areas 
     floors: [{ floor_id: "eg", rooms: [{ area_id: "kueche", consumers: [{ entity: "sensor.b" }, { entity: "sensor.c" }] }] }],
   });
 });
+
+test("line animation pauses while the card is scrolled out of view", async ({ page }) => {
+  await open(page, "floors");
+  const card = page.locator("detailed-energy-card");
+  const line = page.locator("detailed-energy-card path.line.flowing").first();
+  await expect(line).toHaveCSS("animation-play-state", "running");
+  await page.evaluate(() => {
+    const spacer = document.createElement("div");
+    spacer.style.height = "5000px";
+    document.body.append(spacer);
+    window.scrollTo(0, document.body.scrollHeight);
+  });
+  await expect(card).toHaveClass(/offscreen/);
+  await expect(line).toHaveCSS("animation-play-state", "paused");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(card).not.toHaveClass(/offscreen/);
+  await expect(line).toHaveCSS("animation-play-state", "running");
+});
