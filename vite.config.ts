@@ -8,7 +8,6 @@ export default defineConfig({
       fileName: () => "detailed-energy-card.js",
     },
     outDir: "dist",
-    minify: "esbuild",
     target: "es2021",
   },
   test: { include: ["test/**/*.test.ts"] },
