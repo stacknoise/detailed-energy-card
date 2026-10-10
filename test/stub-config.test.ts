@@ -17,7 +17,7 @@ const base: StubHass = {
 describe("buildStubConfig", () => {
   it("uses power sensors only: the first as grid, the next two as consumers", () => {
     const cfg = buildStubConfig({ ...base, areas: { kueche: { area_id: "kueche" } } }) as any;
-    expect(cfg.sources).toEqual([{ entity: "sensor.grid", type: "grid", name: "Netz" }]);
+    expect(cfg.sources).toEqual([{ entity: "sensor.grid", type: "grid" }]); // named by the card in the user's language
     expect(cfg.rooms[0].consumers).toEqual([{ entity: "sensor.oven" }, { entity: "sensor.fridge" }]);
   });
 
@@ -50,7 +50,7 @@ describe("buildStubConfig", () => {
   });
 
   it("still returns a usable config without areas or sensors", () => {
-    expect(buildStubConfig(undefined)).toEqual({ title: "Energiefluss", sources: [] });
+    expect(buildStubConfig(undefined)).toEqual({ title: "Energy flow", sources: [] });
     const cfg = buildStubConfig({ states: {} }) as any;
     expect(cfg.floors ?? cfg.rooms).toBeUndefined();
   });
@@ -66,5 +66,13 @@ describe("buildStubConfig", () => {
     for (const v of variants) {
       expect(() => validateConfig({ type: "custom:detailed-energy-card", ...buildStubConfig(v) })).not.toThrow();
     }
+  });
+});
+
+describe("buildStubConfig language", () => {
+  it("titles the card in the language of the user", () => {
+    expect((buildStubConfig({ ...base, language: "de" }) as any).title).toBe("Energiefluss");
+    expect((buildStubConfig({ ...base, locale: { language: "en" } }) as any).title).toBe("Energy flow");
+    expect((buildStubConfig(base) as any).title).toBe("Energy flow");
   });
 });

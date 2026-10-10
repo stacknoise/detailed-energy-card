@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { editorKeys, makeTr } from "../src/localize/editor";
 import { COLORS, CONSUMER, GENERAL, HOME, PALETTE, SOURCE, THRESHOLD, floorFields, roomFields } from "../src/editor/schema";
 import { checkSensor, contrastWarning } from "../src/editor/validation";
+import { sourceNames } from "../src/localize";
+import { computeModel } from "../src/model/compute";
+import type { EnergyCardConfig } from "../src/model/config";
 
 describe("editor translations", () => {
   const keys = new Set(editorKeys());
@@ -34,5 +37,29 @@ describe("editor translations", () => {
     expect(makeTr("en")("Stromquellen ({0})", 3)).toBe("Power sources (3)");
     expect(makeTr(undefined)("Farben")).toBe("Colors");
     expect(makeTr("fr")("Unbekannt")).toBe("Unbekannt");
+  });
+});
+
+describe("default source names", () => {
+  const cfg = {
+    type: "custom:detailed-energy-card",
+    sources: [
+      { entity: "sensor.pv", type: "solar" },
+      { entity: "sensor.bat", type: "battery" },
+      { entity: "sensor.grid", type: "grid" },
+      { entity: "sensor.x", type: "generic" },
+      { entity: "sensor.own", type: "grid", name: "Hausanschluss" },
+    ],
+    rooms: [{ area_id: "k", consumers: [{ entity: "sensor.c" }] }],
+  } as EnergyCardConfig;
+  const read = () => ({ watts: 100, valid: true });
+
+  it("are German for German users and English otherwise", () => {
+    expect(computeModel(cfg, read, read, sourceNames("de")).sources.map((s) => s.name)).toEqual(["PV", "Batterie", "Netz", "Quelle", "Hausanschluss"]);
+    expect(computeModel(cfg, read, read, sourceNames("en-GB")).sources.map((s) => s.name)).toEqual(["Solar", "Battery", "Grid", "Source", "Hausanschluss"]);
+  });
+
+  it("keep the German names when no names are passed", () => {
+    expect(computeModel(cfg, read).sources[2].name).toBe("Netz");
   });
 });
