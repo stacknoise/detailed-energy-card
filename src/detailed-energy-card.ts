@@ -7,7 +7,7 @@ import { computeModel, type EnergyModel, type RoomNode, type SourceNode } from "
 import { formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
 import { isIdle, sortThresholds, thresholdColor, thresholdLevel, type ThresholdConfig } from "./model/thresholds";
-import { localize, type Key } from "./localize";
+import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
 import { defineOnce, registerCardOnce } from "./register";
@@ -158,7 +158,7 @@ export class DetailedEnergyCard extends LitElement {
       if (this._resolved?.reg !== reg) this._resolved = { reg, cfg: resolveNames(this._config, reg) };
       cfg = this._resolved.cfg;
     }
-    this._model = computeModel(cfg, powerReader(states), socReader(states));
+    this._model = computeModel(cfg, powerReader(states), socReader(states), sourceNames(this._hass.locale?.language ?? this._hass.language));
   }
 
   private get _storageKey(): string {
@@ -448,6 +448,6 @@ window.customCards ??= [];
 registerCardOnce(window.customCards, {
   type: "detailed-energy-card",
   name: "Detailed Energy Card",
-  description: "Energiefluss von Quellen über Etagen und Räume bis zu den Verbrauchern",
+  description: localize(typeof navigator === "undefined" ? undefined : navigator.language, "picker_description"),
   preview: true,
 });

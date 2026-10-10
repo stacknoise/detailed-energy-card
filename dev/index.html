@@ -199,7 +199,7 @@
       const el = document.getElementById("c");
       el.setConfig({ type: "custom:detailed-energy-card", ...scenarios[name] });
       el.hass = {
-        language: "de",
+        language: params.get("lang") ?? "de", // ?lang=en previews the English texts
         config: { location_name: "Zuhause" },
         states,
         callWS: async (m) => (m.type.includes("floor") ? registries.floors : registries.areas),

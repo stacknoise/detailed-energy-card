@@ -1,5 +1,9 @@
+import { localize } from "../localize";
+
 /** The parts of Home Assistant's `hass` object used to suggest a starting configuration. */
 export interface StubHass {
+  language?: string;
+  locale?: { language?: string };
   states: Record<string, { attributes?: { device_class?: unknown } } | undefined>;
   areas?: Record<string, { area_id: string; floor_id?: string | null } | undefined>;
   floors?: Record<string, { floor_id: string; level?: number | null } | undefined>;
@@ -24,8 +28,8 @@ export function buildStubConfig(hass?: StubHass): Record<string, unknown> {
     .sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.floor_id.localeCompare(b.floor_id));
 
   const config: Record<string, unknown> = {
-    title: "Energiefluss",
-    sources: power.slice(0, 1).map((entity) => ({ entity, type: "grid", name: "Netz" })),
+    title: localize(hass?.locale?.language ?? hass?.language, "default_title"),
+    sources: power.slice(0, 1).map((entity) => ({ entity, type: "grid" })), // named by the card, in the user's language
   };
 
   // Prefer the first floor that has an area, otherwise the first area without a floor.

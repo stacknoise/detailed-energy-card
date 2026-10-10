@@ -285,3 +285,12 @@ test("line animation pauses while the card is scrolled out of view", async ({ pa
   await expect(card).not.toHaveClass(/offscreen/);
   await expect(line).toHaveCSS("animation-play-state", "running");
 });
+
+test("sources without a name are called after their type in the language of the user", async ({ page }) => {
+  await open(page, "floors");
+  for (const t of ["PV", "Batterie", "Netz"]) await expect(node(page, t)).toBeVisible();
+  await page.goto("/dev/index.html?scenario=floors&lang=en");
+  await expect(page.locator("detailed-energy-card .path")).not.toHaveText("");
+  for (const t of ["Solar", "Battery", "Grid"]) await expect(node(page, t)).toBeVisible();
+  await expect(page.locator("detailed-energy-card .badge")).toContainText("Self-sufficiency");
+});
