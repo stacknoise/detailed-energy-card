@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Editor: all icon buttons, color swatches and the color picker have an accessible name (`aria-label`) for screen readers.
+- README: explains how negative consumer values are handled.
+
 ## 0.8.0
 
 ### Fixed
