@@ -315,7 +315,7 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 | **0.3** | Einspeisung, Batterie laden, „Nicht erfasst“, Autarkie |
 | **0.4** | Viele Räume (Scroll/Umbruch), Lokalisierung DE/EN, erstes HACS-Release (Custom Repository) |
 | **0.7.2** | Bugfixes: strengere Config-Validierung, Einheitenprüfung, Autarkie nur mit gemessenem Netz, Etagen-Schalter ohne Datenverlust, Registry aus `hass`; gehärtete CI. Details in [CHANGELOG.md](CHANGELOG.md) |
-| **0.8** | Robustheit und Performance: Auswahl über IDs speichern, Editor-Renders filtern, Caches, Animation nur im Sichtbereich |
+| **0.8.0** | Robustheit und Performance: Auswahl über IDs gespeichert (einmal zurückgesetzt), Editor rendert nur bei relevanten Änderungen, Caches, Animation pausiert außerhalb des Sichtbereichs, doppeltes Laden des Skripts unschädlich. Details in [CHANGELOG.md](CHANGELOG.md) |
 | **1.0** | Energie-Modus (kWh heute/Woche) mit `device_class: energy`, Stabilisierung, Aufnahme in HACS-Standard |
 
 ---
