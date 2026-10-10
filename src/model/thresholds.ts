@@ -31,6 +31,21 @@ export function thresholdColor(sorted: ThresholdConfig[], watts: number): string
   return color;
 }
 
+/**
+ * How many ranges are reached (0 below the first one, or without thresholds). Used as a second cue
+ * besides the color: higher ranges draw thicker lines and bars, so they stay readable without color vision.
+ * `sorted` must come from sortThresholds().
+ */
+export function thresholdLevel(sorted: ThresholdConfig[], watts: number): number {
+  const abs = Math.abs(watts);
+  let level = 0;
+  for (const t of sorted) {
+    if (abs >= t.from) level++;
+    else break;
+  }
+  return level;
+}
+
 /** `from` values used by more than one threshold (only the last of them would apply). */
 export function duplicateThresholds(list: ThresholdConfig[] | undefined): number[] {
   const seen = new Set<number>();

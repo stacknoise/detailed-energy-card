@@ -3,6 +3,7 @@ import { validateConfig, ConfigError } from "../src/model/config";
 import {
   DEFAULT_THRESHOLDS,
   duplicateThresholds,
+  thresholdLevel,
   isIdle,
   sortThresholds,
   thresholdColor,
@@ -67,5 +68,23 @@ describe("threshold configuration", () => {
     expect(() => validateConfig(cfg([{ from: "500", color: "#fff" }]))).toThrow(/thresholds\[0\]\.from/);
     expect(() => validateConfig(cfg([{ from: -1, color: "#fff" }]))).toThrow(/thresholds\[0\]\.from/);
     expect(() => validateConfig(cfg([{ from: 5 }]))).toThrow(/thresholds\[0\]\.color/);
+  });
+});
+
+describe("thresholdLevel", () => {
+  const sorted = sortThresholds([
+    { from: 2000, color: "#f44336" },
+    { from: 0, color: "#4caf50" },
+    { from: 500, color: "#ff9800" },
+  ]);
+  it("counts the ranges that are reached", () => {
+    expect(thresholdLevel(sorted, 0)).toBe(1);
+    expect(thresholdLevel(sorted, 499)).toBe(1);
+    expect(thresholdLevel(sorted, 500)).toBe(2);
+    expect(thresholdLevel(sorted, -2500)).toBe(3);
+  });
+  it("is 0 below the first range and without thresholds", () => {
+    expect(thresholdLevel(sortThresholds([{ from: 100, color: "red" }]), 50)).toBe(0);
+    expect(thresholdLevel([], 5000)).toBe(0);
   });
 });

@@ -191,8 +191,15 @@ export const cardStyles = css`
     margin-left: 4px;
   }
   /* nodes and consumers that draw no power are shown faded */
-  .node.idle,
-  .row.idle {
+  .node.idle {
+    opacity: 0.45;
+  }
+  /* list rows are faded through the muted text color and a lighter bar instead of opacity, which would push the text below readable contrast */
+  .row.idle .name,
+  .row.idle .val {
+    color: var(--_muted);
+  }
+  .row.idle .bar {
     opacity: 0.45;
   }
   .label {
@@ -263,7 +270,8 @@ export const cardStyles = css`
     text-overflow: ellipsis;
   }
   .bar {
-    height: 3px;
+    /* each reached threshold range adds 1px, a cue besides the color */
+    height: calc(3px + var(--level, 0) * 1px);
     border-radius: 2px;
     background: var(--_line);
   }
