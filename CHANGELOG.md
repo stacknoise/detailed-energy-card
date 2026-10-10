@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Power ranges (thresholds) are no longer shown by color alone: higher ranges also draw thicker lines and list bars.
+- Consumers without power in the list are faded through a muted text color and a lighter bar instead of opacity, so their text keeps a readable contrast (Lighthouse accessibility score 100 in the dev preview).
 - Editor: all icon buttons, color swatches and the color picker have an accessible name (`aria-label`) for screen readers.
 - README: explains how negative consumer values are handled.
 

@@ -195,7 +195,8 @@ test.describe("idle nodes and color thresholds", () => {
     await open(page, "floors");
     const idle = page.locator("detailed-energy-card .row.idle");
     await expect(idle).toHaveCount(2); // coffee machine and the hallway light (room Flur is off)
-    await expect(idle.first()).toHaveCSS("opacity", "0.45");
+    await expect(idle.first().locator(".bar")).toHaveCSS("opacity", "0.45");
+    await expect(idle.first().locator(".val")).not.toHaveCSS("color", await page.locator("detailed-energy-card .row:not(.idle) .val").first().evaluate((e) => getComputedStyle(e).color));
     await expect(page.locator("detailed-energy-card .row", { hasText: "Kaffeemaschine" })).toHaveClass(/idle/);
     await expect(page.locator("detailed-energy-card .row", { hasText: "Backofen" })).not.toHaveClass(/idle/);
   });
@@ -216,6 +217,16 @@ test.describe("idle nodes and color thresholds", () => {
         .evaluate((e) => getComputedStyle(e).backgroundColor);
     expect(await bg("Backofen")).toBe("rgb(255, 152, 0)"); // 820 W -> orange
     expect(await bg("Spülmaschine")).toBe("rgb(76, 175, 80)"); // 310 W -> green
+  });
+
+  test("higher power ranges also draw thicker bars, not only another color", async ({ page }) => {
+    await open(page, "floors");
+    const height = (name: string) =>
+      page
+        .locator("detailed-energy-card .row", { hasText: name })
+        .locator(".bar")
+        .evaluate((e) => parseFloat(getComputedStyle(e).height));
+    expect(await height("Backofen")).toBeGreaterThan(await height("Spülmaschine")); // orange range vs green range
   });
 
   test("active lines take the color of their power range", async ({ page }) => {

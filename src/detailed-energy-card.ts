@@ -6,7 +6,7 @@ import { collectEntityIds, validateConfig, type EnergyCardConfig } from "./model
 import { computeModel, type EnergyModel, type RoomNode, type SourceNode } from "./model/compute";
 import { formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
-import { isIdle, sortThresholds, thresholdColor, type ThresholdConfig } from "./model/thresholds";
+import { isIdle, sortThresholds, thresholdColor, thresholdLevel, type ThresholdConfig } from "./model/thresholds";
 import { localize, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
@@ -34,6 +34,9 @@ interface Hass {
   callWS<T>(msg: { type: string }): Promise<T>;
   states: Record<string, StateLike | undefined>;
 }
+
+/** More ranges than this do not get any thicker. */
+const MAX_LEVEL = 3;
 
 const SOURCE_ICONS: Record<string, string> = {
   solar: "mdi:white-balance-sunny",
@@ -290,10 +293,11 @@ export class DetailedEnergyCard extends LitElement {
       const dur = flowDuration(watts);
       // only lines of the selected path take the threshold color, the others stay muted
       const color = active && !isIdle(watts) ? thresholdColor(thresholds, watts) : undefined;
+      const level = color ? Math.min(thresholdLevel(thresholds, watts), MAX_LEVEL) : 0;
       return svg`<path
         class="line ${active ? "active" : ""} ${dur && animate ? "flowing" : ""} ${reverse ? "reverse" : ""}"
         d=${d}
-        stroke-width=${strokeWidth(watts)}
+        stroke-width=${strokeWidth(watts) + level * 0.75}
         style=${(dur ? `--dur:${dur}s;` : "") + (color ? `stroke:${color}` : "")}
       />`;
     };
@@ -413,10 +417,11 @@ export class DetailedEnergyCard extends LitElement {
         ${sorted.map((c) => {
           const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
           const barColor = thresholdColor(thresholds, c.watts);
+          const level = barColor ? Math.min(thresholdLevel(thresholds, c.watts), MAX_LEVEL) : 0;
           return html`
             <button class="row ${c.valid ? "" : "warn"} ${c.valid && isIdle(c.watts) ? "idle" : ""}" @click=${() => this._moreInfo(c.entity)}>
               <span class="name">${name}<small>${c.entity}</small></span>
-              <span class="bar"><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
+              <span class="bar" style=${styleMap({ "--level": String(level) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
             </button>
           `;
