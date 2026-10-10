@@ -164,14 +164,14 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 
 - **x-Position:** Knoten einer Ebene werden gleichmäßig verteilt: `x = W · (i + 0.5) / n`.
 - **Linien:** kubische Bézier-Kurven von Knoten zu Knoten, `M x0 y0 C x0 m x1 m x1 y1`.
-- **Linienstärke:** `1 + kW · 0.7`.
+- **Linienstärke:** `1 + kW · 0.7`, bei erreichten Schwellwert-Stufen zusätzlich 0,75 je Stufe (höchstens 3).
 - **Animationsdauer:** logarithmisch in der Leistung, von 3,2 s (bis 10 W) bis 0,35 s (ab 5 kW). Je mehr ein Knoten zieht, desto schneller bewegen sich seine Linien; der Unterschied zwischen 100 W und 1 kW ist so gut sichtbar wie der zwischen 1 kW und 10 kW. Ohne Leistung (< 1 W) gibt es keine Animation.
-- **Ohne Verbrauch:** Verbraucher unter 1 W erscheinen ausgegraut in der Liste, Räume und Etagen ohne Verbrauch abgeblendet im Diagramm.
-- **Schwellwerte:** Ab dem jeweils erreichten `from`-Wert (W) bekommen Linien des gewählten Pfads und die Balken der Liste die zugehörige Farbe; unterhalb des ersten Wertes gilt die normale Farbe.
+- **Ohne Verbrauch:** Verbraucher unter 1 W erscheinen ausgegraut in der Liste (gedämpfte Textfarbe und hellerer Balken statt Deckkraft, damit der Text lesbar bleibt), Räume und Etagen ohne Verbrauch abgeblendet im Diagramm.
+- **Schwellwerte:** Ab dem jeweils erreichten `from`-Wert (W) bekommen Linien des gewählten Pfads und die Balken der Liste die zugehörige Farbe; unterhalb des ersten Wertes gilt die normale Farbe. Zusätzlich zeigen höhere Stufen dickere Linien und höhere Balken (+1 px je Stufe), damit die Stufen nicht nur an der Farbe hängen.
 - **Hervorhebung:** Die gewählte Etage und der gewählte Raum bekommen Akzentfarbe und Glow. Die übrigen Linien sind gedämpft.
 - **Viele Räume:** Ab 7 Räumen in einer Ebene wird die Raumzeile horizontal scrollbar, mit fester Spaltenbreite von 64 px. Alternativ lässt sich per Option auf zwei Reihen umbrechen.
 - **Responsive:** Die SVG-Breite folgt der Kartenbreite (`ResizeObserver`). Knoten werden absolut über dem SVG positioniert.
-- **Barrierefreiheit:** `prefers-reduced-motion` schaltet die Animation ab. Knoten sind `<button>` mit `aria-pressed`. Die Liste ist tastaturbedienbar.
+- **Barrierefreiheit:** `prefers-reduced-motion` schaltet die Animation ab. Knoten sind `<button>` mit `aria-pressed` und `title`. Die Liste ist tastaturbedienbar. Icon-Buttons, Farbfelder und Farbwähler im Editor haben ein `aria-label`. Lighthouse (Barrierefreiheit) liegt in der Dev-Vorschau bei 100.
 
 ---
 
@@ -185,7 +185,7 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 | Klick auf Quelle | Öffnet ebenfalls den More-Info-Dialog. |
 
 - Oben in der Card steht der Pfad, z. B. „Zuhause › EG › Küche“.
-- Die Auswahl wird pro Card in `localStorage` gespeichert (Option `remember_selection`).
+- Die Auswahl wird pro Card in `localStorage` gespeichert (Option `remember_selection`), als `floor_id` / `area_id`. Der Schlüssel entsteht nur aus den Struktur-IDs; Farben, Namen, Verbraucher und Umbenennungen in Home Assistant setzen sie nicht zurück. Ein beschädigter Wert wird ignoriert, Einträge des alten Formats (Auswahl nach Namen) werden beim Laden entfernt.
 
 ---
 
@@ -193,31 +193,37 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 
 ```
 src/
-  detailed-energy-card.ts   // Custom Element, hass-Setter, Auswahlzustand
+  detailed-energy-card.ts   // Custom Element, hass-Setter, Auswahlzustand, Rendering
+  register.ts               // customElements.define und customCards nur einmal
   editor/
-    card-editor.ts            // visueller Editor
-    tree-editor.ts            // Zuhause / Etagen / Räume / Verbraucher
+    card-editor.ts            // visueller Editor (Listen, Baum, Drag-and-drop)
+    schema.ts                 // Feldschema je Konfigurationsschlüssel (Abnahmetest)
+    validation.ts             // Live-Prüfung: Sensoren, Farben, Summenkonflikt
+    config-utils.ts           // reine Funktionen: Etagen ein/aus, Verschieben, Duplikate
+    hass-change.ts            // welche hass-Änderungen den Editor neu rendern
   model/
     config.ts                 // Typen + Validierung (validateConfig, Pfad-Fehlermeldungen)
     colors.ts                 // isValidColor: genau eine CSS-Farbe
     compute.ts                // Summen, Vorzeichen, Autarkie
-    units.ts                  // W/kW/MW-Normalisierung, Formatierung, SoC in %
+    units.ts                  // W/kW/MW-Normalisierung, Formatierung (Format-Cache), SoC in %
     readers.ts                // powerReader / socReader über die hass-States
+    thresholds.ts             // Schwellwerte: Farbe, Stufe, Idle-Grenze
     selection.ts              // gemerkte Auswahl: Key aus Struktur-IDs, typgeprüftes Laden
     registry.ts               // Floors/Areas aus hass, WebSocket-Fallback mit Backoff
-  view/
-    flow-graph.ts             // SVG-Linien + Knoten-Layout
-    node.ts                   // Quelle / Zuhause / Etage / Raum
-    consumer-list.ts          // Liste unter dem Graphen
-  styles/theme.ts             // CSS-Variablen
-  localize/de.json, en.json
+    stub-config.ts            // Startkonfiguration für den Karten-Picker
+  view/layout.ts            // Geometrie: Positionen, Kurven, Linienstärke, Animationsdauer
+  styles/theme.ts           // CSS-Variablen und Styles
+  localize/index.ts         // Texte der Card (DE/EN), Standardnamen der Quellen
+  localize/editor.ts        // Texte des Editors (Schlüssel = deutscher Text, EN-Tabelle)
 ```
 
 **Performance**
 
-- Beim Laden der Konfiguration wird die Liste aller referenzierten Entity-IDs gebildet.
-- `shouldUpdate()` rendert nur neu, wenn sich eine dieser States ändert.
-- Die Geometrie wird nur neu berechnet, wenn sich die Konfiguration oder die Breite ändert. Bei Wertänderungen werden nur Linienstärke, Dauer und Text aktualisiert.
+- Beim Laden der Konfiguration wird die Liste aller referenzierten Entity-IDs gebildet. Der `hass`-Setter rendert nur neu, wenn sich einer dieser States, die Etagen/Bereiche, die Sprache oder der Standortname ändern.
+- Namen aus der Registry werden einmal pro Konfiguration und Registry aufgelöst (`Map`), Schwellwerte einmal in `setConfig` sortiert, `Intl.NumberFormat` je Sprache und Nachkommastellen gecacht, der `ResizeObserver` einmal am Element angehängt.
+- Der Editor rendert bei `hass`-Änderungen nur neu, wenn Sprache, Theme, Etagen/Bereiche oder ein Sensor der Konfiguration betroffen sind (`shouldUpdate`).
+- Ein `IntersectionObserver` pausiert die Linienanimation, solange die Card nicht sichtbar ist (Klasse am Host, kein Neu-Rendern).
+- Etagen und Bereiche kommen aus `hass.areas` / `hass.floors`, ohne Anfrage. Fehlen sie, wird einmal per WebSocket geladen, nach einem Fehler frühestens nach 30 s erneut.
 
 **HA-Schnittstellen**
 
@@ -226,7 +232,7 @@ src/
 - `getCardSize()`
 - `getGridOptions()` für den Sections-View, Mindestbreite 6 Spalten
 - `static getConfigElement()`
-- `static getStubConfig()`, das automatisch passende Power-Sensoren vorschlägt
+- `static getStubConfig()`, das automatisch passende Power-Sensoren, einen Bereich (auf seiner Etage) und einen Titel in der Sprache des Nutzers vorschlägt
 
 ---
 
@@ -250,10 +256,10 @@ src/
 
 - **Stromquellen:** Liste mit Hinzufügen, Entfernen und Sortieren. Pro Quelle: Entität, Typ, Name, Invertieren und optional SoC.
 - **Struktur:** Baum Zuhause → (Etage) → Raum → Verbraucher.
-  - Umschalter „Etagen verwenden“. Beim Ausschalten werden die Räume flach übernommen, beim Einschalten nach der HA-Etage ihres Bereichs gruppiert (Bereiche ohne Etage entfallen).
+  - Umschalter „Etagen verwenden“. Beim Ausschalten werden die Räume flach übernommen und die beim Einschalten ausgeblendeten Räume wiederhergestellt, beim Einschalten nach der HA-Etage ihres Bereichs gruppiert. Bereiche ohne Etage werden dabei ausgeblendet; ein Hinweis nennt sie. Der Schalter ist gesperrt, solange Etagen und Bereiche nicht geladen sind.
   - Drag-and-drop zum Sortieren und zum Verschieben von Räumen zwischen Etagen.
-- **Entitätsauswahl:** `ha-entity-picker` mit `include-domains: ["sensor"]` und einem `entity-filter` auf `device_class === "power"`. Bereits vergebene Sensoren werden markiert, Doppelbelegung ist möglich, erzeugt aber eine Warnung.
-- **Validierung live im Editor:** ungültige Sensoren, doppelte Zuordnung und Summenkonflikte werden am Feld angezeigt, nicht erst in der Card.
+- **Entitätsauswahl:** `ha-entity-picker` mit `include-domains: ["sensor"]` und einem `entity-filter` auf `device_class === "power"`. Bereits vergebene Sensoren werden in der Auswahl ausgeblendet, eine doppelte Zuordnung wird abgelehnt (in YAML ein Validierungsfehler, siehe Abschnitt 3).
+- **Validierung live im Editor:** ungültige Sensoren, ungültige Farben, doppelte Zuordnung und Summenkonflikte werden am Feld angezeigt, nicht erst in der Card.
 - **Vorschau:** Die Card-Vorschau von HA aktualisiert sich bei jeder Änderung (`config-changed`-Event).
 - **Umsetzung:** Einfache Felder nutzen `ha-form` mit Selektoren (`entity`, `icon`, `select`, `boolean`, `number`, `text`, `color_rgb`). Die Listen und der Baum sind eigene Lit-Komponenten, die intern ebenfalls `ha-form` pro Eintrag verwenden.
 - **YAML-Modus:** Standard-Umschalter von HA, optional.
@@ -370,13 +376,14 @@ detailed-energy-card/
 **Registrierung im Card-Picker** (in `detailed-energy-card.ts`):
 
 ```ts
-customElements.define('detailed-energy-card', EnergyCard);
-customElements.define('detailed-energy-card-editor', EnergyCardEditor);
-(window as any).customCards ??= [];
-(window as any).customCards.push({
+// register.ts: ein zweites Laden des Skripts darf nicht fehlschlagen
+defineOnce('detailed-energy-card', DetailedEnergyCard);
+defineOnce('detailed-energy-card-editor', DetailedEnergyCardEditor);
+window.customCards ??= [];
+registerCardOnce(window.customCards, {
   type: 'detailed-energy-card',
   name: 'Detailed Energy Card',
-  description: 'Energiefluss von Quellen über Etagen und Räume bis zu den Verbrauchern',
+  description: localize(navigator.language, 'picker_description'), // DE oder EN
   preview: true,
 });
 ```
