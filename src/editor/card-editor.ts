@@ -374,17 +374,18 @@ export class DetailedEnergyCardEditor extends LitElement {
           (c) => html`<button
             class="swatch ${c.value === text ? "on" : ""} ${c.value ? "" : "theme"}"
             title=${this._tr(c.label)}
+            aria-label=${this._tr(c.label)}
             style=${c.value ? `background:${c.value}` : ""}
             @click=${() => set(c.value)}
           >${c.value ? "" : "T"}</button>`,
         )}
       </div>
       <div class="inputs">
-        <input type="color" title=${this._tr("Eigene Farbe wählen")} .value=${swatch}
+        <input type="color" title=${this._tr("Eigene Farbe wählen")} aria-label=${this._tr("Eigene Farbe wählen")} .value=${swatch}
           @input=${(e: Event) => set((e.target as HTMLInputElement).value)} />
         <input type="text" placeholder="Theme" .value=${text}
           @change=${(e: Event) => set((e.target as HTMLInputElement).value.trim())} />
-        <button class="icon" title=${this._tr("Zurücksetzen auf Theme")} ?disabled=${!text} @click=${() => set("")}>↺</button>
+        <button class="icon" title=${this._tr("Zurücksetzen auf Theme")} aria-label=${this._tr("Zurücksetzen auf Theme")} ?disabled=${!text} @click=${() => set("")}>↺</button>
       </div>
       ${error ? html`<div class="warn">${error}</div>` : nothing}
     </div>`;
@@ -408,7 +409,7 @@ export class DetailedEnergyCardEditor extends LitElement {
         (t, i) => html`<div class="item">
           <div class="head">
             <span class="title">${this._tr("ab {0} W", t.from ?? 0)}</span>
-            <button class="icon" title=${this._tr("Entfernen")}
+            <button class="icon" title=${this._tr("Entfernen")} aria-label=${this._tr("Entfernen")}
               @click=${() => this._setThresholds(removeItem(list, i))}>✕</button>
           </div>
           ${this._form(["colors", "thresholds", i], THRESHOLD)}
@@ -462,11 +463,11 @@ export class DetailedEnergyCardEditor extends LitElement {
       <button class="title" @click=${() => this._toggleOpen(key)}>
         ${this._open.has(key) ? "▾" : "▸"} ${title}<small>${sub}</small>
       </button>
-      <button class="icon" title=${this._tr("Nach oben")} ?disabled=${index === 0}
+      <button class="icon" title=${this._tr("Nach oben")} aria-label=${this._tr("Nach oben")} ?disabled=${index === 0}
         @click=${() => this._update(listPtr, (l) => moveItem(l, index, -1))}>↑</button>
-      <button class="icon" title=${this._tr("Nach unten")} ?disabled=${index === count - 1}
+      <button class="icon" title=${this._tr("Nach unten")} aria-label=${this._tr("Nach unten")} ?disabled=${index === count - 1}
         @click=${() => this._update(listPtr, (l) => moveItem(l, index, 1))}>↓</button>
-      <button class="icon" title=${this._tr("Entfernen")}
+      <button class="icon" title=${this._tr("Entfernen")} aria-label=${this._tr("Entfernen")}
         @click=${() => this._update(listPtr, (l) => removeItem(l, index))}>✕</button>
     </div>`;
   }
@@ -504,11 +505,11 @@ export class DetailedEnergyCardEditor extends LitElement {
           <div class="head">
             ${this._handle([...roomPtr, "consumers"], i)}
             <div class="title" style="flex:1">${this._form(ptr, consumerFields(consumerEntitiesExcept(this._config, ptr)))}</div>
-            <button class="icon" ?disabled=${i === 0}
+            <button class="icon" title=${this._tr("Nach oben")} aria-label=${this._tr("Nach oben")} ?disabled=${i === 0}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => moveItem(l, i, -1))}>↑</button>
-            <button class="icon" ?disabled=${i === consumers.length - 1}
+            <button class="icon" title=${this._tr("Nach unten")} aria-label=${this._tr("Nach unten")} ?disabled=${i === consumers.length - 1}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => moveItem(l, i, 1))}>↓</button>
-            <button class="icon" title=${this._tr("Entfernen")}
+            <button class="icon" title=${this._tr("Entfernen")} aria-label=${this._tr("Entfernen")}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => removeItem(l, i))}>✕</button>
           </div>
         </div>`;

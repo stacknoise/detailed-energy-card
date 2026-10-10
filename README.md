@@ -68,6 +68,8 @@ floors:
 
 The *Self-sufficiency* badge (share of the consumption not drawn from the grid) needs a source of type `grid`; without one, or while a grid sensor is unavailable, the badge is hidden. Floors and rooms are not free text: they are picked from the floors and areas that already exist in Home Assistant (`floor_id`, `area_id`); names and icons come from there, and the home name is your instance's location name. Options: `options.unit` (`W`, `kW`, `auto`; default `W`), `options.decimals` (0–20, for kW values), `options.animation`, `options.show_unassigned`, `options.remember_selection` and `options.wrap_rooms` (wrap more than 6 rooms into two rows instead of scrolling). A sensor can be assigned to one consumer only (the editor hides sensors that are already taken; the same sensor twice in YAML is a configuration error). Use either `floors` or `rooms` on the top level.
 
+**Negative values:** a consumer that reports a negative value (for example a bidirectional meter) counts as 0 W; only sources can be negative (battery charging, grid feed-in), solar and generic sources are clamped at 0. If a consumer feeds back and you want to see it, add that sensor as a source instead.
+
 **Idle and thresholds:** consumers that draw no power (under 1 W) are shown faded in the list, and rooms and floors without consumption are faded in the diagram. To color lines and list bars by power, add thresholds (in watts); from each `from` value upwards the color applies, below the first one the normal color is used:
 
 ```yaml
