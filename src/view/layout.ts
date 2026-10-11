@@ -27,6 +27,8 @@ export interface Layout {
   sourceXs: number[];
   floorXs: number[];
   roomXs: number[];
+  /** width available to one room node: the distance between neighbours in a row (labels are cut to it) */
+  roomColW: number;
   /** y position of each room (two rows when wrapped) */
   roomYs: number[];
   roomRows: number;
@@ -76,6 +78,7 @@ export function computeLayout(i: LayoutInput): Layout {
     sourceXs: distribute(i.sources, width),
     floorXs: distribute(i.floors, width),
     roomXs: rooms.xs,
+    roomColW: perRow > 0 ? width / perRow : width,
     roomYs: rooms.row.map((r) => yRoom + r * ROOM_H),
     roomRows,
   };

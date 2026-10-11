@@ -168,6 +168,14 @@ describe("wrapped rooms", () => {
     expect(wrapped.height).toBe(flat.height + 96);
     expect(new Set(wrapped.roomYs).size).toBe(2);
   });
+  it("computeLayout gives every room node the distance between neighbours as its width", () => {
+    expect(computeLayout({ width: 600, sources: 0, floors: 0, rooms: 4 }).roomColW).toBe(150);
+    // wrapped: 10 rooms use 6 columns in the first row, the second row sits in the gaps between them
+    const wrapped = computeLayout({ width: 600, sources: 0, floors: 0, rooms: 10, wrap: true });
+    expect(wrapped.roomColW).toBe(wrapped.width / 6);
+    // never narrower than the minimum column width, the graph scrolls instead
+    expect(computeLayout({ width: 100, sources: 0, floors: 0, rooms: 10 }).roomColW).toBe(64);
+  });
 });
 
 import { roomPath } from "../src/view/layout";

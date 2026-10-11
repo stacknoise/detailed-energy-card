@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Room names no longer run into each other on small displays with many rooms (with or without wrapping). A room's name is cut with an ellipsis at the width of its column (the full name is the tooltip), and narrow columns use a smaller label font.
+
 ## 0.9.2
 
 ### Changed
