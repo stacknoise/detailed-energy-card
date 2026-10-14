@@ -89,6 +89,8 @@ export class DetailedEnergyCard extends LitElement {
   private _tween?: Tween;
   private _raf = 0;
   private _lastSelKey?: string;
+  /** positions drawn by the current render, computed in `willUpdate` */
+  private _frame?: { floorViews: Pos[]; roomViews: RoomView[] };
   /** what the previous render showed, the start of the next slide */
   private _lastShown = new Map<string, Pos>();
   private _lastRooms = new Map<string, RoomNode>();
@@ -426,20 +428,76 @@ export class DetailedEnergyCard extends LitElement {
 
   // ---------- render ----------
 
-  protected render(): TemplateResult {
-    if (this._error) return html`<ha-card><div class="error">${this._error}</div></ha-card>`;
+  /** What the selection and the width of the card make of the diagram: pure, nothing is stored. */
+  private _geometry(model: EnergyModel) {
     const cfg = this._config;
-    const model = this._model;
-    if (!cfg || !model) return html`<ha-card></ha-card>`;
-
     const sel = this._resolve(model);
     const layout = computeLayout({
       width: this._width || 320,
       sources: model.sources.length,
       floors: model.floors.length,
       rooms: sel.rooms.length,
-      wrap: cfg.options?.wrap_rooms === true,
+      wrap: cfg?.options?.wrap_rooms === true,
     });
+    // Positions of the floors and rooms. With options.focus_selected the selected element of a level
+    // slides to the middle under its parent and the rest of that level fades out behind it.
+    const tg = focusTargets({
+      layout,
+      floors: model.floors.length,
+      selFloor: sel.floor,
+      rooms: sel.rooms.length,
+      selRoom: sel.room,
+      focus: this._focus,
+    });
+    const targets = new Map<string, Pos>();
+    model.floors.forEach((f, i) => targets.set(`f:${f.id}`, tg.floors[i]));
+    sel.rooms.forEach((r, i) => targets.set(`r:${r.id}`, tg.rooms[i]));
+    const selKey = `${sel.floor ?? ""}|${sel.room ?? ""}`;
+    return { sel, layout, tg, targets, selKey };
+  }
+
+  /**
+   * Where the floors and rooms are drawn now. Runs before every render (and not in `render()`, which only
+   * reads the result): a changed selection starts the slide from what the previous frame showed.
+   */
+  protected willUpdate(): void {
+    const model = this._model;
+    if (this._error || !this._config || !model) {
+      this._frame = undefined;
+      return;
+    }
+    const { sel, layout, tg, targets, selKey } = this._geometry(model);
+    if (this._focus && this._lastSelKey !== undefined && selKey !== this._lastSelKey) {
+      const parent = sel.floor !== undefined ? tg.floors[sel.floor] : { x: layout.homeX, y: layout.yHome, o: 1 };
+      this._startTween(targets, { x: parent.x, y: parent.y + FLOOR_H / 2, o: 0 });
+    }
+    this._lastSelKey = selKey;
+    const now = performance.now();
+    if (this._tween?.finished(now)) this._tween = undefined;
+    const pos = (id: string): Pos => this._tween?.sample(id, now) ?? targets.get(id) ?? { x: 0, y: 0, o: 0 };
+    const floorViews = model.floors.map((f) => pos(`f:${f.id}`));
+    sel.rooms.forEach((r) => this._lastRooms.set(r.id, r));
+    const roomViews: RoomView[] = sel.rooms.map((r) => ({ room: r, p: pos(`r:${r.id}`), leaving: false }));
+    // rooms of a floor that was just left fade out where they were
+    for (const id of this._tween?.leaving ?? []) {
+      const gone = id.startsWith("r:") ? this._lastRooms.get(id.slice(2)) : undefined;
+      if (gone) roomViews.push({ room: gone, p: pos(id), leaving: true });
+    }
+    this._lastShown = new Map([
+      ...model.floors.map((f, i) => [`f:${f.id}`, floorViews[i]] as const),
+      ...roomViews.map((v) => [`r:${v.room.id}`, v.p] as const),
+    ]);
+    this._frame = { floorViews, roomViews };
+  }
+
+  protected render(): TemplateResult {
+    if (this._error) return html`<ha-card><div class="error">${this._error}</div></ha-card>`;
+    const cfg = this._config;
+    const model = this._model;
+    const frame = this._frame;
+    if (!cfg || !model || !frame) return html`<ha-card></ha-card>`;
+
+    const { sel, layout } = this._geometry(model);
     const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
     const room = sel.room !== undefined ? sel.rooms[sel.room] : undefined;
     const home = this._hass?.config?.location_name ?? this._t("home");
@@ -466,40 +524,7 @@ export class DetailedEnergyCard extends LitElement {
       : room;
     const path = [home, floor?.name, room?.name].filter(Boolean).join(" › ");
 
-    // Positions of the floors and rooms. With options.focus_selected the selected element of a level
-    // slides to the middle under its parent and the rest of that level fades out behind it.
-    const tg = focusTargets({
-      layout,
-      floors: model.floors.length,
-      selFloor: sel.floor,
-      rooms: sel.rooms.length,
-      selRoom: sel.room,
-      focus: this._focus,
-    });
-    const targets = new Map<string, Pos>();
-    model.floors.forEach((f, i) => targets.set(`f:${f.id}`, tg.floors[i]));
-    sel.rooms.forEach((r, i) => targets.set(`r:${r.id}`, tg.rooms[i]));
-    const selKey = `${sel.floor ?? ""}|${sel.room ?? ""}`;
-    if (this._focus && this._lastSelKey !== undefined && selKey !== this._lastSelKey) {
-      const parent = sel.floor !== undefined ? tg.floors[sel.floor] : { x: layout.homeX, y: layout.yHome, o: 1 };
-      this._startTween(targets, { x: parent.x, y: parent.y + FLOOR_H / 2, o: 0 });
-    }
-    this._lastSelKey = selKey;
-    const now = performance.now();
-    if (this._tween?.finished(now)) this._tween = undefined;
-    const pos = (id: string): Pos => this._tween?.sample(id, now) ?? targets.get(id) ?? { x: 0, y: 0, o: 0 };
-    const floorViews = model.floors.map((f) => pos(`f:${f.id}`));
-    sel.rooms.forEach((r) => this._lastRooms.set(r.id, r));
-    const roomViews: RoomView[] = sel.rooms.map((r) => ({ room: r, p: pos(`r:${r.id}`), leaving: false }));
-    // rooms of a floor that was just left fade out where they were
-    for (const id of this._tween?.leaving ?? []) {
-      const gone = id.startsWith("r:") ? this._lastRooms.get(id.slice(2)) : undefined;
-      if (gone) roomViews.push({ room: gone, p: pos(id), leaving: true });
-    }
-    this._lastShown = new Map([
-      ...model.floors.map((f, i) => [`f:${f.id}`, floorViews[i]] as const),
-      ...roomViews.map((v) => [`r:${v.room.id}`, v.p] as const),
-    ]);
+    const { floorViews, roomViews } = frame;
 
     return html`
       <ha-card style=${colorVars(cfg.colors)}>

@@ -6,6 +6,10 @@
 
 - `options.storage_id` (editor: *Selection ID*): two cards with the same floors and rooms, say a power and an energy view, no longer share the remembered selection and view when each has its own id.
 
+### Internal
+
+- `render()` only reads: the positions of the floors and rooms and the start of the slide after a selection change are computed in `willUpdate()`.
+
 ### Changed
 
 - The key of the remembered selection is built from the ids without a hash, so different structures can no longer collide. The remembered selection is reset once; the old entries are removed.
