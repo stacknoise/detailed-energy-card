@@ -17,7 +17,7 @@ const de = {
   // general fields
   field_title: "Titel",
   field_unit: "Einheit",
-  field_decimals: "Nachkommastellen",
+  field_decimals: "Nachkommastellen (leer: 2, Energie: 1)",
   field_animation: "Animation",
   field_show_unassigned: "„Nicht erfasst“ anzeigen",
   field_remember_selection: "Auswahl merken",
@@ -134,7 +134,7 @@ const en: typeof de = {
   // general fields
   field_title: "Title",
   field_unit: "Unit",
-  field_decimals: "Decimals",
+  field_decimals: "Decimals (empty: 2, energy: 1)",
   field_animation: "Animation",
   field_show_unassigned: "Show \"Unassigned\"",
   field_remember_selection: "Remember selection",

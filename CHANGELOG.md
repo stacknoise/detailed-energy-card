@@ -7,6 +7,8 @@
 - Energy mode: the values are loaded again when the card is attached again (moved in the edit mode, view change) and when it becomes visible after being hidden. Before, the card could stay on "Loading energy data ..." or show old numbers until a power sensor changed.
 - Editor: an `energy_entity` already used by another consumer is no longer offered and a duplicate is reported, like for `entity`. Switching floors off no longer assigns such a sensor twice.
 - Energy mode: `first_weekday: language` (the Home Assistant default) now takes the first day of the week from the language instead of always Monday, so the week matches the Energy dashboard.
+- Editor: the notes *err_not_energy* / *err_energy_unit* about an energy sensor update as soon as that sensor changes, not only after another field was edited.
+- Editor: the *Decimals* field no longer shows 2 when nothing is set. It is empty and its label says what applies (2 for power, 1 for energy), as the card always did.
 
 ### Docs
 

@@ -159,7 +159,7 @@ describe("config utils", () => {
   });
 });
 
-import { consumerEntitiesExcept } from "../src/editor/config-utils";
+import { consumerEntitiesExcept, observedEntityIds } from "../src/editor/config-utils";
 import { consumerFields } from "../src/editor/schema";
 import { ConfigError } from "../src/model/config";
 
@@ -188,6 +188,15 @@ describe("consumers are unique", () => {
     const withEmpty: EnergyCardConfig = { type: "x", rooms: [{ area_id: "a", consumers: [{ entity: "sensor.one" }, { entity: "" }] }] };
     expect(consumerEntitiesExcept(withEmpty, ["rooms", 0, "consumers", 1])).toEqual(["sensor.one"]);
     expect(consumerEntitiesExcept(withEmpty, ["rooms", 0, "consumers", 0])).toEqual([]);
+  });
+  it("observes power and energy sensors of the config", () => {
+    const e: EnergyCardConfig = {
+      type: "x",
+      home: { total_entity: "sensor.t", total_energy_entity: "sensor.te" },
+      sources: [{ entity: "sensor.s", energy_entity: "sensor.se" }],
+      rooms: [{ area_id: "a", consumers: [{ entity: "sensor.p", energy_entity: "sensor.e" }] }],
+    };
+    expect(observedEntityIds(e).sort()).toEqual(["sensor.e", "sensor.p", "sensor.s", "sensor.se", "sensor.t", "sensor.te"]);
   });
   it("counts energy sensors as taken too", () => {
     const e: EnergyCardConfig = {

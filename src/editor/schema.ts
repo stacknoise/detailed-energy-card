@@ -62,7 +62,7 @@ const opts = (values: string[]) => ({ select: { mode: "box", options: values.map
 export const GENERAL: Field[] = [
   { path: "title", selector: text, label: "field_title" },
   { path: "options.unit", selector: opts(["W", "kW", "auto"]), label: "field_unit", default: "W" },
-  { path: "options.decimals", selector: { number: { min: 0, max: 4, mode: "box" } }, label: "field_decimals", default: 2 },
+  { path: "options.decimals", selector: { number: { min: 0, max: 4, mode: "box" } }, label: "field_decimals" },
   { path: "options.animation", selector: { boolean: {} }, label: "field_animation", default: true },
   { path: "options.show_consumers", selector: { boolean: {} }, label: "field_show_consumers", default: true },
   {

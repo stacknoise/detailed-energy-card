@@ -1,4 +1,4 @@
-import type { EnergyCardConfig, RoomConfig } from "../model/config";
+import { collectEnergyIds, collectEntityIds, type EnergyCardConfig, type RoomConfig } from "../model/config";
 
 export type Pointer = Array<string | number>;
 type Obj = Record<string, unknown>;
@@ -157,4 +157,12 @@ export function reorder<T>(list: T[], from: number, to: number): T[] {
   const [item] = copy.splice(from, 1);
   copy.splice(to, 0, item);
   return copy;
+}
+
+/**
+ * Entities whose changes the editor re-renders for: power and energy sensors alike, because the
+ * hints of the fields (device class, unit) depend on the state of both.
+ */
+export function observedEntityIds(cfg: EnergyCardConfig): string[] {
+  return [...new Set([...collectEntityIds(cfg), ...collectEnergyIds(cfg)])];
 }
