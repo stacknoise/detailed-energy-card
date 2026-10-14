@@ -74,6 +74,12 @@ export const GENERAL: Field[] = [
   },
   { path: "options.show_unassigned", selector: { boolean: {} }, label: "field_show_unassigned", default: true, when: (cfg: any) => cfg?.options?.show_consumers !== false },
   { path: "options.remember_selection", selector: { boolean: {} }, label: "field_remember_selection", default: true },
+  {
+    path: "options.storage_id",
+    selector: text,
+    label: "field_storage_id",
+    when: (cfg: any) => cfg?.options?.remember_selection !== false,
+  },
   { path: "options.wrap_rooms", selector: { boolean: {} }, label: "field_wrap_rooms", default: false },
   { path: "options.focus_selected", selector: { boolean: {} }, label: "field_focus_selected", default: false },
 ];

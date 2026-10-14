@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- `options.storage_id` (editor: *Selection ID*): two cards with the same floors and rooms, say a power and an energy view, no longer share the remembered selection and view when each has its own id.
+
+### Changed
+
+- The key of the remembered selection is built from the ids without a hash, so different structures can no longer collide. The remembered selection is reset once; the old entries are removed.
+- The old entries in `localStorage` are looked for once per page load instead of with every configuration change.
+
 ### Fixed
 
 - Energy mode: the values are loaded again when the card is attached again (moved in the edit mode, view change) and when it becomes visible after being hidden. Before, the card could stay on "Loading energy data ..." or show old numbers until a power sensor changed.

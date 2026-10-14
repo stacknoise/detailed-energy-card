@@ -14,7 +14,7 @@ import "./editor/card-editor";
 import { defineOnce, registerCardOnce } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { Tween, focusTargets, type Pos } from "./view/focus";
-import { parseSelection, removeLegacyKeys, selectionKey, type Selection } from "./model/selection";
+import { parseSelection, removeLegacyKeysOnce, selectionKey, type Selection } from "./model/selection";
 import {
   computeLayout,
   curve,
@@ -223,7 +223,7 @@ export class DetailedEnergyCard extends LitElement {
   private _loadSelection(): Selection {
     if (this._config?.options?.remember_selection === false) return {};
     try {
-      removeLegacyKeys(localStorage);
+      removeLegacyKeysOnce(localStorage);
       return parseSelection(localStorage.getItem(this._storageKey));
     } catch {
       return {};
