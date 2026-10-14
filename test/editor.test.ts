@@ -137,6 +137,16 @@ describe("config utils", () => {
     expect(back.rooms![2].consumers).toEqual([{ entity: "sensor.b" }]);
     expect(() => validateConfig(back)).not.toThrow();
   });
+  it("toggleFloors does not assign an energy sensor twice", () => {
+    const cfg: EnergyCardConfig = {
+      type: "x",
+      floors: [{ floor_id: "eg", rooms: [{ area_id: "k", consumers: [{ entity: "sensor.a", energy_entity: "sensor.ae" }] }] }],
+    };
+    const left = [{ area_id: "y", consumers: [{ entity: "sensor.c", energy_entity: "sensor.ae" }, { entity: "sensor.d", energy_entity: "sensor.de" }] }];
+    const back = toggleFloors(cfg, false, [], left);
+    expect(back.rooms![1].consumers).toEqual([{ entity: "sensor.d", energy_entity: "sensor.de" }]);
+    expect(() => validateConfig(back)).not.toThrow();
+  });
   it("finds duplicate assignments", () => {
     const cfg: EnergyCardConfig = {
       type: "x",
@@ -178,6 +188,21 @@ describe("consumers are unique", () => {
     const withEmpty: EnergyCardConfig = { type: "x", rooms: [{ area_id: "a", consumers: [{ entity: "sensor.one" }, { entity: "" }] }] };
     expect(consumerEntitiesExcept(withEmpty, ["rooms", 0, "consumers", 1])).toEqual(["sensor.one"]);
     expect(consumerEntitiesExcept(withEmpty, ["rooms", 0, "consumers", 0])).toEqual([]);
+  });
+  it("counts energy sensors as taken too", () => {
+    const e: EnergyCardConfig = {
+      type: "x",
+      rooms: [
+        { area_id: "a", consumers: [{ entity: "sensor.p1", energy_entity: "sensor.e1" }] },
+        { area_id: "b", consumers: [{ entity: "sensor.p2", energy_entity: "sensor.e2" }] },
+      ],
+    };
+    expect(consumerEntitiesExcept(e, ["rooms", 0, "consumers", 0]).sort()).toEqual(["sensor.e2", "sensor.p2"]);
+    const [, energyField] = consumerFields(["sensor.e2"]);
+    expect(energyField.selector).toEqual({ entity: { domain: "sensor", device_class: "energy", exclude_entities: ["sensor.e2"] } });
+    expect(findDuplicates({ ...e, rooms: [e.rooms![0], { area_id: "b", name: "B", consumers: [{ entity: "sensor.p2", energy_entity: "sensor.e1" }] }] })).toEqual([
+      { entity: "sensor.e1", places: ["a", "B"] },
+    ]);
   });
   it("hands the taken sensors to the entity picker as excluded", () => {
     const [entity] = consumerFields(["sensor.two"]);

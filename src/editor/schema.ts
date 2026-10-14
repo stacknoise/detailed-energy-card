@@ -176,7 +176,7 @@ export const roomFields = (choices: Choice[] = []): Field[] => [
   color("color", "field_color"),
 ];
 
-/** Consumer sensors: power sensors that are not yet assigned to another consumer. */
+/** Consumer sensors: power and energy sensors that are not yet assigned to another consumer. */
 export const consumerFields = (exclude: string[] = []): Field[] => [
   {
     path: "entity",
@@ -185,7 +185,12 @@ export const consumerFields = (exclude: string[] = []): Field[] => [
     required: true,
     check: "power",
   },
-  { path: "energy_entity", selector: energy, label: "field_energy_entity", check: "energy" },
+  {
+    path: "energy_entity",
+    selector: { entity: { ...energy.entity, exclude_entities: exclude } },
+    label: "field_energy_entity",
+    check: "energy",
+  },
   { path: "name", selector: text, label: "field_name_optional" },
 ];
 

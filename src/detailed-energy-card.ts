@@ -75,6 +75,8 @@ export class DetailedEnergyCard extends LitElement {
   @state() private _energy?: Map<string, number>;
   @state() private _energyState: "idle" | "loading" | "ok" | "error" = "idle";
   private _energyTimer = 0;
+  /** when the last answer arrived (ms); 0 = none for the current view */
+  private _energyAt = 0;
   private _energyToken = 0;
 
   private _hass?: Hass;
@@ -157,10 +159,15 @@ export class DetailedEnergyCard extends LitElement {
     if (typeof IntersectionObserver !== "undefined") {
       this._io = new IntersectionObserver((entries) => {
         const last = entries[entries.length - 1];
-        if (last) this.classList.toggle("offscreen", !last.isIntersecting);
+        if (!last) return;
+        this.classList.toggle("offscreen", !last.isIntersecting);
+        // the timer chain pauses while the card is hidden: catch up when it is seen again
+        if (last.isIntersecting) this._refreshEnergy();
       });
       this._io.observe(this);
     }
+    // re-attached (moved in the edit mode, view change): the refresh stopped when the card was detached
+    this._refreshEnergy();
   }
 
   disconnectedCallback(): void {
@@ -170,6 +177,8 @@ export class DetailedEnergyCard extends LitElement {
     cancelAnimationFrame(this._raf);
     clearTimeout(this._energyTimer);
     this._energyToken++;
+    // an answer that is still on its way is dropped (token), so "loading" would never end
+    if (this._energyState === "loading") this._energyState = "idle";
     this._tween = undefined;
     this.classList.remove("offscreen");
     this._observed = undefined;
@@ -276,6 +285,7 @@ export class DetailedEnergyCard extends LitElement {
     this._period = period;
     this._energy = undefined;
     this._energyState = "idle";
+    this._energyAt = 0;
     clearTimeout(this._energyTimer);
     this._energyToken++;
   }
@@ -296,6 +306,7 @@ export class DetailedEnergyCard extends LitElement {
     this._energyToken++;
     // the numbers of another period would be wrong for this one
     this._energy = undefined;
+    this._energyAt = 0;
     if (mode === "energy") {
       this._energyState = "idle";
       this._ensureEnergy(true);
@@ -308,6 +319,26 @@ export class DetailedEnergyCard extends LitElement {
     if (this._mode !== "energy" || !this._config || !this._hass) return;
     if (!force && this._energyState !== "idle") return;
     void this._fetchEnergy();
+  }
+
+  /**
+   * Brings the energy values up to date after the refresh chain was interrupted (card detached or hidden):
+   * loads again when the last answer is old, otherwise waits out the rest of the interval.
+   */
+  private _refreshEnergy(): void {
+    if (this._mode !== "energy" || !this._config || !this._hass || this._energyState === "loading") return;
+    const age = Date.now() - this._energyAt;
+    if (this._energyState === "ok" && age < ENERGY_REFRESH_MS) {
+      clearTimeout(this._energyTimer);
+      this._energyTimer = window.setTimeout(() => this._onEnergyTimer(), ENERGY_REFRESH_MS - age);
+      return;
+    }
+    void this._fetchEnergy();
+  }
+
+  private _onEnergyTimer(): void {
+    // while the card is hidden the chain just ends; the observer starts it again when the card is seen
+    if (!this.classList.contains("offscreen")) void this._fetchEnergy();
   }
 
   private async _fetchEnergy(): Promise<void> {
@@ -325,10 +356,11 @@ export class DetailedEnergyCard extends LitElement {
         this._period,
         new Date(),
         hass.config?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-        firstWeekdayIndex(hass.locale?.first_weekday),
+        firstWeekdayIndex(hass.locale?.first_weekday, hass.locale?.language ?? hass.language),
       );
       if (token !== this._energyToken) return;
       this._energy = values;
+      this._energyAt = Date.now();
       this._energyState = "ok";
     } catch {
       if (token !== this._energyToken) return;
@@ -337,10 +369,7 @@ export class DetailedEnergyCard extends LitElement {
     }
     this._recompute();
     // the statistics are compiled every few minutes: ask again from time to time
-    this._energyTimer = window.setTimeout(() => {
-      if (this.classList.contains("offscreen")) this._energyState = "idle";
-      else void this._fetchEnergy();
-    }, ENERGY_REFRESH_MS);
+    this._energyTimer = window.setTimeout(() => this._onEnergyTimer(), ENERGY_REFRESH_MS);
   }
 
   private _renderModeSwitch(cfg: EnergyCardConfig): TemplateResult | typeof nothing {

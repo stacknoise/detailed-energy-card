@@ -372,8 +372,9 @@ export class DetailedEnergyCardEditor extends LitElement {
     ev.stopPropagation();
     const data = ev.detail.value as Record<string, unknown>;
     // A sensor may belong to one consumer only; the picker hides taken ones, this catches the rest.
-    if (ptr.includes("consumers") && typeof data.entity === "string" && data.entity) {
-      if (consumerEntitiesExcept(this._config, ptr).includes(data.entity)) {
+    if (ptr.includes("consumers")) {
+      const taken = consumerEntitiesExcept(this._config, ptr);
+      if ([data.entity, data.energy_entity].some((e) => typeof e === "string" && e && taken.includes(e))) {
         this._notice = this._tr("warn_sensor_assigned");
         return;
       }
