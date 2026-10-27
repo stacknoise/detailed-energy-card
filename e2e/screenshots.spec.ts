@@ -42,6 +42,15 @@ const shots: Array<{ scenario: string; file: string; before?: (page: import("@pl
       await page.locator("detailed-energy-card button.node[title=Küche]").click();
     },
   },
+  {
+    scenario: "secondary",
+    file: "card-secondary",
+    // the power now with the energy of today below it (options.secondary_value: auto)
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .second", { hasText: "kWh" }).first()).toBeVisible();
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",

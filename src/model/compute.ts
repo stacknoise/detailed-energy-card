@@ -240,3 +240,43 @@ export function listRemainder(model: EnergyModel, floor?: FloorNode, room?: Room
   const rooms = model.floors.length ? model.floors.flatMap((f) => f.rooms) : model.rooms;
   return { scope: "home", value: Math.max(0, model.homeWatts - consumerSum(rooms)) };
 }
+
+/** Key of a node for its second value: the home, a source or a consumer by entity, a floor or a room by id. */
+export const nodeKey = {
+  home: "home",
+  source: (entity: string) => `s:${entity}`,
+  floor: (id: string) => `f:${id}`,
+  room: (id: string) => `r:${id}`,
+  consumer: (entity: string) => `c:${entity}`,
+};
+
+/**
+ * Values of the nodes that have one, for the second line (`options.secondary_value`). A node without a
+ * readable sensor is left out, and so is a room or a floor without a meter and without any child that has
+ * a value, so that no "0 kWh" appears where nothing is measured. In the energy mode the values are watt hours.
+ */
+export function nodeValues(model: EnergyModel): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const s of model.sources) if (s.valid && !s.noEnergy) out.set(nodeKey.source(s.entity), s.watts);
+  const room = (r: RoomNode): boolean => {
+    let has = !!r.meter?.metered;
+    for (const c of r.consumers) {
+      if (!c.valid || c.noEnergy) continue;
+      out.set(nodeKey.consumer(c.entity), c.watts);
+      has = true;
+    }
+    if (has) out.set(nodeKey.room(r.id), r.watts);
+    return has;
+  };
+  let any = false;
+  for (const f of model.floors) {
+    const rooms = f.rooms.map(room).some(Boolean);
+    if (rooms || f.meter?.metered) {
+      out.set(nodeKey.floor(f.id), f.watts);
+      any = true;
+    }
+  }
+  if (model.rooms.map(room).some(Boolean)) any = true;
+  if (any || model.totalValid) out.set(nodeKey.home, model.homeWatts);
+  return out;
+}

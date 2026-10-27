@@ -7,6 +7,7 @@
 - Floors and rooms can have their own meter: `entity` (power) and `energy_entity` (energy), both optional, with fields in the editor. With a meter the node shows the measured value and a small meter icon instead of the sum of its children; a room with a meter needs no consumers. An unreadable meter falls back to the sum and shows a warning.
 - "Unassigned in <room>" and "Unassigned in <floor>": what the consumers of a metered room or floor do not cover.
 - A warning when the consumers of a room (or the rooms of a floor) measure more than its meter: more than 5 % and at least 10 W or 50 Wh. The node gets a warning icon, the list says by how much.
+- `options.secondary_value` (editor: *Second value under the values*): a second, smaller value under every source, floor, room and the home, and a fourth column in the consumer list. `today` shows the energy of today in the mode *Now* (loaded in the background every 5 minutes while the card is visible), `power` the power now in the energy mode, `auto` the other value of whichever mode is shown. Nodes without a value leave the line empty instead of showing 0 kWh.
 
 ### Changed
 
@@ -15,7 +16,7 @@
 
 ### Docs
 
-- README: meters of floors and rooms, new screenshot `card-meters`, all dev scenarios listed. The screenshots with a room list no longer show the remainder of the home.
+- README: meters of floors and rooms, the second value, new screenshots `card-meters` and `card-secondary`, all dev scenarios listed. The screenshots with a room list no longer show the remainder of the home.
 
 ### Internal
 

@@ -355,6 +355,8 @@
         floors: scenarios.floors.floors.map((f) => ({ ...f, rooms: withEnergy(f.rooms) })),
         options: { unit: "kW", mode: "energy" },
       };
+      // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
+      scenarios.secondary = { ...scenarios.energy, options: { unit: "kW", mode: "power", secondary_value: "auto" } };
       // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a
       // power and an energy meter, the hall with an energy meter only; the other rooms show their sum.
       scenarios.meters = {
