@@ -40,7 +40,7 @@ Thresholds can differ per level, and a single element can have its own list: her
 | --- | --- |
 | ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png) |
 
-The energy mode shows how much each part used today, this week or this month; the lines show the share of the consumption, and the coffee machine has no energy sensor. Floors and rooms can have their own meter (small meter icon): here EG (distribution board), the kitchen and the hall are metered, and the kitchen meter measures 0.4 kWh more than the kitchen's consumers. With `options.secondary_value: auto` every node shows the energy of today below its power (and the power now in the energy mode). With counters for both directions the grid and the battery show what went back (feed-in 3.8 kWh, charged 2.4 kWh), and the *Self-consumption* badge says how much of the solar energy stayed in the home.
+The energy mode shows how much each part used today, this week or this month; the lines show the share of the consumption, and the coffee machine has no energy sensor. Floors and rooms can have their own meter (small meter icon): here the ground floor (distribution board), the kitchen and the hall are metered, and the kitchen meter measures 0.4 kWh more than the kitchen's consumers. With `options.secondary_value: auto` every node shows the energy of today below its power (and the power now in the energy mode). With counters for both directions the grid and the battery show what went back (feed-in 3.8 kWh, charged 2.4 kWh), and the *Self-consumption* badge says how much of the solar energy stayed in the home.
 
 ### More views
 
@@ -52,7 +52,7 @@ The energy mode shows how much each part used today, this week or this month; th
 | --- | --- |
 | ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png) | ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png) |
 
-The card screenshots are rendered from mock data with `npm run screenshots`.
+The card screenshots are rendered from mock data with `npm run screenshots`, in English (`SHOT_LANG=de` renders them in German).
 
 ### Visual editor
 
@@ -70,7 +70,7 @@ Everything can be configured without YAML. Floors and rooms are picked from the 
 
 ![Import wizard: structure from the Energy dashboard](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-import.png)
 
-The editor screenshots are rendered from demo data with `npm run screenshots`. The form fields are drawn by a stand-in for Home Assistant's form (`dev/ha-form-stub.js`), so they look like the real ones but are not taken in a real Home Assistant.
+The editor screenshots are rendered from demo data with `npm run screenshots`, in English too. The form fields are drawn by a stand-in for Home Assistant's form (`dev/ha-form-stub.js`), so they look like the real ones but are not taken in a real Home Assistant.
 
 ## Install (HACS)
 

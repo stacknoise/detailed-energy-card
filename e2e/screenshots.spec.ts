@@ -1,12 +1,17 @@
 import { expect, test } from "@playwright/test";
 
 // Renders the images used in README.md. Run: npm run screenshots
+// The language of the images: English (the README is English); SHOT_LANG=de renders them German.
+const LANG = process.env.SHOT_LANG === "de" ? "de" : "en";
+const EN: Record<string, string> = { Küche: "Kitchen", EG: "Ground", Zuhause: "Home", Heute: "Today", Räume: "Rooms", Struktur: "Structure", Weiter: "Next", "ab 800 W": "from 800 W" };
+/** a German word of the dev page in the language of the images */
+const t = (de: string): string => (LANG === "en" ? (EN[de] ?? de) : de);
 const shots: Array<{ scenario: string; file: string; /** card width in px (the dev page `?width=`) */ width?: number; clock?: string; before?: (page: import("@playwright/test").Page) => Promise<void> }> = [
   {
     scenario: "floors",
     file: "card-with-floors",
     before: async (page) => {
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
   { scenario: "flat", file: "card-without-floors" }, // all rooms are selected by default
@@ -21,7 +26,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     scenario: "thresholds",
     file: "card-thresholds",
     before: async (page) => {
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
   {
@@ -30,7 +35,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     // the statistics arrive after the first render
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .pill small", { hasText: "kWh" }).first()).toBeVisible();
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
   {
@@ -39,7 +44,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     // own meters of EG, kitchen and hall; the kitchen list shows what its consumers miss
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .pill small", { hasText: "kWh" }).first()).toBeVisible();
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
   {
@@ -48,7 +53,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     // the power now with the energy of today below it (options.secondary_value: auto)
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .second", { hasText: "kWh" }).first()).toBeVisible();
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
   {
@@ -57,7 +62,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     // feed-in and charging in the energy mode, with the self-consumption badge
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .back", { hasText: "kWh" }).first()).toBeVisible();
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
   {
@@ -76,7 +81,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     clock: "2026-10-13T17:30:00Z",
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .badge.base")).toBeVisible();
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
       await expect(page.locator("detailed-energy-card .standby")).toBeVisible();
     },
   },
@@ -85,7 +90,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     file: "card-actions",
     // the toggles of two consumers at the end of their rows; the kitchen is selected
     before: async (page) => {
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
       await expect(page.locator("detailed-energy-card .switch").first()).toBeVisible();
     },
   },
@@ -104,7 +109,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     // sources, floors and rooms with feed-in and charging below; the kitchen is selected, the hours do not matter
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .sk-label", { hasText: "kWh" }).first()).toBeVisible();
-      await page.locator('detailed-energy-card .sk-node[aria-label^="Küche:"]').click();
+      await page.locator(`detailed-energy-card .sk-node[aria-label^="${t("Küche")}:"]`).click();
     },
   },
   {
@@ -114,7 +119,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     clock: "2026-10-13T17:30:00Z",
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .badge.costs")).toBeVisible();
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
   { scenario: "floors", file: "card-all-rooms" },
@@ -122,7 +127,7 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     scenario: "floors",
     file: "card-hero",
     before: async (page) => {
-      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   }, // all rooms of the floor are selected by default
 ];
@@ -148,7 +153,7 @@ async function fixClock(page: import("@playwright/test").Page, at: string): Prom
 // Every card image has the same size, so that they line up in tables and galleries. A card is shorter or longer
 // depending on its content; the picture always shows the same height and the rest is the dark background of the card.
 // card-hero keeps the height of the card (the product page uses it next to the headline).
-const CARD_IMAGE_HEIGHT = 890;
+const CARD_IMAGE_HEIGHT = 910;
 /** a little of the page around the card, so that it reads as a card and not as a cut-out */
 const IMAGE_MARGIN = 12;
 const natural = new Set(["card-hero"]);
@@ -157,8 +162,8 @@ for (const { scenario, file, clock, width, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {
     if (clock) await fixClock(page, clock);
     await page.setViewportSize({ width: 512, height: CARD_IMAGE_HEIGHT + 100 });
-    await page.goto(`/dev/index.html?scenario=${scenario}${width ? `&width=${width}` : ""}`);
-    await expect(page.locator("detailed-energy-card .path")).toContainText("Zuhause");
+    await page.goto(`/dev/index.html?scenario=${scenario}&lang=${LANG}${width ? `&width=${width}` : ""}`);
+    await expect(page.locator("detailed-energy-card .path")).toContainText(t("Zuhause"));
     await expect(page.locator("detailed-energy-card .path")).not.toContainText("eg");
     await before?.(page);
     const card = page.locator("detailed-energy-card");
@@ -179,7 +184,7 @@ for (const { scenario, file, clock, width, before } of shots) {
 test("screenshot card-heatmap", async ({ page }) => {
   await fixClock(page, "2026-10-13T17:30:00Z");
   await page.setViewportSize({ width: 512, height: CARD_IMAGE_HEIGHT + 100 });
-  await page.goto("/dev/index.html?card=heatmap");
+  await page.goto(`/dev/index.html?card=heatmap&lang=${LANG}`);
   const card = page.locator("detailed-energy-heatmap-card");
   await expect(card.locator(".cell").first()).toBeVisible();
   const box = await card.boundingBox();
@@ -197,7 +202,7 @@ test.describe("editor screenshots", () => {
   const editor = (page: import("@playwright/test").Page) => page.locator("detailed-energy-card-editor");
   const open = async (page: import("@playwright/test").Page) => {
     await page.setViewportSize({ width: 1000, height: 1080 });
-    await page.goto("/dev/index.html?editor=editor");
+    await page.goto(`/dev/index.html?editor=editor&lang=${LANG}`);
     await expect(editor(page)).toBeVisible();
     await expect(page.locator("detailed-energy-card .path")).not.toHaveText("");
     await page.waitForTimeout(600); // the card measures its width after the first render
@@ -214,33 +219,33 @@ test.describe("editor screenshots", () => {
   test("editor-thresholds", async ({ page }) => {
     await open(page);
     await editor(page).locator("button.title.section").click();
-    await editor(page).locator(".levels button", { hasText: "Räume" }).click();
-    await editor(page).locator(".item .head button.title", { hasText: "ab 800 W" }).click();
+    await editor(page).locator(".levels button", { hasText: t("Räume") }).click();
+    await editor(page).locator(".item .head button.title", { hasText: t("ab 800 W") }).click();
     await toTop(editor(page).locator("button.title.section"));
-    await page.locator('detailed-energy-card button.node[title="EG"]').click();
-    await page.locator('detailed-energy-card button.node[title="Küche"]').click();
+    await page.locator(`detailed-energy-card button.node[title="${t("EG")}"]`).click();
+    await page.locator(`detailed-energy-card button.node[title="${t("Küche")}"]`).click();
     await page.waitForTimeout(700); // the other floors and rooms have faded out
     await shot(page, "editor-thresholds");
   });
 
   test("editor-energy", async ({ page }) => {
     await open(page);
-    await editor(page).locator("h3", { hasText: "Zuhause" }).first().scrollIntoViewIfNeeded();
+    await editor(page).locator("h3", { hasText: t("Zuhause") }).first().scrollIntoViewIfNeeded();
     await editor(page).locator(".item .head button.title", { hasText: "PV" }).click();
-    await toTop(editor(page).locator("h3", { hasText: "Zuhause" }).first());
-    await page.locator("detailed-energy-card .modes button", { hasText: "Heute" }).click();
+    await toTop(editor(page).locator("h3", { hasText: t("Zuhause") }).first());
+    await page.locator("detailed-energy-card .modes button", { hasText: t("Heute") }).click();
     await expect(page.locator("detailed-energy-card .pill small", { hasText: "kWh" }).first()).toBeVisible();
     await shot(page, "editor-energy");
   });
 
   test("editor-structure", async ({ page }) => {
     await open(page);
-    await editor(page).locator(".item .head button.title", { hasText: "EG" }).first().click();
-    await editor(page).locator(".item .head button.title", { hasText: "Küche" }).first().click();
-    await toTop(editor(page).locator("h3", { hasText: "Struktur" }));
-    await page.locator("detailed-energy-card .modes button", { hasText: "Heute" }).click();
-    await page.locator('detailed-energy-card button.node[title="EG"]').click();
-    await page.locator('detailed-energy-card button.node[title="Küche"]').click();
+    await editor(page).locator(".item .head button.title", { hasText: t("EG") }).first().click();
+    await editor(page).locator(".item .head button.title", { hasText: t("Küche") }).first().click();
+    await toTop(editor(page).locator("h3", { hasText: t("Struktur") }));
+    await page.locator("detailed-energy-card .modes button", { hasText: t("Heute") }).click();
+    await page.locator(`detailed-energy-card button.node[title="${t("EG")}"]`).click();
+    await page.locator(`detailed-energy-card button.node[title="${t("Küche")}"]`).click();
     await expect(page.locator("detailed-energy-card .pill small", { hasText: "kWh" }).first()).toBeVisible();
     await page.waitForTimeout(700); // the other floors and rooms have faded out
     await shot(page, "editor-structure");
@@ -251,8 +256,8 @@ test.describe("editor screenshots", () => {
     await open(page);
     await editor(page).locator("button.import").click();
     const wizard = editor(page).locator("detailed-energy-import-wizard");
-    await wizard.getByRole("button", { name: "Weiter" }).click();
-    await expect(wizard.locator(".steps .on")).toHaveText("2 Struktur");
+    await wizard.getByRole("button", { name: t("Weiter") }).click();
+    await expect(wizard.locator(".steps .on")).toHaveText(`2 ${t("Struktur")}`);
     await page.waitForTimeout(300);
     await wizard.locator(".panel").screenshot({ path: "docs/screenshots/editor-import.png" });
   });

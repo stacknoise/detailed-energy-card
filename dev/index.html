@@ -152,26 +152,30 @@
         },
       );
 
+      // ?lang=en: the demo data (names of floors, rooms, consumers, titles) is English too, for the screenshots of the README
+      const LANG = new URLSearchParams(location.search).get("lang") ?? "de";
+      const T = (de, en) => (LANG === "en" ? en : de);
+
       const s = (v, unit = "W") => ({ state: String(v), attributes: { unit_of_measurement: unit, device_class: "power" } });
       const room = (area_id, consumers = []) => ({ area_id, consumers });
       const c = (entity, name) => ({ entity, name });
 
       const registries = {
         floors: [
-          { floor_id: "eg", name: "EG" },
-          { floor_id: "og", name: "OG" },
-          { floor_id: "keller", name: "Keller" },
+          { floor_id: "eg", name: T("EG", "Ground") },
+          { floor_id: "og", name: T("OG", "Upper") },
+          { floor_id: "keller", name: T("Keller", "Basement") },
         ],
         areas: [
-          { area_id: "kueche", name: "Küche", icon: "mdi:stove", floor_id: "eg" },
-          { area_id: "wohnzimmer", name: "Wohnzimmer", icon: "mdi:sofa", floor_id: "eg" },
-          { area_id: "flur", name: "Flur", icon: "mdi:door", floor_id: "eg" },
-          { area_id: "bad", name: "Bad", icon: "mdi:shower", floor_id: "og" },
-          { area_id: "schlafen", name: "Schlafen", icon: "mdi:bed", floor_id: "og" },
-          { area_id: "werkstatt", name: "Werkstatt", icon: "mdi:tools", floor_id: "keller" },
-          { area_id: "wohnen", name: "Wohnen", icon: "mdi:sofa" },
-          { area_id: "buero", name: "Büro", icon: "mdi:desk" },
-          ...["Flur 2", "Garage", "Keller", "Garten", "Terrasse", "Waschküche"].map((name, i) => ({
+          { area_id: "kueche", name: T("Küche", "Kitchen"), icon: "mdi:stove", floor_id: "eg" },
+          { area_id: "wohnzimmer", name: T("Wohnzimmer", "Living room"), icon: "mdi:sofa", floor_id: "eg" },
+          { area_id: "flur", name: T("Flur", "Hall"), icon: "mdi:door", floor_id: "eg" },
+          { area_id: "bad", name: T("Bad", "Bathroom"), icon: "mdi:shower", floor_id: "og" },
+          { area_id: "schlafen", name: T("Schlafen", "Bedroom"), icon: "mdi:bed", floor_id: "og" },
+          { area_id: "werkstatt", name: T("Werkstatt", "Workshop"), icon: "mdi:tools", floor_id: "keller" },
+          { area_id: "wohnen", name: T("Wohnen", "Living area"), icon: "mdi:sofa" },
+          { area_id: "buero", name: T("Büro", "Office"), icon: "mdi:desk" },
+          ...[T("Flur 2", "Hall 2"), "Garage", T("Keller", "Cellar"), T("Garten", "Garden"), T("Terrasse", "Terrace"), T("Waschküche", "Laundry room")].map((name, i) => ({
             area_id: `x${i}`,
             name,
             icon: "mdi:home",
@@ -225,11 +229,11 @@
         { entity: "sensor.netz", type: "grid" },
       ];
 
-      const manyRooms = Array.from({ length: 10 }, (_, i) => room(i < 8 ? registries.areas[i].area_id : `x${i - 8}`, [c(`sensor.r${i}`, `Verbraucher ${i + 1}`), c(`sensor.r${i}b`, `Standby ${i + 1}`), c(`sensor.r${i}c`, `Beleuchtung ${i + 1}`)]));
+      const manyRooms = Array.from({ length: 10 }, (_, i) => room(i < 8 ? registries.areas[i].area_id : `x${i - 8}`, [c(`sensor.r${i}`, `${T("Verbraucher", "Consumer")} ${i + 1}`), c(`sensor.r${i}b`, `Standby ${i + 1}`), c(`sensor.r${i}c`, `${T("Beleuchtung", "Lighting")} ${i + 1}`)]));
 
       const scenarios = {
         floors: {
-          title: "Energiefluss",
+          title: T("Energiefluss", "Energy"),
           home: { total_entity: "sensor.total" },
           sources,
           colors: { thresholds },
@@ -239,17 +243,17 @@
               floor_id: "eg",
               rooms: [
                 room("kueche", [
-                  c("sensor.backofen", "Backofen"),
-                  c("sensor.spuel", "Spülmaschine"),
-                  c("sensor.kuehl", "Kühlschrank"),
-                  c("sensor.kaffee", "Kaffeemaschine"),
+                  c("sensor.backofen", T("Backofen", "Oven")),
+                  c("sensor.spuel", T("Spülmaschine", "Dishwasher")),
+                  c("sensor.kuehl", T("Kühlschrank", "Fridge")),
+                  c("sensor.kaffee", T("Kaffeemaschine", "Coffee machine")),
                 ]),
                 room("wohnzimmer", [c("sensor.wz", "TV & Sound")]),
-                room("flur", [c("sensor.flur", "Beleuchtung")]),
+                room("flur", [c("sensor.flur", T("Beleuchtung", "Lighting"))]),
               ],
             },
-            { floor_id: "og", rooms: [room("bad", [c("sensor.og", "Fußbodenheizung")])] },
-            { floor_id: "keller", rooms: [room("werkstatt", [c("sensor.keller", "Werkzeug")])] },
+            { floor_id: "og", rooms: [room("bad", [c("sensor.og", T("Fußbodenheizung", "Underfloor heating"))])] },
+            { floor_id: "keller", rooms: [room("werkstatt", [c("sensor.keller", T("Werkzeug", "Tools"))])] },
           ],
         },
         flat: {
@@ -262,11 +266,11 @@
           colors: { thresholds },
           options: { unit: "kW" },
           rooms: [
-            room("kueche", [c("sensor.herd", "Herd"), c("sensor.spuel2", "Spülmaschine"), c("sensor.kuehl2", "Kühlschrank")]),
-            room("wohnen", [c("sensor.wohnen", "Wohnzimmer")]),
-            room("bad", [c("sensor.bad", "Bad")]),
-            room("buero", [c("sensor.buero", "Büro")]),
-            room("schlafen", [c("sensor.schlafen", "Schlafen")]),
+            room("kueche", [c("sensor.herd", T("Herd", "Cooker")), c("sensor.spuel2", T("Spülmaschine", "Dishwasher")), c("sensor.kuehl2", T("Kühlschrank", "Fridge"))]),
+            room("wohnen", [c("sensor.wohnen", T("Wohnzimmer", "Living room"))]),
+            room("bad", [c("sensor.bad", T("Bad", "Bathroom"))]),
+            room("buero", [c("sensor.buero", T("Büro", "Office"))]),
+            room("schlafen", [c("sensor.schlafen", T("Schlafen", "Bedroom"))]),
           ],
         },
         long: {
@@ -275,12 +279,12 @@
           rooms: [
             room("kueche", [
               c("sensor.sehr_lange_entitaet_id_der_kuechen_spuelmaschine_leistung_gesamt"),
-              c("sensor.backofen", "Backofen mit einem außergewöhnlich langen Anzeigenamen"),
-              c("sensor.kuehl", "Kühlschrank"),
+              c("sensor.backofen", T("Backofen mit einem außergewöhnlich langen Anzeigenamen", "Oven with an exceptionally long display name")),
+              c("sensor.kuehl", T("Kühlschrank", "Fridge")),
             ]),
           ],
         },
-        many: { title: "Viele Räume", sources, options: { unit: "kW" }, rooms: manyRooms },
+        many: { title: T("Viele Räume", "Many rooms"), sources, options: { unit: "kW" }, rooms: manyRooms },
         wrap: { title: "Viele Räume", sources, options: { unit: "kW", wrap_rooms: true }, rooms: manyRooms },
         duplicate: {
           title: "Doppelt",
@@ -445,32 +449,32 @@
 
       // names for the entity pickers of the editor view, and the energy counters
       const friendly = {
-        "sensor.pv": "PV Leistung",
-        "sensor.akku": "Akku Leistung",
-        "sensor.netz": "Netz Leistung",
-        "sensor.total": "Haus Leistung",
-        "sensor.backofen": "Backofen Leistung",
-        "sensor.spuel": "Spülmaschine Leistung",
-        "sensor.kuehl": "Kühlschrank Leistung",
-        "sensor.kaffee": "Kaffeemaschine Leistung",
-        "sensor.wz": "TV und Sound Leistung",
-        "sensor.flur": "Beleuchtung Flur Leistung",
-        "sensor.og": "Fußbodenheizung Leistung",
-        "sensor.keller": "Werkzeug Leistung",
+        "sensor.pv": T("PV Leistung", "PV power"),
+        "sensor.akku": T("Akku Leistung", "Battery power"),
+        "sensor.netz": T("Netz Leistung", "Grid power"),
+        "sensor.total": T("Haus Leistung", "Home power"),
+        "sensor.backofen": T("Backofen Leistung", "Oven power"),
+        "sensor.spuel": T("Spülmaschine Leistung", "Dishwasher power"),
+        "sensor.kuehl": T("Kühlschrank Leistung", "Fridge power"),
+        "sensor.kaffee": T("Kaffeemaschine Leistung", "Coffee machine power"),
+        "sensor.wz": T("TV und Sound Leistung", "TV and sound power"),
+        "sensor.flur": T("Beleuchtung Flur Leistung", "Hall lighting power"),
+        "sensor.og": T("Fußbodenheizung Leistung", "Underfloor heating power"),
+        "sensor.keller": T("Werkzeug Leistung", "Tools power"),
       };
       for (const [id, name] of Object.entries(friendly)) states[id].attributes.friendly_name = name;
       for (const [id, kwh] of Object.entries(energyToday)) {
         const base = friendly["sensor." + id.slice("sensor.e_".length)];
         states[id] = {
           state: String(kwh),
-          attributes: { unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing", friendly_name: base ? base.replace("Leistung", "Energie") : id },
+          attributes: { unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing", friendly_name: base ? base.replace(T("Leistung", "power"), T("Energie", "energy")) : id },
         };
       }
 
       // The editor view: a card for the scenario "editor" (energy sensors, thresholds, focus) in its editor.
       scenarios.editor = {
         ...scenarios.energy,
-        sources: scenarios.energy.sources.map((src, i) => ({ ...src, name: ["PV", "Akku", "Netz"][i] })),
+        sources: scenarios.energy.sources.map((src, i) => ({ ...src, name: [T("PV", "PV"), T("Akku", "Battery"), T("Netz", "Grid")][i] })),
         colors: { ...scenarios.thresholds.colors, preset: "custom", accent: "#9184d9", flow: "#b5abfc", bar: "#b5abfc" },
         options: { unit: "kW", decimals: 2, focus_selected: true, mode: "power", energy_periods: ["today", "week", "month"] },
       };
@@ -491,7 +495,7 @@
           type: "custom:detailed-energy-heatmap-card",
           entity: "sensor.e_total",
           days: Number(params.get("days") ?? 14),
-          title: "Wann wird Strom verbraucht?",
+          title: T("Wann wird Strom verbraucht?", "When is electricity used?"),
           price_entity: params.get("price") === "0" ? undefined : "sensor.strompreis",
         });
       } else {
@@ -518,7 +522,7 @@
           { type: "battery", stat_energy_from: "sensor.e_akku", stat_energy_to: "sensor.e_akku_geladen", stat_soc: "sensor.soc" },
         ],
         device_consumption: [
-          { stat_consumption: "sensor.e_backofen", name: "Backofen" },
+          { stat_consumption: "sensor.e_backofen", name: T("Backofen", "Oven") },
           { stat_consumption: "sensor.e_spuel" },
           { stat_consumption: "sensor.e_kuehl" },
           { stat_consumption: "sensor.e_wz" },
@@ -531,7 +535,7 @@
       };
       // services the page records in window.__calls; a switch changes its state, so that the card shows it
       window.__calls = [];
-      states["switch.kaffee"] = { state: "off", attributes: { friendly_name: "Kaffeemaschine" } };
+      states["switch.kaffee"] = { state: "off", attributes: { friendly_name: T("Kaffeemaschine", "Coffee machine") } };
       states["switch.heizung"] = { state: "on", attributes: { friendly_name: "Heizung" } };
       const hass = {
         callService: async (domain, service, data, target) => {
@@ -546,7 +550,7 @@
           }
         },
         language: params.get("lang") ?? "de", // ?lang=en previews the English texts
-        config: { location_name: "Zuhause" },
+        config: { location_name: T("Zuhause", "Home") },
         states,
         areas: byId(registries.areas, "area_id"),
         floors: byId(registries.floors.map((f, i) => ({ ...f, level: i })), "floor_id"),
@@ -632,10 +636,10 @@
         const dlg = document.createElement("div");
         dlg.className = "dlg";
         dlg.innerHTML = `
-          <div class="dlg-head"><span>✕</span><span>Energy-Karte anpassen</span></div>
-          <div class="dlg-tabs"><span class="on">Konfiguration</span><span>Sichtbarkeit</span><span>Layout</span></div>
+          <div class="dlg-head"><span>✕</span><span>${T("Energy-Karte anpassen", "Customize the energy card")}</span></div>
+          <div class="dlg-tabs"><span class="on">${T("Konfiguration", "Configuration")}</span><span>${T("Sichtbarkeit", "Visibility")}</span><span>Layout</span></div>
           <div class="dlg-body"><div class="pane-l"></div><div class="pane-r"></div></div>
-          <div class="dlg-foot"><span>Code-Editor anzeigen</span><span class="btns"><span>Abbrechen</span><span class="save">Speichern</span></span></div>`;
+          <div class="dlg-foot"><span>${T("Code-Editor anzeigen", "Show code editor")}</span><span class="btns"><span>${T("Abbrechen", "Cancel")}</span><span class="save">${T("Speichern", "Save")}</span></span></div>`;
         document.body.appendChild(dlg);
         dlg.querySelector(".pane-r").appendChild(el);
         const config = { type: "custom:detailed-energy-card", ...scenarios[editorScenario] };

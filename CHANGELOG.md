@@ -4,6 +4,7 @@
 
 ### Docs
 
+- The screenshots of the README are rendered in English (demo data, titles and editor in English; `SHOT_LANG=de npm run screenshots` renders them German). The frame of the card images is a little higher (910 px) for the longer English texts.
 - README, section *Options*: the first column of every table shows the text of the field in the editor, in English and in German, next to the YAML key.
 
 ## 1.2.1

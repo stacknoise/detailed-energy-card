@@ -219,7 +219,7 @@ export class HaFormStub extends LitElement {
             </div>
             <span class="caret">▼</span>
           </div>`
-        : html`<div class="picker"><span class="placeholder">Entität auswählen</span><span class="caret">▼</span></div>`}
+        : html`<div class="picker"><span class="placeholder">${new URLSearchParams(location.search).get("lang") === "en" ? "Choose entity" : "Entität auswählen"}</span><span class="caret">▼</span></div>`}
     </div>`;
   }
 
