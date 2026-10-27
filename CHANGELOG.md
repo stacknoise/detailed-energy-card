@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.1
 
 ### Changed
 
@@ -8,7 +8,7 @@
 
 ### Docs
 
-- README: a section *Options* before the example with tables of all options (card, `options`, sources, floors and rooms, consumers, actions, heatmap card).
+- README: a section *Options* before the example with tables of all options (card, `options`, sources, floors and rooms, consumers, actions, heatmap card); the screenshots of the preview are grouped by topic.
 
 ## 1.2.0
 
