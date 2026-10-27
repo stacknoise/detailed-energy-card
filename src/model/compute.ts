@@ -53,6 +53,8 @@ export interface RoomNode {
   thresholds?: ThresholdConfig[];
   /** tap, hold and double tap actions of the config; undefined: the click does what it always did */
   actions?: NodeActions;
+  /** the own meter of the element (power, else energy): the compact view opens its dialog */
+  meterEntity?: string;
   /** the own meter, or the sum of the consumers */
   watts: number;
   meter?: MeterInfo;
@@ -67,6 +69,8 @@ export interface FloorNode {
   thresholds?: ThresholdConfig[];
   /** tap, hold and double tap actions of the config; undefined: the click does what it always did */
   actions?: NodeActions;
+  /** the own meter of the element (power, else energy): the compact view opens its dialog */
+  meterEntity?: string;
   /** the own meter, or the sum of the rooms */
   watts: number;
   meter?: MeterInfo;
@@ -180,6 +184,7 @@ function computeRoom(room: RoomConfig, read: Reader, energy: boolean): RoomNode 
     color: room.color,
     thresholds: room.thresholds,
     actions: actionsOf(room, room.entity ?? room.energy_entity),
+    meterEntity: room.entity ?? room.energy_entity,
     watts,
     meter,
     consumers,
@@ -238,7 +243,7 @@ export function computeModel(
   const floors: FloorNode[] = (cfg.floors ?? []).map((f) => {
     const rooms = (f.rooms ?? []).map((r) => computeRoom(r, read, energy));
     const { watts, meter } = metered(energy ? f.energy_entity : f.entity, rooms.reduce((s, r) => s + r.watts, 0), read, energy);
-    return { id: f.floor_id, name: f.name ?? f.floor_id, icon: f.icon, color: f.color, thresholds: f.thresholds, actions: actionsOf(f, f.entity ?? f.energy_entity), watts, meter, rooms };
+    return { id: f.floor_id, name: f.name ?? f.floor_id, icon: f.icon, color: f.color, thresholds: f.thresholds, actions: actionsOf(f, f.entity ?? f.energy_entity), meterEntity: f.entity ?? f.energy_entity, watts, meter, rooms };
   });
   const rooms = (cfg.rooms ?? []).map((r) => computeRoom(r, read, energy));
 

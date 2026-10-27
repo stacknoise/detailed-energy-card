@@ -400,6 +400,8 @@
           })),
         })),
       };
+      // Compact view (package P16): sources, home and floors in small circles, no list, no view switch.
+      scenarios.compact = { ...scenarios.energy, options: { unit: "kW", mode: "power", compact: true, views: ["tree", "sankey", "timeline"] } };
       // Sankey diagram (like mock B1): sources, floors, rooms; click a floor for its rooms, a room for its consumers.
       scenarios.sankey = { ...scenarios.feedin, options: { unit: "kW", mode: "energy", view: "sankey", views: ["tree", "sankey", "timeline"] } };
       // Base load and standby (package P11): the badge in the head, the fridge runs all the time.

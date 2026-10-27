@@ -7,7 +7,7 @@ import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
 import type { Key } from "../localize";
 import { Tween, focusTargets, type Pos } from "./focus";
-import { computeLayout, curve, roomPath, flowDuration, strokeWidth, HOME_H, type Layout } from "./layout";
+import { computeLayout, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
 
 /** More ranges than this do not get any thicker. */
 export const MAX_LEVEL = 3;
@@ -76,6 +76,8 @@ export interface TreeContext {
   thresholds: Record<ThresholdLevel, ThresholdConfig[]>;
   home: string;
   fmt(watts: number): string;
+  /** the compact view: smaller circles, a click on a node opens the dialog of its sensor */
+  compact?: boolean;
   /** the nodes show a second value (options.secondary_value): one line more */
   secondary: boolean;
   /** the second line of a node by nodeKey, undefined when it has none */
@@ -148,6 +150,7 @@ export class TreeView {
       wrap: c.config.options?.wrap_rooms === true,
       secondary: c.secondary,
       returnLine: c.energy && model.sources.some((s) => s.returnCounter),
+      compact: c.compact,
     });
     // Positions of the floors and rooms. With options.focus_selected the selected element of a level
     // slides to the middle under its parent and the rest of that level fades out behind it.
@@ -207,11 +210,11 @@ export class TreeView {
     const { floorViews, roomViews } = frame;
     return html`
       <div class="scroll">
-        <div class="graph" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px` })}>
+        <div class="graph ${c.compact ? "compact" : ""}" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px` })}>
           ${this._renderLines(c, layout, floorViews, roomViews, allRooms, allFloors)}
           ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
-          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors, f.meter, f.actions))}
+          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity))}
           ${roomViews.map((v) => this._renderRoom(c, v.room, v.p, layout.roomColW, !v.leaving && v.room.id === sel.rooms[sel.room ?? -1]?.id, allRooms, v.leaving))}
         </div>
       </div>
@@ -248,7 +251,7 @@ export class TreeView {
       const w = energy ? Math.abs(s.flow) : s.watts;
       parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), w, Math.abs(w) >= 1, s.reverse));
     });
-    const homeBottom = l.yHome + HOME_H;
+    const homeBottom = l.yHome + l.homeH;
     let roomFromX = l.homeX;
     let roomFromY = homeBottom;
     model.floors.forEach((f, i) => {
@@ -316,7 +319,7 @@ export class TreeView {
         style=${styleMap({ left: `${l.homeX}px`, top: `${l.yHome}px` })}
         aria-pressed=${everything}
         title=${c.home}
-        @click=${() => c.select(c.model.floors.length ? { floor: null } : { room: null })}
+        @click=${() => (c.compact ? undefined : c.select(c.model.floors.length ? { floor: null } : { room: null }))}
       >
         <span class="circle home">
           <ha-icon icon="mdi:home"></ha-icon>
@@ -327,8 +330,8 @@ export class TreeView {
     `;
   }
 
-  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo, actions?: NodeActions): TemplateResult {
-    const b = press(c.bind(nodeKey.floor(id), actions, () => c.select(selected && !c.focus ? { floor: null } : { floor: id })));
+  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo, actions?: NodeActions, meterEntity?: string): TemplateResult {
+    const b = press(c.bind(nodeKey.floor(id), actions, () => (c.compact ? meterEntity && c.moreInfo(meterEntity) : c.select(selected && !c.focus ? { floor: null } : { floor: id }))));
     return html`
       <button
         class="node ${isIdle(watts) ? "idle" : ""} ${p.o < 0.5 ? "ghost" : ""}"
@@ -350,7 +353,7 @@ export class TreeView {
   }
 
   private _renderRoom(c: TreeContext, r: RoomNode, p: Pos, colW: number, selected: boolean, allRooms = false, leaving = false): TemplateResult {
-    const b = press(c.bind(nodeKey.room(r.id), r.actions, () => c.select({ ...c.stored, room: selected && !c.focus ? null : r.id })));
+    const b = press(c.bind(nodeKey.room(r.id), r.actions, () => (c.compact ? r.meterEntity && c.moreInfo(r.meterEntity) : c.select({ ...c.stored, room: selected && !c.focus ? null : r.id }))));
     return html`
       <button
         class="node ${isIdle(r.watts) ? "idle" : ""} ${colW < TIGHT_COL_W ? "tight" : ""} ${p.o < 0.5 || leaving ? "ghost" : ""}"

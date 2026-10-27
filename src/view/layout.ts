@@ -6,6 +6,9 @@ export const ROOM_H = 96;
 /** Extra height of a source, floor or room that shows a second value (options.secondary_value). */
 export const SECONDARY_H = 20;
 export const ROOM_COL_W = 64;
+
+/** The compact view (options.compact): circles of 40 instead of 54 px, so every row is lower. */
+export const COMPACT = { sourceH: 84, homeH: 50, yHome: 100, floorGap: 76, floorH: 60, roomGap: 84, roomH: 84 } as const;
 /** Wrapping into two rows is only offered for more rooms than this ... */
 export const MAX_ROOMS_PER_ROW = 6;
 /** ... and only when a single row would give each room less than this much width. */
@@ -23,6 +26,8 @@ export interface LayoutInput {
   secondary?: boolean;
   /** a source shows the other direction (feed-in, charged) in a line of its own: the sources get one line more */
   returnLine?: boolean;
+  /** the compact view: smaller circles and rows */
+  compact?: boolean;
 }
 
 export interface Layout {
@@ -43,6 +48,8 @@ export interface Layout {
   /** height of the source nodes and of the floor pills: lines start at their bottom */
   sourceH: number;
   floorH: number;
+  /** height of the home circle: lines to the floors and rooms start at its bottom */
+  homeH: number;
 }
 
 /** Evenly distributes n nodes over width: x = W * (i + 0.5) / n. */
@@ -74,16 +81,18 @@ export function computeLayout(i: LayoutInput): Layout {
   const width = Math.max(i.width, perRow * ROOM_COL_W);
   const extra = i.secondary ? SECONDARY_H : 0;
   const back = i.returnLine ? SECONDARY_H : 0;
-  const sourceH = SOURCE_H + extra + back;
-  const floorH = FLOOR_H + extra;
-  const roomH = ROOM_H + extra;
-  const yHome = i.sources > 0 ? 124 + extra + back : 0;
+  const c = !!i.compact;
+  const sourceH = (c ? COMPACT.sourceH : SOURCE_H) + extra + back;
+  const floorH = (c ? COMPACT.floorH : FLOOR_H) + extra;
+  const roomH = (c ? COMPACT.roomH : ROOM_H) + extra;
+  const homeH = c ? COMPACT.homeH : HOME_H;
+  const yHome = i.sources > 0 ? (c ? COMPACT.yHome : 124) + extra + back : 0;
   // Without a room row the floors sit closer to the home, and nothing is cut off below them.
-  const yFloor = yHome + (i.floors > 0 && i.rooms === 0 ? 88 : 102);
-  const yRoom = i.floors > 0 ? yFloor + 74 + extra : yHome + 102;
+  const yFloor = yHome + (c ? COMPACT.floorGap : i.floors > 0 && i.rooms === 0 ? 88 : 102);
+  const yRoom = i.floors > 0 ? yFloor + 74 + extra : yHome + (c ? COMPACT.roomGap : 102);
   const rooms = roomPositions(i.rooms, width, wrapped);
   const roomRows = wrapped ? 2 : 1;
-  const bottom = i.rooms > 0 ? yRoom + roomH * roomRows : i.floors > 0 ? yFloor + floorH : yHome + HOME_H;
+  const bottom = i.rooms > 0 ? yRoom + roomH * roomRows : i.floors > 0 ? yFloor + floorH : yHome + homeH;
   return {
     width,
     height: bottom,
@@ -99,6 +108,7 @@ export function computeLayout(i: LayoutInput): Layout {
     roomRows,
     sourceH,
     floorH,
+    homeH,
   };
 }
 

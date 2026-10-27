@@ -65,6 +65,7 @@ export const GENERAL: Field[] = [
   { path: "options.decimals", selector: { number: { min: 0, max: 4, mode: "box" } }, label: "field_decimals" },
   { path: "options.animation", selector: { boolean: {} }, label: "field_animation", default: true },
   { path: "options.show_self_consumption", selector: { boolean: {} }, label: "field_show_self_consumption", default: true },
+  { path: "options.compact", selector: { boolean: {} }, label: "field_compact", default: false },
   { path: "options.show_consumers", selector: { boolean: {} }, label: "field_show_consumers", default: true },
   {
     path: "options.only_active_consumers",

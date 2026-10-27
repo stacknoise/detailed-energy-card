@@ -219,6 +219,27 @@ export const cardStyles = css`
     background: var(--_ground);
     --mdc-icon-size: 24px;
   }
+  /* the compact view (options.compact): circles of 40 px with their border (38 + 2), 56 px in the normal view */
+  .compact .circle,
+  .compact .circle.room {
+    width: 38px;
+    height: 38px;
+    --mdc-icon-size: 20px;
+  }
+  .compact .circle.home {
+    width: 48px;
+    height: 48px;
+  }
+  /* the value goes under the name: three floors fit on a phone */
+  .compact .pill {
+    line-height: 1.25;
+    padding: 5px 10px;
+    text-align: center;
+  }
+  .compact .pill small {
+    display: block;
+    margin: 0;
+  }
   .circle.selected,
   .circle.source {
     border-color: var(--c);
