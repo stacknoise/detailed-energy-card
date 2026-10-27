@@ -1105,6 +1105,22 @@ test.describe("editor", () => {
     await expect(help.filter({ hasText: "Ansichten" }).first()).toBeVisible();
   });
 
+  test("sensors, switch and own meters are collapsed until opened", async ({ page }) => {
+    await page.goto("/dev/index.html?editor=floors");
+    const ed = page.locator("detailed-energy-card-editor");
+    // open the first floor and its first room
+    await ed.locator("section").last().locator(".item > .head button.title").first().click();
+    await expect(ed.locator("button.title", { hasText: "Eigene Zähler" }).first()).toHaveAttribute("aria-expanded", "false");
+    await ed.locator(".item.nested > .head button.title").first().click();
+    const sensors = ed.locator("button.title", { hasText: /^\s*[▸▾] Sensoren\s*$/ }).first();
+    const sw = ed.locator("button.title", { hasText: "Schalter des Verbrauchers" }).first();
+    await expect(sensors).toHaveAttribute("aria-expanded", "false");
+    await expect(sw).toHaveAttribute("aria-expanded", "false");
+    await sensors.click();
+    await expect(sensors).toHaveAttribute("aria-expanded", "true");
+    await expect(sw).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("shows no hint when the card has an energy sensor", async ({ page }) => {
     await page.goto("/dev/index.html?editor=energy");
     await expect(page.locator("detailed-energy-card-editor h3").first()).toBeVisible();

@@ -323,6 +323,7 @@ export const roomFields = (choices: Choice[] = [], exclude: string[] = []): Fiel
 
 /** Consumer sensors: power and energy sensors that are not yet assigned to another consumer. */
 export const consumerFields = (exclude: string[] = []): Field[] => [
+  { path: "name", selector: text, label: "field_name_optional" },
   {
     path: "entity",
     selector: { entity: { domain: "sensor", device_class: "power", exclude_entities: exclude } },
@@ -337,13 +338,17 @@ export const consumerFields = (exclude: string[] = []): Field[] => [
     check: "energy",
     help: "help_consumer_energy",
   },
-  { path: "name", selector: text, label: "field_name_optional" },
   { path: "switch_entity", selector: { entity: { domain: ["switch", "input_boolean", "light", "fan"] } }, label: "field_switch_entity" },
   { path: "confirm_switch", selector: { boolean: {} }, label: "field_confirm_switch", default: false, when: (c: any) => !!c?.switch_entity },
   ...actionFields,
 ];
 
 export const CONSUMER: Field[] = consumerFields();
+
+/** Fields the editor puts into collapsible sections instead of showing them directly. */
+export const CONSUMER_SENSORS = ["entity", "energy_entity"];
+export const CONSUMER_SWITCH = ["switch_entity", "confirm_switch"];
+export const METER_PATHS = ["entity", "energy_entity"];
 
 /** Builds the ha-form schema for the fields visible for `obj`. */
 export function toSchema(fields: Field[], obj: unknown, tr: Tr) {

@@ -2,11 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- Editor: a consumer starts with its name. The two sensors (*Sensors*) and the switch (*Switch of the consumer*) sit in collapsible sections, like the own thresholds. The own meters of a floor or a room (*Own meters*) are collapsible too. All of them are closed when the editor opens.
+
 ### Docs
 
 - The screenshots of the README are rendered in English (demo data, titles and editor in English; `SHOT_LANG=de npm run screenshots` renders them German). The frame of the card images is a little higher (910 px) for the longer English texts.
 - README, section *Options*: the first column of every table shows the text of the field in the editor (English), next to the YAML key.
-- README: the image links carry `?v=3`, so that GitHub and HACS show the English screenshots instead of cached German ones. Raise the number when the screenshots change.
+- README: the image links carry `?v=4`, so that GitHub and HACS show the English screenshots instead of cached German ones. Raise the number when the screenshots change.
 - The last two German screenshots (`card-without-floors`, `card-many-rooms-wrapped`) are English now; all titles of the dev scenarios are English for `?lang=en`.
 - README: the section *Install (HACS)* is the first section, before the preview.
 
