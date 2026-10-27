@@ -452,6 +452,12 @@ export const cardStyles = css`
     padding: 0 4px;
     white-space: nowrap;
   }
+  /* consumer that runs all the time (options.standby_watts) */
+  .standby {
+    --mdc-icon-size: 14px;
+    color: var(--_muted);
+    vertical-align: -2px;
+  }
   .crumb {
     background: none;
     border: none;

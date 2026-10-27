@@ -378,6 +378,8 @@
       scenarios.timeline = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"] } };
       // Sankey diagram (like mock B1): sources, floors, rooms; click a floor for its rooms, a room for its consumers.
       scenarios.sankey = { ...scenarios.feedin, options: { unit: "kW", mode: "energy", view: "sankey", views: ["tree", "sankey", "timeline"] } };
+      // Base load and standby (package P11): the badge in the head, the fridge runs all the time.
+      scenarios.standby = { ...scenarios.floors, options: { unit: "W", show_base_load: true, standby_watts: 5 } };
       // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
       scenarios.secondary = { ...scenarios.energy, options: { unit: "kW", mode: "power", secondary_value: "auto" } };
       // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a
@@ -471,7 +473,18 @@
                 const h = new Date(t).getHours();
                 rows.push({ start: t, mean: 0.24 + 0.08 * Math.exp(-((h - 7.5) ** 2) / 3) + 0.12 * Math.exp(-((h - 19) ** 2) / 4) });
               }
-              return Object.fromEntries(m.statistic_ids.filter((id) => id in prices).map((id) => [id, rows]));
+              // power sensors (base load, standby): hourly means; the home needs about 185 W at night, the fridge runs all the time
+              const power = (id) => {
+                const base = Number(states[id]?.state) || 0;
+                const out = [];
+                for (let t = start; t + 3600000 <= end; t += 3600000) {
+                  const h = new Date(t).getHours();
+                  const night = h >= 1 && h < 5;
+                  out.push({ start: t, mean: id === "sensor.kuehl" ? 14 + 2 * Math.sin(t) : id === "sensor.total" ? (night ? 185 : 185 + 900 * profile(h)) : night ? 0 : base * profile(h) * 0.5 });
+                }
+                return out;
+              };
+              return Object.fromEntries(m.statistic_ids.filter((id) => id in prices || id in states).map((id) => [id, id in prices ? rows : power(id)]));
             }
             // the cost statistics of the Energy dashboard (only when a test adds their state)
             if (m.statistic_ids.some((id) => id in costToday)) {

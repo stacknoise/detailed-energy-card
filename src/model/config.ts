@@ -93,6 +93,10 @@ export interface OptionsConfig {
   mode?: "power" | "energy";
   /** the badge "self-consumption" next to the self-sufficiency, when it can be computed (default true) */
   show_self_consumption?: boolean;
+  /** the badge "base load" in the head: the lowest hourly mean of the home between 1 and 5 o'clock in the last 7 nights (default off) */
+  show_base_load?: boolean;
+  /** a consumer whose hourly mean did not fall below this many watts in the last 24 hours gets the symbol "runs all the time" (default off) */
+  standby_watts?: number;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
@@ -225,8 +229,12 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "remember_selection", "wrap_rooms", "focus_selected"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load"]) {
     checkBool(options[key], `options.${key}`);
+  }
+  const standby = options.standby_watts;
+  if (standby !== undefined && (typeof standby !== "number" || !Number.isFinite(standby) || standby <= 0)) {
+    throw new ConfigError("options.standby_watts must be a number greater than 0 (watts)");
   }
   // a price is fixed or comes from a sensor, never both
   for (const [fixed, entity] of [["price", "price_entity"], ["feed_in_price", "feed_in_price_entity"]] as const) {

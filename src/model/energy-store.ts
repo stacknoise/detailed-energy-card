@@ -2,6 +2,8 @@ import { statPeriodFor, sumSeries, type EnergyPeriod, type EnergyRow, type StatP
 
 /** How often the energy of a period is asked for again. */
 export const ENERGY_REFRESH_MS = 5 * 60_000;
+/** How often a rolling window of hours (base load, standby) is asked for again: its rows only change by the hour. */
+export const WINDOW_REFRESH_MS = 60 * 60_000;
 
 export type EnergyStatus = "idle" | "loading" | "ok" | "error";
 
@@ -20,7 +22,12 @@ export interface EnergyQuery {
   kind?: "energy" | "mean" | "change";
   /** a refresh only loads the rows from the latest one on and keeps the older ones (long hourly queries) */
   incremental?: boolean;
+  /** instead of the period: the last N hours until now, hourly rows, refreshed once an hour (`period` is then only a placeholder) */
+  hours?: number;
 }
+
+/** Seconds between two loads of a query. */
+const intervalOf = (q: EnergyQuery): number => (q.hours ? WINDOW_REFRESH_MS : ENERGY_REFRESH_MS);
 
 /**
  * Loads the rows of a query; the caller knows `hass`. With `since` (a refresh of an incremental query) it may
@@ -70,7 +77,7 @@ const browserClock: StoreClock = {
 
 /** Key of a query: the same sensors, period, rows and kind share one entry, whatever order the ids come in. */
 export const queryKey = (q: EnergyQuery): string =>
-  `${q.period}|${q.offset ?? 0}|${q.stat ?? statPeriodFor(q.period)}|${q.kind ?? "energy"}|${[...q.ids].sort().join(",")}`;
+  `${q.period}|${q.offset ?? 0}|${q.hours ?? 0}|${q.stat ?? statPeriodFor(q.period)}|${q.kind ?? "energy"}|${[...q.ids].sort().join(",")}`;
 
 /**
  * Energy values of the queries the card currently shows. Every query is loaded once, kept for
@@ -127,6 +134,16 @@ export class EnergyStore {
     for (const q of this._wanted) if (this.status(q) !== "loading") void this._fetch(q);
   }
 
+  /** Loads the wanted queries whose interval is over (a rolling window of hours waits for its hour). */
+  private _reloadDue(): void {
+    for (const q of this._wanted) {
+      const e = this._entries.get(queryKey(q));
+      if (e?.status === "loading") continue;
+      if (e?.status === "ok" && this._clock.now() - e.at < intervalOf(q)) continue;
+      void this._fetch(q);
+    }
+  }
+
   /**
    * Brings the wanted queries up to date after the refresh chain was interrupted (card detached or hidden):
    * loads again what is old, otherwise waits out the rest of the interval.
@@ -137,7 +154,7 @@ export class EnergyStore {
       const e = this._entries.get(queryKey(q));
       if (e?.status === "loading") continue;
       const age = this._clock.now() - (e?.at ?? 0);
-      if (e?.status === "ok" && age < ENERGY_REFRESH_MS) wait = Math.min(wait, ENERGY_REFRESH_MS - age);
+      if (e?.status === "ok" && age < intervalOf(q)) wait = Math.min(wait, intervalOf(q) - age);
       else void this._fetch(q);
     }
     if (wait < Infinity) this._schedule(wait);
@@ -164,7 +181,7 @@ export class EnergyStore {
     this._clock.clearTimeout(this._timer);
     this._timer = this._clock.setTimeout(() => {
       // while the card is hidden the chain just ends; refresh() starts it again when the card is seen
-      if (this._visible()) this.reload();
+      if (this._visible()) this._reloadDue();
     }, ms);
   }
 

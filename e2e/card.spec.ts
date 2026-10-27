@@ -361,6 +361,23 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
   });
 
+  test("the base load shows as a badge and consumers that run all the time get a symbol", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "standby");
+    await expect(page.locator("detailed-energy-card .badge.base")).toHaveText(/^Grundlast 185\sW$/);
+    await expect(page.locator("detailed-energy-card .badge.base")).toHaveAttribute("title", /1 und 5 Uhr/);
+    await node(page, "Küche").click();
+    // only the fridge never fell below 5 W
+    await expect(page.locator("detailed-energy-card .detail .row .standby")).toHaveCount(1);
+    await expect(page.locator("detailed-energy-card .detail .row", { hasText: "Kühlschrank" }).locator(".standby")).toHaveAttribute("title", /^läuft dauerhaft \(mindestens 5\sW/);
+  });
+
+  test("without the options there is no base load and no symbol", async ({ page }) => {
+    await open(page, "floors");
+    await expect(page.locator("detailed-energy-card .badge.base")).toHaveCount(0);
+    await expect(page.locator("detailed-energy-card .standby")).toHaveCount(0);
+  });
+
   test("arrows browse back through the periods of the energy mode and stop at the running one", async ({ page }) => {
     await fixClock(page);
     await open(page, "energy");

@@ -73,6 +73,8 @@ export const GENERAL: Field[] = [
     default: false,
     when: (cfg: any) => cfg?.options?.show_consumers !== false,
   },
+  { path: "options.show_base_load", selector: { boolean: {} }, label: "field_show_base_load", default: false },
+  { path: "options.standby_watts", selector: { number: { min: 1, step: 1, mode: "box", unit_of_measurement: "W" } }, label: "field_standby_watts" },
   { path: "options.show_unassigned", selector: { boolean: {} }, label: "field_show_unassigned", default: true, when: (cfg: any) => cfg?.options?.show_consumers !== false },
   { path: "options.remember_selection", selector: { boolean: {} }, label: "field_remember_selection", default: true },
   {
