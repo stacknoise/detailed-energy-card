@@ -207,7 +207,8 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 ```
 src/
   detailed-energy-card.ts   // Custom Element, hass-Setter, Auswahlzustand, Rendering
-  register.ts               // customElements.define und customCards nur einmal
+  register.ts               // customElements.define, customCards und Konsolenzeile nur einmal
+  env.d.ts                  // __VERSION__ (Version aus package.json, per Vite-define)
   editor/
     card-editor.ts            // visueller Editor (Listen, Baum, Drag-and-drop)
     schema.ts                 // Feldschema je Konfigurationsschlüssel (Abnahmetest)
@@ -410,6 +411,7 @@ Die Karte ist im HACS-Standard-Store (`hacs/default`) aufgenommen, ein benutzerd
 
 ```ts
 // register.ts: ein zweites Laden des Skripts darf nicht fehlschlagen
+logBannerOnce(__VERSION__, window); // Name, Version, Repo-Link in der Konsole
 defineOnce('detailed-energy-card', DetailedEnergyCard);
 defineOnce('detailed-energy-card-editor', DetailedEnergyCardEditor);
 window.customCards ??= [];
@@ -420,6 +422,8 @@ registerCardOnce(window.customCards, {
   preview: true,
 });
 ```
+
+**Konsolenzeile:** Beim Laden schreibt die Karte einmal pro Seite Name, Version und den Link zum Repository in die Browser-Konsole (`console.info`, farbig wie andere HA-Karten). Die Version setzt Vite beim Build aus `package.json` ein (`define: { __VERSION__ }` in `vite.config.ts`). Die Lizenz bleibt MIT; die Zeile und der Abschnitt „Credits“ im README sind der Hinweis auf das Original.
 
 **Release-Ablauf:** Version in `package.json` erhöhen und `CHANGELOG.md` ergänzen, mergen, dann Tag `vX.Y.Z` pushen. `release.yml` bricht ab, wenn der Tag nicht zur Version in `package.json` passt, führt Typecheck, Tests, Build und E2E aus, hängt dann `detailed-energy-card.js` an das Release (mit Build-Provenance-Attestation) und erzeugt die Release-Notes. Alle Actions sind auf Commit-SHAs gepinnt und die Jobs laufen mit minimalen Rechten. HACS bietet das neue Release dann über den Standard-Store als Update an.
 

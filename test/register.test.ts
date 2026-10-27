@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defineOnce, registerCardOnce } from "../src/register";
+import { REPO_URL, defineOnce, logBannerOnce, registerCardOnce } from "../src/register";
 
 describe("defineOnce", () => {
   it("defines an element only the first time", () => {
@@ -26,5 +26,24 @@ describe("registerCardOnce", () => {
     registerCardOnce(list, { type: "detailed-energy-card", name: "B" });
     expect(list.map((c) => c.type)).toEqual(["other-card", "detailed-energy-card"]);
     expect(list[1].name).toBe("A");
+  });
+});
+
+describe("logBannerOnce", () => {
+  it("logs name, version and repository once, even when the script is loaded twice", () => {
+    const page = {};
+    const calls: unknown[][] = [];
+    const log = (...args: unknown[]) => calls.push(args);
+    logBannerOnce("1.2.3", page, log);
+    logBannerOnce("1.2.3", page, log);
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]).toContain("DETAILED-ENERGY-CARD");
+    expect(calls[0][0]).toContain("1.2.3");
+    expect(calls[0][0]).toContain(REPO_URL);
+  });
+
+  it("gets the version of package.json from the build", async () => {
+    const { readFileSync } = await import("node:fs");
+    expect(__VERSION__).toBe(JSON.parse(readFileSync("package.json", "utf8")).version);
   });
 });
