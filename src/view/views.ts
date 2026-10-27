@@ -4,8 +4,8 @@ import type { EnergyPeriod } from "../model/energy";
 export const VIEW_IDS = ["tree", "sankey", "timeline"] as const;
 export type ViewId = (typeof VIEW_IDS)[number];
 
-/** Views the card can draw so far; the Sankey diagram follows with package P9. */
-export const AVAILABLE_VIEWS: readonly ViewId[] = ["tree", "timeline"];
+/** Views the card can draw. */
+export const AVAILABLE_VIEWS: readonly ViewId[] = ["tree", "sankey", "timeline"];
 
 /** Views that need energy statistics: without an energy sensor they are not offered. */
 export const ENERGY_VIEWS: readonly ViewId[] = ["timeline"];

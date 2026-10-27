@@ -109,8 +109,8 @@ options:
   mode: power                 # power | energy (Startansicht, Energie-Modus siehe Abschnitt 15)
   energy_periods: [today, week, month]   # optional, Zeiträume des Schalters (Standard alle)
   secondary_value: none       # none | auto | today | power: kleiner Zweitwert unter jedem Wert (Abschnitt 6)
-  view: tree                  # tree | timeline: Startansicht des Diagramms (Verlauf braucht einen Energiesensor)
-  views: [tree, timeline]     # optional, Ansichten im Schalter; ohne nur `view` und kein Schalter; muss `view` enthalten
+  view: tree                  # tree | sankey | timeline: Startansicht des Diagramms (Verlauf braucht einen Energiesensor)
+  views: [tree, sankey, timeline]  # optional, Ansichten im Schalter; ohne nur `view` und kein Schalter; muss `view` enthalten
   price: 0.32                 # optional, fester Strompreis pro kWh (schaltet die Kosten ein; braucht einen Energiezähler am Netz)
   price_entity: sensor.strompreis  # optional statt `price`: Preissensor (dynamischer Tarif, als Statistik erfasst)
   feed_in_price: 0.08         # optional, feste Einspeisevergütung pro kWh (oder `feed_in_price_entity`)
@@ -237,7 +237,10 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 | Klick auf Raum | Die Liste zeigt die Verbraucher des Raums, absteigend nach Leistung. |
 | Klick auf Verbraucher | Öffnet den HA-More-Info-Dialog (`hass-more-info`). |
 | Klick auf Quelle | Öffnet ebenfalls den More-Info-Dialog. |
-| Ansichts-Schalter (Icons rechts neben *Jetzt \| Heute \| Woche \| Monat*) | Wechselt zwischen Baum und Verlauf, nur mit `options.views` (mindestens zwei). |
+| Ansichts-Schalter (Icons rechts neben *Jetzt \| Heute \| Woche \| Monat*) | Wechselt zwischen Baum, Sankey und Verlauf, nur mit `options.views` (mindestens zwei). |
+| Sankey: Klick auf eine Etage | Zeigt nur die Räume dieser Etage; ein zweiter Klick zeigt die Räume aller Etagen. Pfad und Verbraucherliste folgen wie im Baum. |
+| Sankey: Klick auf einen Raum | Zeigt dessen Verbraucher als letzte Spalte; ein zweiter Klick blendet sie aus. |
+| Sankey: Klick auf eine Quelle oder einen Verbraucher | Öffnet den More-Info-Dialog. „Nicht erfasst“, Einspeisung und Batterie laden sind nicht klickbar. |
 | Verlauf: Klick auf einen Legenden-Eintrag | Wählt diese Etage bzw. diesen Raum; die Balken zeigen dann eine Ebene tiefer (Räume, Verbraucher). Bei Verbrauchern öffnet der Klick den More-Info-Dialog. |
 | Verlauf: Klick auf den Pfad („Zuhause › EG“) | Geht zurück zum Zuhause bzw. zur Etage. |
 
@@ -271,6 +274,7 @@ src/
     stub-config.ts            // Startkonfiguration für den Karten-Picker
     energy.ts                 // Zeiträume (periodRange mit offset), Statistik-Abfrage als Stunden-/Tageszeilen (loadEnergySeries), Summen
     timeline.ts               // Balken (Stunden/Tage), Werte je Etage/Raum/Verbraucher (treeSeries), Vergleich mit der Vorperiode
+    sankey.ts                 // buildSankey: Knoten und Bänder aus dem Modell und der Auswahl (reine Funktion)
     costs.ts                  // Stundenpreise (hourlyPrices), Kosten je Knoten über den Netzanteil (computeCosts)
     energy-store.ts           // EnergyStore: lädt die gezeigten Abfragen, merkt sie 5 Minuten, Token gegen veraltete Antworten, Pause bei unsichtbarer Card
   view/
@@ -279,6 +283,8 @@ src/
     tree.ts                   // TreeView: das Baum-Diagramm (Quellen, Haus, Etagen, Räume, Linien) samt Gleiten
     views.ts                  // Ansichten (tree, sankey, timeline), welche angeboten werden, gemerkter Modus/Zeitraum/Ansicht
     timeline.ts               // renderTimeline: gestapelte Balken, Vorperiode gestrichelt, Kennzahlen, Legende
+    sankey-layout.ts          // layoutSankey: reine Layout-Funktion (Spalten, Skala, Bänder), bandPath
+    sankey.ts                 // SankeyView: Zeichnung, Beschriftung, Gleiten der Bänder
   styles/theme.ts           // CSS-Variablen und Styles
   localize/index.ts         // Texte der Card (DE/EN), Standardnamen der Quellen
   localize/editor.ts        // Texte des Editors (DE/EN, typisierte Schlüssel)
@@ -286,8 +292,17 @@ src/
 
 **Ansichten**
 
-- Die Card zeichnet ihr Diagramm über eine Ansicht: den Baum (`TreeView` in `view/tree.ts`) oder den Verlauf (`renderTimeline` in `view/timeline.ts`, Daten aus `model/timeline.ts`); Sankey (P9) folgt. Die Card behält Konfiguration, Modus, Auswahl, Energie-Store, Kopfzeile und Verbraucherliste und gibt der Ansicht pro Frame einen `TreeContext`. `prepare()` läuft in `willUpdate()`, `render()` liest nur.
-- Der Ansichts-Schalter (Icon-Gruppe rechts neben *Jetzt | Heute | Woche | Monat*) erscheint erst, wenn mindestens zwei Ansichten angeboten werden; mit nur dem Baum bleibt die Card unverändert. Die gewählte Ansicht wird zusammen mit Modus und Zeitraum gemerkt (`remember_selection`, Schlüssel `…:mode`). Angeboten werden `options.views` (feste Reihenfolge), ohne diese Option nur `options.view`; der Verlauf nur mit Energiesensor, sonst bleibt der Baum.
+- Die Card zeichnet ihr Diagramm über eine Ansicht: den Baum (`TreeView` in `view/tree.ts`), das Sankey-Diagramm (`SankeyView` in `view/sankey.ts`, Graph aus `model/sankey.ts`) oder den Verlauf (`renderTimeline` in `view/timeline.ts`, Daten aus `model/timeline.ts`). Die Card behält Konfiguration, Modus, Auswahl, Energie-Store, Kopfzeile und Verbraucherliste und gibt der Ansicht pro Frame einen `TreeContext` bzw. `SankeyContext`. `prepare()` läuft in `willUpdate()`, `render()` liest nur.
+- Der Ansichts-Schalter (Icon-Gruppe rechts neben *Jetzt | Heute | Woche | Monat*) erscheint erst, wenn mindestens zwei Ansichten angeboten werden; mit nur dem Baum bleibt die Card unverändert. Die gewählte Ansicht wird zusammen mit Modus und Zeitraum gemerkt (`remember_selection`, Schlüssel `…:mode`). Angeboten werden `options.views` (feste Reihenfolge), ohne diese Option nur `options.view`; der Verlauf nur mit Energiesensor, sonst bleibt der Baum; das Sankey-Diagramm braucht keinen (es zeigt im Modus *Jetzt* die Leistung).
+
+**Sankey (`view: sankey`)**
+
+- Spalten: Quellen → Etagen (ohne Etagen: Räume) und „Nicht erfasst“ → Räume → Verbraucher des gewählten Raums. Die Bandbreite ist die Energie, im Modus *Jetzt* die Leistung; alle Spalten haben dieselbe Skala. Knoten ohne Wert fehlen.
+- Auswahl wie im Baum (größte Etage zu Beginn): nur die Räume der gewählten Etage, ohne gewählte Etage die Räume aller Etagen. „Nicht erfasst in <Etage/Raum>“ erscheint wie in der Liste bei Etagen und Räumen mit Zähler; `options.show_unassigned` schaltet alle ab.
+- Das Modell weiß nicht, welche Quelle welche Etage versorgt: jede Quelle versorgt jeden Knoten der ersten Spalte im Verhältnis, in dem sie das Haus versorgt. Der Tooltip dieser Knoten sagt es.
+- Einspeisung und Batterie-Laden (Energiemodus: Gegenzähler, Leistung: negative Netz- bzw. Batterieleistung) sind eigene Knoten unterhalb der ersten Spalte. Ihre Bänder kommen zuerst von PV und `generic`-Quellen, dann von den übrigen, nie von der eigenen Art (das Netz speist sich nicht selbst ein).
+- Beschriftung mit Kontur (lesbar über Bändern); Knoten unter 3 % der Höhe bekommen nur einen Tooltip, passt Name samt Wert nicht, steht nur der Name. Im Modus *Jetzt* gleiten Knoten und Bänder in 420 ms zu ihren neuen Plätzen (nicht mit `options.animation: false` oder `prefers-reduced-motion`).
+- Reine Funktionen: `layoutSankey` (keine Bibliothek, das Bundle bleibt klein) und `buildSankey`, beide ohne DOM getestet.
 
 **Verlauf (`view: timeline`)**
 

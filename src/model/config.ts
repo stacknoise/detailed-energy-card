@@ -95,10 +95,10 @@ export interface OptionsConfig {
   show_self_consumption?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
-  /** what the card draws when it loads: the tree or the timeline (default tree; the timeline needs an energy sensor) */
-  view?: "tree" | "timeline";
+  /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
+  view?: "tree" | "sankey" | "timeline";
   /** the views the view switch offers (default only `view`, then there is no switch); must contain `view` */
-  views?: Array<"tree" | "timeline">;
+  views?: Array<"tree" | "sankey" | "timeline">;
   /**
    * a second, smaller value under every node and in the consumer list (default none): "today" shows the
    * energy of today in the power mode, "power" the power now in the energy mode, "auto" both
@@ -119,7 +119,7 @@ export interface OptionsConfig {
 /** "cost": the costs of the shown period (power mode: of today), with `price` or `price_entity` */
 export const SECONDARY_VALUES = ["none", "auto", "today", "power", "cost"] as const;
 /** views that can be configured so far (the Sankey diagram follows with P9) */
-export const CONFIG_VIEWS = ["tree", "timeline"] as const;
+export const CONFIG_VIEWS = ["tree", "sankey", "timeline"] as const;
 export type SecondaryValue = (typeof SECONDARY_VALUES)[number];
 
 export interface EnergyCardConfig {

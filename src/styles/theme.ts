@@ -403,6 +403,38 @@ export const cardStyles = css`
   .prev-key i {
     border: 1px dashed var(--_muted);
   }
+  /* Sankey diagram (options.view: sankey) */
+  .sankey-chart .sk-band {
+    fill: none;
+  }
+  .sankey-chart .sk-node.sk-pick {
+    cursor: pointer;
+  }
+  .sankey-chart .sk-node.sk-sel {
+    stroke: var(--_text);
+    stroke-width: 1.5;
+  }
+  .sankey-chart .sk-node:focus-visible {
+    outline: 2px solid var(--_accent);
+  }
+  .sankey-chart .sk-label {
+    fill: var(--_text);
+    font-size: 11px;
+    paint-order: stroke;
+    pointer-events: none;
+    stroke: var(--ha-card-background, var(--card-background-color, #1c1c1c));
+    stroke-linejoin: round;
+    stroke-width: 3px;
+  }
+  .sankey-chart .sk-label.sk-value {
+    fill: var(--_muted);
+  }
+  .sankey-empty {
+    color: var(--_muted);
+    font-size: 0.85em;
+    padding: 40px 0;
+    text-align: center;
+  }
   .crumb {
     background: none;
     border: none;

@@ -16,6 +16,8 @@ import "./editor/card-editor";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { MAX_LEVEL, TreeView, type ResolvedSelection, type TreeContext } from "./view/tree";
+import { SankeyView, type SankeyContext } from "./view/sankey";
+import { buildSankey, type SankeyGraphNode } from "./model/sankey";
 import { renderTimeline, type TimelineContext, type TimelineKpi, type TimelineStack } from "./view/timeline";
 import {
   bucketStarts,
@@ -49,7 +51,7 @@ export class DetailedEnergyCard extends LitElement {
   /** "power": the power now; "energy": the energy of a period (needs energy sensors) */
   @state() private _mode: "power" | "energy" = "power";
   @state() private _period: EnergyPeriod = "today";
-  /** the view chosen in the view switch; every view draws the tree until the others exist (P7, P9) */
+  /** the view chosen in the view switch */
   @state() private _view: ViewId = "tree";
   /** energy of the shown period, loaded from the statistics and refreshed while the card is visible */
   private _energyStore = new EnergyStore(
@@ -71,8 +73,9 @@ export class DetailedEnergyCard extends LitElement {
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
-  /** the diagram of floors and rooms (the only view for now) */
+  /** the diagram of floors and rooms */
   private _tree = new TreeView(() => this.requestUpdate());
+  private _sankey = new SankeyView(() => this.requestUpdate());
   /** Config with names from the registry; rebuilt only when the config or the registry changes. */
   private _resolved?: { reg: object; cfg: EnergyCardConfig };
   private _registries = new RegistrySource(() => {
@@ -470,6 +473,59 @@ export class DetailedEnergyCard extends LitElement {
     return { series, since: from };
   }
 
+  // ---------- sankey ----------
+
+  private get _showsSankey(): boolean {
+    return this._view === "sankey" && this._views.includes("sankey");
+  }
+
+  /** The diagram of this frame: the selection decides which rooms and consumers are drawn. */
+  private _sankeyContext(model: EnergyModel, sel: ResolvedSelection): SankeyContext {
+    const energy = this._mode === "energy";
+    // the same selection as the path and the list: the largest floor until a floor is chosen
+    const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
+    const room = sel.room !== undefined ? sel.rooms[sel.room] : undefined;
+    const graph = buildSankey({
+      model,
+      floorId: floor?.id,
+      roomId: room?.id,
+      showUnassigned: this._config?.options?.show_unassigned !== false,
+      energy,
+      text: {
+        unassigned: this._t("unassigned"),
+        unassignedIn: (name) => this._t("unassigned_in").replace("{0}", name),
+        feedIn: this._t("sankey_feed_in"),
+        charge: this._t("sankey_charge"),
+        consumer: (c) => String(c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity),
+      },
+    });
+    const selected = new Set<string>();
+    if (floor) selected.add(`f:${floor.id}`);
+    if (room) selected.add(`r:${room.id}`);
+    return {
+      width: this._width || 320,
+      graph,
+      selected,
+      fmt: (v) => this._fmt(v),
+      splitNote: this._t("sankey_split"),
+      empty: this._t("sankey_empty"),
+      click: (n) => this._sankeyClick(n, floor?.id, room?.id),
+      clickable: (n) => ["source", "consumer", "floor", "room"].includes(n.ref.kind),
+      animate: !energy && this._config?.options?.animation !== false,
+    };
+  }
+
+  /** Floors and rooms are selected (a second click clears the selection again); sources and consumers open their dialog. */
+  private _sankeyClick(n: SankeyGraphNode, floorId?: string, roomId?: string): void {
+    const ref = n.ref;
+    if (ref.kind === "source" || ref.kind === "consumer") this._moreInfo(ref.entity);
+    else if (ref.kind === "floor") this._select(floorId === ref.id ? { floor: null } : { floor: ref.id });
+    else if (ref.kind === "room") {
+      const floor = ref.floor ?? floorId;
+      this._select(roomId === ref.id ? { floor, room: null } : { floor, room: ref.id });
+    }
+  }
+
   // ---------- timeline ----------
 
   /** The timeline is chosen and offered (it needs an energy sensor). */
@@ -725,6 +781,11 @@ export class DetailedEnergyCard extends LitElement {
     const model = this._model;
     if (this._error || !this._config || !model) {
       this._tree.reset();
+      this._sankey.reset();
+      return;
+    }
+    if (this._showsSankey) {
+      this._sankey.prepare(this._sankeyContext(model, this._resolve(model)));
       return;
     }
     this._tree.prepare(this._treeContext(this._config, model, this._resolve(model), this._homeName));
@@ -734,7 +795,7 @@ export class DetailedEnergyCard extends LitElement {
     if (this._error) return html`<ha-card><div class="error">${this._error}</div></ha-card>`;
     const cfg = this._config;
     const model = this._model;
-    if (!cfg || !model || (!this._showsTimeline && !this._tree.ready)) return html`<ha-card></ha-card>`;
+    if (!cfg || !model || (!this._showsTimeline && !this._showsSankey && !this._tree.ready)) return html`<ha-card></ha-card>`;
 
     const sel = this._resolve(model);
     const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
@@ -773,7 +834,11 @@ export class DetailedEnergyCard extends LitElement {
           ${this._renderBadges(cfg, model)}
         </header>
         ${this._renderSwitches(cfg)}
-        ${this._showsTimeline ? renderTimeline(this._timelineContext(model, sel)) : this._tree.render(this._treeContext(cfg, model, sel, home))}
+        ${this._showsTimeline
+          ? renderTimeline(this._timelineContext(model, sel))
+          : this._showsSankey
+            ? this._sankey.render()
+            : this._tree.render(this._treeContext(cfg, model, sel, home))}
         ${this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
       </ha-card>
     `;
