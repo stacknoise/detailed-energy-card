@@ -180,17 +180,16 @@ test.describe("energy mode", () => {
   test("the view switch only appears with two views or more, and the view is remembered", async ({ page }) => {
     await fixClock(page);
     await open(page, "energy");
-    // only the tree can be drawn for now: no view switch, the mode switch looks as before
+    // only the tree by default: no view switch, the mode switch looks as before
     await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
     await expect(page.locator("detailed-energy-card .switches")).toHaveCount(0);
     const offerTimeline = () =>
       page.evaluate(() => {
-        const el = document.querySelector("detailed-energy-card") as unknown as { _testViews: string[]; _config: object; setConfig(c: object): void };
-        el._testViews = ["tree", "timeline"];
-        el.setConfig({ ...el._config, options: { ...(el._config as { options?: object }).options } });
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, views: ["tree", "timeline"] } });
       });
     await offerTimeline();
-    // the test offers a second view through an internal field: the switch shows both, the tree first
+    // options.views offers both: the switch shows them, the tree first
     const view = (label: string) => page.locator(`detailed-energy-card .views button[aria-label="${label}"]`);
     await expect(view("Baum")).toHaveAttribute("aria-pressed", "true");
     await view("Verlauf").click();
@@ -306,6 +305,60 @@ test.describe("energy mode", () => {
     });
     await expect(b).toHaveCount(0);
     await expect(a).toBeVisible();
+  });
+
+  test("the timeline stacks the hours of today by the level below the selection, yesterday dashed", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "timeline");
+    const views = (label: string) => page.locator(`detailed-energy-card .views button[aria-label="${label}"]`);
+    await expect(views("Verlauf")).toHaveAttribute("aria-pressed", "true");
+    const legend = page.locator("detailed-energy-card .legend-item");
+    const kpis = page.locator("detailed-energy-card .kpi span");
+    // the largest floor is selected: its rooms are stacked (the hall has no energy counter of its own but a consumer with one)
+    await expect(legend).toHaveText(["Küche", "Wohnzimmer", "Flur", "gestern"]);
+    await expect(kpis.nth(0)).toHaveText(/^heute bis \d\d Uhr$/);
+    await expect(kpis.nth(1)).toHaveText(/^ggü\. gestern bis \d\d Uhr$/);
+    await expect(kpis.nth(2)).toHaveText(/^Spitze \d\d–\d\d Uhr$/);
+    await expect(page.locator("detailed-energy-card .chart rect.part").first()).toBeVisible();
+    await expect(page.locator("detailed-energy-card .chart rect.prev").first()).toBeAttached();
+    // a day has 24 hours (or 23 / 25): one bar per hour so far, the rest of the day is empty
+    await expect(page.locator("detailed-energy-card .chart .now")).toHaveCount(1);
+    // one level down: the consumers of the kitchen, the coffee machine has no counter
+    await legend.filter({ hasText: "Küche" }).click();
+    await expect(legend).toHaveText(["Backofen", "Spülmaschine", "Kühlschrank", "gestern"]);
+    await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause › EG › Küche");
+    // the path goes back up
+    await page.locator("detailed-energy-card .path .crumb", { hasText: "EG" }).click();
+    await expect(legend).toHaveText(["Küche", "Wohnzimmer", "Flur", "gestern"]);
+    await page.locator("detailed-energy-card .path .crumb", { hasText: "Zuhause" }).click();
+    await expect(legend).toHaveText(["EG", "OG", "Keller", "gestern"]);
+  });
+
+  test("the timeline of a week has a bar per day and compares with last week", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "timeline");
+    await mode(page, "Woche").click();
+    const kpis = page.locator("detailed-energy-card .kpi span");
+    await expect(kpis.nth(0)).toHaveText("diese Woche bis jetzt");
+    await expect(kpis.nth(1)).toHaveText("ggü. Vorwoche bis jetzt");
+    await expect(page.locator("detailed-energy-card .chart text.axis", { hasText: /^(Mo|Di|Mi|Do|Fr|Sa|So)\.?$/ })).toHaveCount(7);
+    // the mode Now has no live timeline: it shows today
+    await mode(page, "Jetzt").click();
+    await expect(kpis.nth(0)).toHaveText(/^heute bis/);
+    // back to the tree
+    await page.locator('detailed-energy-card .views button[aria-label="Baum"]').click();
+    await expect(page.locator("detailed-energy-card .graph")).toBeVisible();
+    await expect(page.locator("detailed-energy-card .timeline")).toHaveCount(0);
+  });
+
+  test("without energy sensors the timeline is not offered and the card shows the tree", async ({ page }) => {
+    await open(page, "floors");
+    await page.evaluate(() => {
+      const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+      el.setConfig({ ...el._config, options: { ...el._config.options, view: "timeline", views: ["tree", "timeline"] } });
+    });
+    await expect(page.locator("detailed-energy-card .graph")).toBeVisible();
+    await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
   });
 
   test("a card without energy sensors has no switch", async ({ page }) => {

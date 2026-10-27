@@ -4,11 +4,11 @@ import type { EnergyPeriod } from "../model/energy";
 export const VIEW_IDS = ["tree", "sankey", "timeline"] as const;
 export type ViewId = (typeof VIEW_IDS)[number];
 
-/**
- * Views the card can draw so far. The tree is the only one; the timeline follows with package P7 and the
- * Sankey diagram with P9, together with the options `view` and `views` that choose among them.
- */
-export const AVAILABLE_VIEWS: readonly ViewId[] = ["tree"];
+/** Views the card can draw so far; the Sankey diagram follows with package P9. */
+export const AVAILABLE_VIEWS: readonly ViewId[] = ["tree", "timeline"];
+
+/** Views that need energy statistics: without an energy sensor they are not offered. */
+export const ENERGY_VIEWS: readonly ViewId[] = ["timeline"];
 
 export const VIEW_ICONS: Record<ViewId, string> = {
   tree: "mdi:file-tree",
@@ -16,10 +16,19 @@ export const VIEW_ICONS: Record<ViewId, string> = {
   timeline: "mdi:chart-bar-stacked",
 };
 
-/** Views the switch offers: the wanted ones the card can draw, in their fixed order; the tree when none is left. */
-export function offeredViews(wanted: readonly string[] | undefined, available: readonly ViewId[] = AVAILABLE_VIEWS): ViewId[] {
-  const can = VIEW_IDS.filter((v) => available.includes(v));
-  const out = wanted?.length ? can.filter((v) => wanted.includes(v)) : can.filter((v) => v === "tree");
+/**
+ * Views the switch offers, in their fixed order: `options.views` when it is set, else only `options.view`
+ * (default the tree). Views the card cannot draw, and energy views without energy sensors, are left out;
+ * the tree remains when nothing is left.
+ */
+export function offeredViews(
+  view: string | undefined,
+  views: readonly string[] | undefined,
+  energy = true,
+  available: readonly ViewId[] = AVAILABLE_VIEWS,
+): ViewId[] {
+  const wanted = views?.length ? views : [view ?? "tree"];
+  const out = VIEW_IDS.filter((v) => available.includes(v) && wanted.includes(v) && (energy || !ENERGY_VIEWS.includes(v)));
   return out.length ? out : ["tree"];
 }
 

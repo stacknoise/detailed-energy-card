@@ -366,6 +366,8 @@
               : src,
         ),
       };
+      // Timeline (like mock B3): the energy of the day per hour, stacked by floor, yesterday dashed.
+      scenarios.timeline = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"] } };
       // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
       scenarios.secondary = { ...scenarios.energy, options: { unit: "kW", mode: "power", secondary_value: "auto" } };
       // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a
@@ -389,6 +391,9 @@
               },
         ),
       };
+      // share of the energy of a day per hour: low at night, peaks in the morning, at noon and in the evening
+      const profile = (h) =>
+        0.35 + Math.exp(-((h - 7) ** 2) / 2) * 0.9 + Math.exp(-((h - 12.5) ** 2) / 1.5) * 2.2 + Math.exp(-((h - 18.5) ** 2) / 3) * 1.6;
       // kWh of "today"; longer periods are a multiple of it
       const energyToday = {
         "sensor.e_pv": 12.4, "sensor.e_akku": 2.0, "sensor.e_netz": 5.1, "sensor.e_total": 19.5,
@@ -444,10 +449,30 @@
         callWS: async (m) => {
           if (m.type === "recorder/statistics_during_period") {
             if (params.get("energyError")) throw new Error("no statistics");
-            const days = (Date.parse(m.end_time) - Date.parse(m.start_time)) / 86400000;
+            const start = Date.parse(m.start_time);
+            const end = Date.parse(m.end_time);
+            const days = (end - start) / 86400000;
             const factor = m.period === "hour" ? 1 : Math.min(30, Math.max(2, Math.round(days)));
+            // an earlier period (it ended before now) used a little less, so that the comparison has something to show;
+            // "today" packs the whole value into the hours so far, so a whole earlier day is scaled up to match
+            const earlier = end < Date.now() - 60000;
+            const hoursToday = new Date(Date.now()).getHours();
+            const sum = (n) => Array.from({ length: n }, (_, h) => profile(h)).reduce((a, b) => a + b, 0);
+            const scale = !earlier ? 1 : m.period === "hour" && hoursToday > 0 ? (0.88 * sum(24)) / sum(hoursToday) : 0.88;
+            // rows like Home Assistant sends them: full hours with a daily profile, or days
+            const H = 3600000;
+            const slots = [];
+            if (m.period === "hour") {
+              for (let t = start; t + H <= end; t += H) slots.push([t, profile(new Date(t).getHours())]);
+              if (!slots.length) slots.push([start, 1]);
+            } else {
+              for (let t = start; t < end; t += 86400000) slots.push([t, Math.min(1, (end - t) / 86400000) * (1 + 0.15 * Math.sin(t / 86400000))]);
+            }
+            const weight = slots.reduce((s, [, w]) => s + w, 0) || 1;
             return Object.fromEntries(
-              m.statistic_ids.filter((id) => id in energyToday).map((id) => [id, [{ change: energyToday[id] * factor }]]),
+              m.statistic_ids
+                .filter((id) => id in energyToday)
+                .map((id) => [id, slots.map(([t, w]) => ({ start: t, change: (energyToday[id] * factor * scale * w) / weight }))]),
             );
           }
           return m.type.includes("floor") ? registries.floors : registries.areas;

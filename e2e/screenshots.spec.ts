@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // Renders the images used in README.md. Run: npm run screenshots
-const shots: Array<{ scenario: string; file: string; before?: (page: import("@playwright/test").Page) => Promise<void> }> = [
+const shots: Array<{ scenario: string; file: string; clock?: string; before?: (page: import("@playwright/test").Page) => Promise<void> }> = [
   {
     scenario: "floors",
     file: "card-with-floors",
@@ -60,6 +60,15 @@ const shots: Array<{ scenario: string; file: string; before?: (page: import("@pl
       await page.locator("detailed-energy-card button.node[title=Küche]").click();
     },
   },
+  {
+    scenario: "timeline",
+    file: "card-timeline",
+    // the hours of today stacked by room, yesterday dashed; a fixed clock gives the same picture on every day
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .chart rect.part").first()).toBeVisible();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",
@@ -78,8 +87,24 @@ const CARD_IMAGE_HEIGHT = 890;
 const IMAGE_MARGIN = 12;
 const natural = new Set(["card-hero"]);
 
-for (const { scenario, file, before } of shots) {
+for (const { scenario, file, clock, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {
+    if (clock) {
+      await page.addInitScript((at) => {
+        const Real = Date;
+        const fixed = new Real(at).getTime();
+        class Fake extends Real {
+          constructor(...args: unknown[]) {
+            if (args.length) super(...(args as [string]));
+            else super(fixed);
+          }
+          static now() {
+            return fixed;
+          }
+        }
+        (window as unknown as { Date: unknown }).Date = Fake;
+      }, clock);
+    }
     await page.setViewportSize({ width: 512, height: CARD_IMAGE_HEIGHT + 100 });
     await page.goto(`/dev/index.html?scenario=${scenario}`);
     await expect(page.locator("detailed-energy-card .path")).toContainText("Zuhause");

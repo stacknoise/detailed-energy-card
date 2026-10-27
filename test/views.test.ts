@@ -2,20 +2,23 @@ import { describe, expect, it } from "vitest";
 import { AVAILABLE_VIEWS, offeredViews, parseShown } from "../src/view/views";
 
 describe("views", () => {
-  it("offers only the tree for now, so the card shows no view switch", () => {
-    expect(AVAILABLE_VIEWS).toEqual(["tree"]);
-    expect(offeredViews(undefined)).toEqual(["tree"]);
-    expect(offeredViews(["tree", "sankey", "timeline"])).toEqual(["tree"]);
+  it("draws the tree and the timeline so far", () => {
+    expect(AVAILABLE_VIEWS).toEqual(["tree", "timeline"]);
   });
 
-  it("offers the wanted views the card can draw, in their fixed order", () => {
-    const all = ["tree", "sankey", "timeline"] as const;
-    expect(offeredViews(["timeline", "tree"], all)).toEqual(["tree", "timeline"]);
-    expect(offeredViews(["sankey"], all)).toEqual(["sankey"]);
-    // nothing wanted: the tree alone; nothing left: the tree as a fallback
-    expect(offeredViews(undefined, all)).toEqual(["tree"]);
-    expect(offeredViews([], all)).toEqual(["tree"]);
-    expect(offeredViews(["pie"], all)).toEqual(["tree"]);
+  it("offers options.views in their fixed order, else only options.view", () => {
+    expect(offeredViews(undefined, undefined)).toEqual(["tree"]);
+    expect(offeredViews("timeline", undefined)).toEqual(["timeline"]);
+    expect(offeredViews("timeline", ["timeline", "tree"])).toEqual(["tree", "timeline"]);
+    // views the card cannot draw yet are left out; nothing left: the tree
+    expect(offeredViews(undefined, ["sankey", "tree"])).toEqual(["tree"]);
+    expect(offeredViews(undefined, ["pie"])).toEqual(["tree"]);
+    expect(offeredViews(undefined, ["sankey"], true, ["tree", "sankey", "timeline"])).toEqual(["sankey"]);
+  });
+
+  it("offers no timeline without energy sensors", () => {
+    expect(offeredViews("timeline", ["tree", "timeline"], false)).toEqual(["tree"]);
+    expect(offeredViews("timeline", undefined, false)).toEqual(["tree"]);
   });
 
   it("reads the remembered mode, period and view, as far as they are still offered", () => {
