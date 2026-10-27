@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Editor: the switch of a consumer is a plain field right below the name again (it was wrongly put into a section). The actions (tap, hold, double tap) are a collapsible section *Actions* for consumers, rooms and floors. Sensors and own meters stay collapsible; all sections are closed when the editor opens.
+
 ## 1.2.2
 
 ### Changed
@@ -10,7 +16,7 @@
 
 - The screenshots of the README are rendered in English (demo data, titles and editor in English; `SHOT_LANG=de npm run screenshots` renders them German). The frame of the card images is a little higher (910 px) for the longer English texts.
 - README, section *Options*: the first column of every table shows the text of the field in the editor (English), next to the YAML key.
-- README: the image links carry `?v=4`, so that GitHub and HACS show the English screenshots instead of cached German ones. Raise the number when the screenshots change.
+- README: the image links carry `?v=5`, so that GitHub and HACS show the English screenshots instead of cached German ones. Raise the number when the screenshots change.
 - The last two German screenshots (`card-without-floors`, `card-many-rooms-wrapped`) are English now; all titles of the dev scenarios are English for `?lang=en`.
 - README: the section *Install (HACS)* is the first section, before the preview.
 

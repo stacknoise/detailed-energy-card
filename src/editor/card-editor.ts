@@ -24,6 +24,7 @@ import {
   CONSUMER_SENSORS,
   CONSUMER_SWITCH,
   METER_PATHS,
+  ACTION_PATHS,
   consumerFields,
   ENERGY_MODE,
   costsNeedGridCounter,
@@ -477,10 +478,11 @@ export class DetailedEnergyCardEditor extends LitElement {
 
   /** The form of an element with the meter sensors in a collapsible section (floors, rooms). */
   private _meterForm(ptr: Pointer, fields: Field[]): TemplateResult {
-    const rest = fields.filter((f) => !METER_PATHS.includes(f.path));
+    const isAction = (f: Field) => (ACTION_PATHS as readonly string[]).includes(f.path);
+    const rest = fields.filter((f) => !METER_PATHS.includes(f.path) && !isAction(f));
     const meters = fields.filter((f) => METER_PATHS.includes(f.path));
-    const head = rest.slice(0, 1);
-    return html`${this._form(ptr, head)}${this._section(`${ptr.join(".")}.meters`, this._tr("section_meters"), this._form(ptr, meters))}${this._form(ptr, rest.slice(1))}`;
+    const key = ptr.join(".");
+    return html`${this._form(ptr, rest.slice(0, 1))}${this._section(`${key}.meters`, this._tr("section_meters"), this._form(ptr, meters))}${this._form(ptr, rest.slice(1))}${this._section(`${key}.actions`, this._tr("section_actions"), this._form(ptr, fields.filter(isAction)))}`;
   }
 
   /** Color picker + hex field + reset (an empty value falls back to the HA theme). */
@@ -745,9 +747,9 @@ export class DetailedEnergyCardEditor extends LitElement {
             <button class="icon" title=${this._tr("remove")} aria-label=${this._tr("remove")}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => removeItem(l, i))}>✕</button>
           </div>
+          ${this._form(ptr, pick(CONSUMER_SWITCH))}
           ${this._section(`${key}.sensors`, this._tr("section_sensors"), this._form(ptr, pick(CONSUMER_SENSORS)))}
-          ${this._section(`${key}.switch`, this._tr("section_switch"), this._form(ptr, pick(CONSUMER_SWITCH)))}
-          ${this._form(ptr, fields.filter((f) => ![...CONSUMER_SENSORS, ...CONSUMER_SWITCH, "name"].includes(f.path)))}
+          ${this._section(`${key}.actions`, this._tr("section_actions"), this._form(ptr, pick([...ACTION_PATHS])))}
           ${!c?.entity && !c?.energy_entity ? html`<div class="warn">⚠ ${this._tr("consumer_no_sensor")}</div>` : nothing}
           ${this._elementThresholds(ptr, "consumer")}
         </div>`;
