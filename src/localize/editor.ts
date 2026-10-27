@@ -16,6 +16,8 @@ const de = {
   source_default_name: "Quelle",
   // general fields
   field_title: "Titel",
+  field_heat_entity: "Energiezähler des Hauses (kWh)",
+  field_days: "Anzahl Tage (7 bis 28)",
   field_unit: "Einheit",
   field_decimals: "Nachkommastellen (leer: 2, Energie: 1)",
   field_animation: "Animation",
@@ -159,6 +161,8 @@ const en: typeof de = {
   source_default_name: "Source",
   // general fields
   field_title: "Title",
+  field_heat_entity: "Energy counter of the home (kWh)",
+  field_days: "Number of days (7 to 28)",
   field_unit: "Unit",
   field_decimals: "Decimals (empty: 2, energy: 1)",
   field_animation: "Animation",

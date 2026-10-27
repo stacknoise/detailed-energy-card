@@ -195,6 +195,16 @@ export const ENERGY_MODE: Field[] = [
   },
 ];
 
+/** Fields of the heatmap card (`custom:detailed-energy-heatmap-card`): its own editor, the same field machinery. */
+export const HEATMAP: Field[] = [
+  { path: "entity", selector: energy, label: "field_heat_entity", required: true, check: "energy" },
+  { path: "days", selector: { number: { min: 7, max: 28, step: 1, mode: "box", unit_of_measurement: "d" } }, label: "field_days", default: 7 },
+  { path: "title", selector: text, label: "field_title" },
+  { path: "price", selector: { number: { min: 0, step: 0.001, mode: "box", unit_of_measurement: "/kWh" } }, label: "field_price", when: (cfg: any) => !cfg?.price_entity },
+  { path: "price_entity", selector: { entity: { domain: "sensor" } }, label: "field_price_entity", check: "price", when: (cfg: any) => cfg?.price === undefined },
+  { path: "currency", selector: { text: {} }, label: "field_currency", when: (cfg: any) => cfg?.price !== undefined || !!cfg?.price_entity },
+];
+
 /** The costs need an energy counter on the grid: without one the editor says so. */
 export const costsNeedGridCounter = (cfg: any): boolean =>
   (cfg?.options?.price !== undefined || !!cfg?.options?.price_entity) &&

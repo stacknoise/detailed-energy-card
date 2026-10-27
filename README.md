@@ -34,9 +34,9 @@ Home → floor → room → consumers. Click a floor to show its rooms (all of t
 | --- | --- |
 | ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png) | ![Sankey diagram of sources, floors, rooms and consumers with feed-in and charging below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-sankey.png) |
 
-| Base load and consumers that run all the time |
-| --- |
-| ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png) |
+| Base load and consumers that run all the time | Heatmap card |
+| --- | --- |
+| ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png) | ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png) |
 
 Thresholds can differ per level, and a single element can have its own list: here the floor and room lines have their own limits and widths, and the oven (green until 1 kW) has its own thresholds instead of the consumer level's. The energy mode shows how much each part used today, this week or this month; the lines show the share of the consumption, and the coffee machine has no energy sensor. Floors and rooms can have their own meter (small meter icon): here EG (distribution board), the kitchen and the hall are metered, and the kitchen meter measures 0.4 kWh more than the kitchen's consumers. With `options.secondary_value: auto` every node shows the energy of today below its power (and the power now in the energy mode). With counters for both directions the grid and the battery show what went back (feed-in 3.8 kWh, charged 2.4 kWh), and the *Self-consumption* badge says how much of the solar energy stayed in the home.
 
@@ -165,6 +165,21 @@ rooms:
 ```
 
 In the visual editor they are under *Colors → Thresholds* (with a traffic-light preset, a level selector and a "scale limits" button that multiplies the limits of the shown list by a factor); an element's own thresholds are in its entry under *Own thresholds*. Every color field takes a single CSS color: hex (`#9184d9`), `rgb()`/`hsl()`, a named color (`orange`) or a theme variable (`var(--primary-color)`); anything else is a configuration error. Only `sensor.*` power entities (W / kW / MW) are supported; a sensor with another unit (for example kWh or V) is not counted as watts and shows a warning on its node. A battery state-of-charge sensor (`soc_entity`) must report `%`. All options are documented in the concept, section 3.
+
+## Heatmap card
+
+The same file brings a second card, `custom:detailed-energy-heatmap-card` (**Add card → Detailed Energy Heatmap**, with its own visual editor, no second installation): *when is electricity used?* A row per day (the newest at the bottom), a column per hour, the color is the consumption of that hour. Hours without statistics are hatched, hours that have not begun yet are outlined.
+
+```yaml
+type: custom:detailed-energy-heatmap-card
+entity: sensor.haus_energie   # energy counter of the home (kWh), required
+days: 14                      # 7 to 28, default 7
+title: When is electricity used?
+price_entity: sensor.strompreis   # optional: a price sensor (hourly means) or `price: 0.32` per kWh
+currency: EUR                 # optional, default the one of Home Assistant
+```
+
+Above the grid: the *base load* (the lowest hourly use between 1 and 5 o'clock in the days shown, like on the energy card), the total of the days, and the most expensive hour (consumption × the price of that hour; without a price the peak hour in kWh instead). The values come from the long-term statistics of the counter (`state_class` `total` or `total_increasing`), hourly rows, reloaded once an hour while the card is visible. Dev page: `?card=heatmap`.
 
 ## Credits
 

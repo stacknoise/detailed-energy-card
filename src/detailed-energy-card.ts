@@ -15,6 +15,7 @@ import { elementThresholds, isIdle, resolveThresholds, thresholdColor, threshold
 import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
+import "./heatmap-card";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { MAX_LEVEL, TreeView, type ResolvedSelection, type TreeContext } from "./view/tree";

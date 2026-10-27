@@ -8,7 +8,7 @@ import {
   toggleFloors,
   updateIn,
 } from "../src/editor/config-utils";
-import { configPaths, coveredPaths } from "../src/editor/schema";
+import { HEATMAP, configPaths, coveredPaths } from "../src/editor/schema";
 import { validateConfig, type EnergyCardConfig } from "../src/model/config";
 
 // A config that uses every documented option (concept, section 3).
@@ -254,3 +254,20 @@ describe("consumers are unique", () => {
     expect(() => validateConfig({ ...cfg, rooms: undefined })).not.toThrow();
   });
 });
+
+describe("heatmap card editor", () => {
+  it("has a field for every option of the heatmap card", () => {
+    const FULL_HEATMAP = { type: "custom:detailed-energy-heatmap-card", entity: "sensor.e", days: 14, title: "T", price: 0.3, price_entity: "sensor.p", currency: "EUR" };
+    const covered = new Set(HEATMAP.map((f) => f.path));
+    expect(configPaths(FULL_HEATMAP).filter((p) => p !== "type" && !covered.has(p))).toEqual([]);
+    expect([...covered].filter((p) => !(p in FULL_HEATMAP))).toEqual([]);
+  });
+
+  it("offers a price or a price sensor, not both, and the currency once a price is set", () => {
+    const shown = (cfg: object) => HEATMAP.filter((f) => !f.when || f.when(cfg)).map((f) => f.path);
+    expect(shown({})).toEqual(["entity", "days", "title", "price", "price_entity"]);
+    expect(shown({ price: 0.3 })).toEqual(["entity", "days", "title", "price", "currency"]);
+    expect(shown({ price_entity: "sensor.p" })).toEqual(["entity", "days", "title", "price_entity", "currency"]);
+  });
+});
+

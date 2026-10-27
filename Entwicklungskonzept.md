@@ -134,6 +134,21 @@ options:
 
 ---
 
+### Heatmap-Karte (`custom:detailed-energy-heatmap-card`)
+
+```yaml
+type: custom:detailed-energy-heatmap-card
+entity: sensor.haus_energie   # Energiezähler des Hauses (kWh), Pflicht
+days: 14                      # 7 bis 28, Standard 7
+title: Wann wird Strom verbraucht?
+price: 0.32                   # optional, fester Preis pro kWh (oder `price_entity`: Preissensor, Stundenmittel)
+currency: EUR                 # optional
+```
+
+Eigener Kartentyp im selben Bundle (`src/heatmap-card.ts`, eigener Editor `editor/heatmap-editor.ts`), Prüfung in `validateHeatmapConfig` (`model/heatmap.ts`). Zeilen = Tage (der jüngste unten, Mitternacht in der Zeitzone von Home Assistant), Spalten = Ortsstunden; Farbe = Anteil der größten Stunde an `--_accent`. Stunden ohne Statistikzeile sind „fehlend“ (schraffiert, nie 0), Stunden ab der laufenden „Zukunft“ (gestrichelt). Zeitumstellung: die ausfallende Stunde bleibt fehlend, die doppelte Stunde wird addiert. Kennzahlen: Grundlast (`baseLoad` aus `model/standby.ts` auf den Stundenwerten des Zählers), Summe der Tage und die teuerste Stunde (Verbrauch × Preis dieser Stunde, `costliestHour`; ohne Preis die Spitzenstunde). Daten: rollendes Fenster `days × 24 + 25` Stunden im `EnergyStore`, stündliche Zeilen.
+
+---
+
 ## 4. Erlaubte Entitäten
 
 Nur **Sensoren** sind zulässig. Die Validierung erfolgt im Editor und zur Laufzeit.
@@ -284,6 +299,7 @@ src/
     energy.ts                 // Zeiträume (periodRange mit offset), Statistik-Abfrage als Stunden-/Tageszeilen (loadEnergySeries), Summen
     browse.ts                 // Beschriftung des geblätterten Zeitraums (periodLabel, isoWeek)
     timeline.ts               // Balken (Stunden/Tage), Werte je Etage/Raum/Verbraucher (treeSeries), Vergleich mit der Vorperiode
+    heatmap.ts                // Config der Heatmap-Karte, Raster (heatmapGrid), Spitzen-/teuerste Stunde
     standby.ts                // Grundlast (baseLoad, homePowerRows) und Dauerlast (runsContinuously)
     sankey.ts                 // buildSankey: Knoten und Bänder aus dem Modell und der Auswahl (reine Funktion)
     costs.ts                  // Stundenpreise (hourlyPrices), Kosten je Knoten über den Netzanteil (computeCosts)
@@ -296,6 +312,8 @@ src/
     timeline.ts               // renderTimeline: gestapelte Balken, Vorperiode gestrichelt, Kennzahlen, Legende
     sankey-layout.ts          // layoutSankey: reine Layout-Funktion (Spalten, Skala, Bänder), bandPath
     sankey.ts                 // SankeyView: Zeichnung, Beschriftung, Gleiten der Bänder
+  heatmap-card.ts           // zweite Karte `detailed-energy-heatmap-card`, im selben Bundle
+  editor/heatmap-editor.ts  // Editor der Heatmap-Karte (Felder `HEATMAP` in schema.ts)
   styles/theme.ts           // CSS-Variablen und Styles
   localize/index.ts         // Texte der Card (DE/EN), Standardnamen der Quellen
   localize/editor.ts        // Texte des Editors (DE/EN, typisierte Schlüssel)
@@ -358,6 +376,8 @@ src/
 ## 9. Visueller Editor
 
 **Grundsatz: Die gesamte Konfiguration ist im visuellen Editor möglich.** Jede Option aus Abschnitt 3 hat ein Bedienelement. Nutzer müssen nie auf YAML wechseln. YAML bleibt nur als optionale Alternative.
+
+Die Heatmap-Karte hat einen eigenen kleinen Editor (`HEATMAP` in `schema.ts`, dieselbe Feld-Technik; ein Test prüft, dass jede ihrer Optionen ein Feld hat).
 
 **Abnahmekriterium:** Ein Konfigurationsobjekt, das im Editor angelegt wurde, ist identisch mit dem entsprechenden YAML. Das wird durch einen automatischen Test sichergestellt, der für jeden Konfigurationsschlüssel prüft, ob ein Editor-Feld existiert (Schema → Feld-Mapping).
 

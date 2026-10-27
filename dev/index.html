@@ -452,8 +452,24 @@
       // ?width=900 lets the card grow wider than the default 480px preview column
       if (params.get("width")) document.body.style.maxWidth = params.get("width") + "px";
       const name = params.get("scenario") ?? "floors";
-      const el = document.getElementById("c");
-      el.setConfig({ type: "custom:detailed-energy-card", ...scenarios[name] });
+      let el = document.getElementById("c");
+      // ?card=heatmap: the heatmap card (package P12) instead of the energy card
+      const heatmap = params.get("card") === "heatmap";
+      if (heatmap) {
+        const h = document.createElement("detailed-energy-heatmap-card");
+        h.id = "c";
+        el.replaceWith(h);
+        el = h;
+        el.setConfig({
+          type: "custom:detailed-energy-heatmap-card",
+          entity: "sensor.e_total",
+          days: Number(params.get("days") ?? 14),
+          title: "Wann wird Strom verbraucht?",
+          price_entity: params.get("price") === "0" ? undefined : "sensor.strompreis",
+        });
+      } else {
+        el.setConfig({ type: "custom:detailed-energy-card", ...scenarios[name] });
+      }
       const hass = {
         language: params.get("lang") ?? "de", // ?lang=en previews the English texts
         config: { location_name: "Zuhause" },
@@ -502,7 +518,14 @@
             const H = 3600000;
             const slots = [];
             if (m.period === "hour") {
-              for (let t = start; t + H <= end; t += H) slots.push([t, profile(new Date(t).getHours())]);
+              for (let t = start; t + H <= end; t += H) {
+                const day = new Date(t);
+                // the heatmap card: every day a little different, and a gap now and then
+                if (params.get("card") === "heatmap") {
+                  if (day.getDate() % 5 === 0 && day.getHours() === 3) continue;
+                  slots.push([t, profile(day.getHours()) * (0.75 + 0.5 * Math.abs(Math.sin(day.getDate() * 1.7)))]);
+                } else slots.push([t, profile(day.getHours())]);
+              }
               if (!slots.length) slots.push([start, 1]);
             } else {
               for (let t = start; t < end; t += 86400000) slots.push([t, Math.min(1, (end - t) / 86400000) * (1 + 0.15 * Math.sin(t / 86400000))]);
