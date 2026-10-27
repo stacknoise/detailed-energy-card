@@ -4,6 +4,7 @@ import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
 import { collectEnergyIds, collectEntityIds, hasEnergy, hasPrice, validateConfig, type EnergyCardConfig } from "./model/config";
 import { periodLabel } from "./model/browse";
+import { BASE_LOAD_NIGHTS, STANDBY_HOURS, baseLoad, homePowerIds, homePowerRows, runsContinuously } from "./model/standby";
 import { computeCosts, type CostResult } from "./model/costs";
 import { energyReader, firstWeekdayIndex, loadStatSeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
@@ -474,7 +475,50 @@ export class DetailedEnergyCard extends LitElement {
     if (this._showsTimeline) wanted.push(...this._timelineQueries());
     // the costs need the hours of their period and the prices
     wanted.push(...this._costQueries());
+    // base load and standby look at the hourly means of power sensors
+    wanted.push(...this._powerStatQueries());
     this._energyStore.want(wanted);
+  }
+
+  // ---------- base load and standby ----------
+
+  /** Hourly means of the home (the last 7 nights) and of the consumers (the last day), each only when its option is on. */
+  private _powerStatQueries(): EnergyQuery[] {
+    const cfg = this._config;
+    if (!cfg) return [];
+    const out: EnergyQuery[] = [];
+    const home = homePowerIds(cfg);
+    if (cfg.options?.show_base_load === true && home.length) {
+      out.push({ ids: home, period: "today", hours: BASE_LOAD_NIGHTS * 24, stat: "hour", kind: "mean" });
+    }
+    const consumers = this._consumerIds();
+    if ((cfg.options?.standby_watts ?? 0) > 0 && consumers.length) {
+      out.push({ ids: consumers, period: "today", hours: STANDBY_HOURS, stat: "hour", kind: "mean" });
+    }
+    return out;
+  }
+
+  private _consumerIds(): string[] {
+    const cfg = this._config;
+    const rooms = [...(cfg?.rooms ?? []), ...(cfg?.floors ?? []).flatMap((f) => f.rooms ?? [])];
+    return [...new Set(rooms.flatMap((r) => (r.consumers ?? []).map((c) => c.entity)))];
+  }
+
+  /** The base load in watts, undefined while it is not known (not asked for, no statistics yet, no night in them). */
+  private _baseLoad(): number | undefined {
+    const cfg = this._config;
+    const q = this._powerStatQueries().find((x) => x.hours === BASE_LOAD_NIGHTS * 24);
+    const series = q ? this._energyStore.series(q) : undefined;
+    return cfg && series ? baseLoad(homePowerRows(cfg, series), this._timeZone) : undefined;
+  }
+
+  /** Consumers that run all the time: no hourly mean of the last day below `options.standby_watts`. */
+  private _standby(): Set<string> {
+    const watts = this._config?.options?.standby_watts ?? 0;
+    const q = this._powerStatQueries().find((x) => x.hours === STANDBY_HOURS);
+    const series = q ? this._energyStore.series(q) : undefined;
+    if (!series || watts <= 0) return new Set();
+    return new Set([...series].filter(([, rows]) => runsContinuously(rows, watts)).map(([id]) => id));
   }
 
   private get _timeZone(): string {
@@ -488,7 +532,11 @@ export class DetailedEnergyCard extends LitElement {
 
   /** Loads a query; a refresh of an incremental query only from `since` on, unless a new period has begun. */
   private async _loadEnergy(q: EnergyQuery, since?: number) {
-    const { start, end } = periodRange(q.period, new Date(), this._timeZone, this._firstWeekday, q.offset);
+    // a rolling window ends now and starts at a full hour; a period is a day, a week or a month
+    const now = new Date();
+    const { start, end } = q.hours
+      ? { start: new Date(Math.floor((now.getTime() - q.hours * 3_600_000) / 3_600_000) * 3_600_000), end: now }
+      : periodRange(q.period, now, this._timeZone, this._firstWeekday, q.offset);
     const from = since !== undefined && since >= start.getTime() ? since : undefined;
     const series = await loadStatSeries(this._hass!, q.ids, from !== undefined ? new Date(from) : start, end, q.stat ?? statPeriodFor(q.period), q.kind);
     return { series, since: from };
@@ -889,11 +937,13 @@ export class DetailedEnergyCard extends LitElement {
   private _renderBadges(cfg: EnergyCardConfig, model: EnergyModel): TemplateResult | typeof nothing {
     const own = cfg.options?.show_self_consumption !== false ? model.selfConsumption : null;
     const costs = this._renderCostBadge();
-    if (model.autarky === null && own === null && costs === nothing) return nothing;
+    const base = this._baseLoad();
+    if (model.autarky === null && own === null && costs === nothing && base === undefined) return nothing;
     return html`<div class="badges">
       ${model.autarky !== null ? html`<div class="badge">${this._t("autarky")} ${Math.round(model.autarky * 100)} %</div>` : nothing}
       ${own !== null ? html`<div class="badge self">${this._t("self_consumption")} ${Math.round(own * 100)} %</div>` : nothing}
       ${costs}
+      ${base !== undefined ? html`<div class="badge base" title=${this._t("base_load_tip")}>${this._t("base_load")} ${this._fmtAs("power", base)}</div>` : nothing}
     </div>`;
   }
 
@@ -944,6 +994,8 @@ export class DetailedEnergyCard extends LitElement {
     const max = Math.max(1, ...sorted.map((c) => c.watts));
     const thresholds = this._thresholds;
     const second = this._secondKind() !== undefined;
+    const standby = this._standby();
+    const standbyWatts = this._config?.options?.standby_watts ?? 0;
     return html`
       <div class="detail">
         <div class="detail-head">
@@ -963,7 +1015,7 @@ export class DetailedEnergyCard extends LitElement {
           const barWidth = barColor ? thresholdWidth(list, c.watts) : undefined;
           return html`
             <button class="row ${c.valid ? "" : "warn"} ${c.valid && isIdle(c.watts) ? "idle" : ""}" @click=${() => this._moreInfo(c.entity)}>
-              <span class="name">${name}<small>${c.noEnergy ? this._t("no_energy") : c.entity}</small></span>
+              <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}<small>${c.noEnergy ? this._t("no_energy") : c.entity}</small></span>
               <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
               ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}

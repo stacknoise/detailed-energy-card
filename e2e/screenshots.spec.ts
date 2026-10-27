@@ -70,6 +70,17 @@ const shots: Array<{ scenario: string; file: string; clock?: string; before?: (p
     },
   },
   {
+    scenario: "standby",
+    file: "card-standby",
+    // the base load in the head, the fridge runs all the time; a fixed clock gives the same picture on every day
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .badge.base")).toBeVisible();
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await expect(page.locator("detailed-energy-card .standby")).toBeVisible();
+    },
+  },
+  {
     scenario: "sankey",
     file: "card-sankey",
     // sources, floors and rooms with feed-in and charging below; the kitchen is selected, the hours do not matter

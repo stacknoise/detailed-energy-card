@@ -48,6 +48,19 @@ describe("validateConfig: options (U-1)", () => {
   });
 });
 
+describe("validateConfig: base load and standby", () => {
+  it.each([0, -5, "5", Number.NaN, Number.POSITIVE_INFINITY])("rejects standby_watts %s", (standby_watts) => {
+    rejects({ options: { standby_watts } }, /options\.standby_watts/);
+  });
+  it.each([1, 5, 7.5])("accepts standby_watts %s", (standby_watts) => {
+    expect(() => validateConfig({ ...base, options: { standby_watts } })).not.toThrow();
+  });
+  it("wants show_base_load to be true or false", () => {
+    rejects({ options: { show_base_load: "yes" } }, /options\.show_base_load/);
+    expect(() => validateConfig({ ...base, options: { show_base_load: true } })).not.toThrow();
+  });
+});
+
 describe("formatPower never throws on bad decimals", () => {
   it.each([-3, 25, 101, Number.NaN, 1.7])("decimals %s", (d) => {
     expect(() => formatPower(1234, "kW", d)).not.toThrow();

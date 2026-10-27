@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENERGY_REFRESH_MS, EnergyStore, latestRow, mergeRows, queryKey, type EnergyQuery, type StoreClock } from "../src/model/energy-store";
+import { ENERGY_REFRESH_MS, WINDOW_REFRESH_MS, EnergyStore, latestRow, mergeRows, queryKey, type EnergyQuery, type StoreClock } from "../src/model/energy-store";
 import type { EnergyRow } from "../src/model/energy";
 
 /** A clock whose time and timers only move when the test says so. */
@@ -96,6 +96,23 @@ describe("energy store", () => {
     expect(store.status(TODAY)).toBe("idle");
     store.want([TODAY]);
     expect(loader.calls).toHaveLength(3); // loaded again, not the stale numbers
+  });
+
+  it("loads a rolling window of hours once an hour while the other queries keep their 5 minutes", async () => {
+    const { store, loader, time } = setup();
+    const window: EnergyQuery = { ids: ["sensor.p"], period: "today", hours: 168, stat: "hour", kind: "mean" };
+    expect(queryKey(window)).not.toBe(queryKey({ ...window, hours: 24 }));
+    store.want([TODAY, window]);
+    loader.calls[0].resolve(new Map([["sensor.a", rows(1)]]));
+    loader.calls[1].resolve(new Map([["sensor.p", rows(100)]]));
+    await settle();
+    time.advance(ENERGY_REFRESH_MS);
+    // only the period is asked for again
+    expect(loader.calls.map((c) => c.q.hours)).toEqual([undefined, 168, undefined]);
+    loader.calls[2].resolve(new Map([["sensor.a", rows(2)]]));
+    await settle();
+    time.advance(WINDOW_REFRESH_MS - ENERGY_REFRESH_MS);
+    expect(loader.calls.filter((c) => c.q.hours === 168)).toHaveLength(2);
   });
 
   it("loads again after the refresh interval while the card is visible", async () => {

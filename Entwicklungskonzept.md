@@ -111,6 +111,8 @@ options:
   secondary_value: none       # none | auto | today | power: kleiner Zweitwert unter jedem Wert (Abschnitt 6)
   view: tree                  # tree | sankey | timeline: Startansicht des Diagramms (Verlauf braucht einen Energiesensor)
   views: [tree, sankey, timeline]  # optional, Ansichten im Schalter; ohne nur `view` und kein Schalter; muss `view` enthalten
+  show_base_load: false       # true: Badge „Grundlast“ im Kopf (braucht die Statistik des Leistungssensors, Abschnitt 5)
+  standby_watts: 5            # optional: Verbraucher, die 24 h lang nie darunter fielen, bekommen das Symbol „läuft dauerhaft“
   price: 0.32                 # optional, fester Strompreis pro kWh (schaltet die Kosten ein; braucht einen Energiezähler am Netz)
   price_entity: sensor.strompreis  # optional statt `price`: Preissensor (dynamischer Tarif, als Statistik erfasst)
   feed_in_price: 0.08         # optional, feste Einspeisevergütung pro kWh (oder `feed_in_price_entity`)
@@ -194,6 +196,12 @@ Mit `invert: true` wird das Vorzeichen eines Sensors gedreht.
 - Vergütung = Rücklauf des Netzes (`energy_entity_return`) × Einspeisepreis, getrennt, nicht in den Knotenkosten.
 - Hält Home Assistant die Kostenstatistiken des Energie-Dashboards (`<Netzzähler>_cost`, `<Einspeisezähler>_compensation`, angelegt, wenn dort ein Preis eingetragen ist), nimmt das Badge diese Beträge; sie rechnen mit dem Preis zum Zeitpunkt jeder Zählerstandsänderung. Weichen sie von der Stundenrechnung ab, sagt der Tooltip das.
 
+**Grundlast und Dauerlast (`model/standby.ts`)**
+
+- Grundlast: Stundenmittel (`types: ["mean"]`, `period: "hour"`) der letzten 7 Tage von `home.total_entity`, sonst aller Quellen (Netz und Batterie mit Vorzeichen, `invert` dreht um, Solar und generic nie unter 0; fehlt einer Quelle eine Stunde, entfällt diese Stunde). Davon der niedrigste Wert der Stunden, die um 1, 2, 3 oder 4 Uhr Ortszeit beginnen. Ohne solche Stunde kein Badge, kein „0 W“.
+- Dauerlast: Stundenmittel des Leistungssensors jedes Verbrauchers der letzten 24 Stunden; fiel kein Wert unter `options.standby_watts`, bekommt er das Symbol. Weniger als 20 Stunden mit Wert reichen nicht für ein Urteil (neuer Sensor, Lücke): kein Symbol.
+- Die Abfragen sind rollende Fenster im `EnergyStore` (`EnergyQuery.hours`), werden nur gestellt, wenn die Option an ist, und stündlich (`WINDOW_REFRESH_MS`) statt alle 5 Minuten erneuert. Beides gilt in beiden Modi.
+
 **Ungültige Werte:** `unavailable`, `unknown` und nicht numerische Werte zählen als 0. Der Knoten wird dann gedimmt und mit einem Warn-Icon versehen.
 
 Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So lässt sie sich vollständig mit Unit-Tests abdecken.
@@ -276,6 +284,7 @@ src/
     energy.ts                 // Zeiträume (periodRange mit offset), Statistik-Abfrage als Stunden-/Tageszeilen (loadEnergySeries), Summen
     browse.ts                 // Beschriftung des geblätterten Zeitraums (periodLabel, isoWeek)
     timeline.ts               // Balken (Stunden/Tage), Werte je Etage/Raum/Verbraucher (treeSeries), Vergleich mit der Vorperiode
+    standby.ts                // Grundlast (baseLoad, homePowerRows) und Dauerlast (runsContinuously)
     sankey.ts                 // buildSankey: Knoten und Bänder aus dem Modell und der Auswahl (reine Funktion)
     costs.ts                  // Stundenpreise (hourlyPrices), Kosten je Knoten über den Netzanteil (computeCosts)
     energy-store.ts           // EnergyStore: lädt die gezeigten Abfragen, merkt sie 5 Minuten, Token gegen veraltete Antworten, Pause bei unsichtbarer Card
@@ -421,6 +430,7 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 - Zähler einer Etage oder eines Raums nicht lesbar: Der Knoten zeigt die Summe seiner Kinder mit Warnsymbol.
 - Netz speist ein und Batterie lädt gleichzeitig: Pfeile werden umgekehrt, die Werte korrekt gezeigt.
 - Sehr kleine Werte (< 1 W): Anzeige „0 W“, keine Animation.
+- Grundlast und Dauerlast ohne Statistik (Sensor ohne `state_class`, noch keine Nacht aufgezeichnet): kein Badge, kein Symbol, keine Warnung.
 - Lange Namen werden mit Ellipsis gekürzt. Der volle Name steht im `title`.
 
 ---
