@@ -5,9 +5,11 @@
 ### Added
 
 - Editor: as long as no energy sensor is entered, *General* shows a hint that the switch *Now | Today | Week | Month* needs an energy sensor on the home, a source or a consumer. Before, the switch was simply missing and nothing said why.
+- When it loads, the card writes its name, version and repository link once to the browser console, like other Home Assistant cards. The version comes from `package.json` at build time.
 
 ### Docs
 
+- README: new section *Credits* (author, original repository, product page, MIT license).
 - README: the sentence on when the energy switch appears is now at the start of the energy mode paragraph and in bold.
 
 ## 1.1.1
