@@ -21,6 +21,9 @@ import {
   COLOR_KEYS,
   THRESHOLD,
   PALETTE,
+  CONSUMER_SENSORS,
+  CONSUMER_SWITCH,
+  METER_PATHS,
   consumerFields,
   ENERGY_MODE,
   costsNeedGridCounter,
@@ -461,6 +464,25 @@ export class DetailedEnergyCardEditor extends LitElement {
       ${colors.map((f) => this._colorRow(ptr, f, getPath(obj, f.path)))}`;
   }
 
+  /** Collapsible group of fields; closed until the user opens it. */
+  private _section(key: string, title: string, body: TemplateResult): TemplateResult {
+    const open = this._open.has(key);
+    return html`<div class="own-thresholds">
+      <button class="title" aria-expanded=${open ? "true" : "false"} @click=${() => this._toggleOpen(key)}>
+        ${open ? "▾" : "▸"} ${title}
+      </button>
+      ${open ? body : nothing}
+    </div>`;
+  }
+
+  /** The form of an element with the meter sensors in a collapsible section (floors, rooms). */
+  private _meterForm(ptr: Pointer, fields: Field[]): TemplateResult {
+    const rest = fields.filter((f) => !METER_PATHS.includes(f.path));
+    const meters = fields.filter((f) => METER_PATHS.includes(f.path));
+    const head = rest.slice(0, 1);
+    return html`${this._form(ptr, head)}${this._section(`${ptr.join(".")}.meters`, this._tr("section_meters"), this._form(ptr, meters))}${this._form(ptr, rest.slice(1))}`;
+  }
+
   /** Color picker + hex field + reset (an empty value falls back to the HA theme). */
   private _colorRow(ptr: Pointer, f: Field, value: unknown): TemplateResult {
     const text = typeof value === "string" ? value : "";
@@ -709,10 +731,13 @@ export class DetailedEnergyCardEditor extends LitElement {
       <h3>${this._tr("section_consumers", consumers.length)}</h3>
       ${consumers.map((c: { entity?: string; energy_entity?: string }, i: number) => {
         const ptr: Pointer = [...roomPtr, "consumers", i];
+        const fields = consumerFields(consumerEntitiesExcept(this._config, ptr));
+        const pick = (paths: string[]) => fields.filter((f) => paths.includes(f.path));
+        const key = ptr.join(".");
         return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, [...roomPtr, "consumers"])} @drop=${(e: DragEvent) => this._onDrop(e, [...roomPtr, "consumers"], i)}>
           <div class="head">
             ${this._handle([...roomPtr, "consumers"], i)}
-            <div class="title" style="flex:1">${this._form(ptr, consumerFields(consumerEntitiesExcept(this._config, ptr)))}</div>
+            <div class="title" style="flex:1">${this._form(ptr, fields.filter((f) => f.path === "name"))}</div>
             <button class="icon" title=${this._tr("move_up")} aria-label=${this._tr("move_up")} ?disabled=${i === 0}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => moveItem(l, i, -1))}>↑</button>
             <button class="icon" title=${this._tr("move_down")} aria-label=${this._tr("move_down")} ?disabled=${i === consumers.length - 1}
@@ -720,6 +745,9 @@ export class DetailedEnergyCardEditor extends LitElement {
             <button class="icon" title=${this._tr("remove")} aria-label=${this._tr("remove")}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => removeItem(l, i))}>✕</button>
           </div>
+          ${this._section(`${key}.sensors`, this._tr("section_sensors"), this._form(ptr, pick(CONSUMER_SENSORS)))}
+          ${this._section(`${key}.switch`, this._tr("section_switch"), this._form(ptr, pick(CONSUMER_SWITCH)))}
+          ${this._form(ptr, fields.filter((f) => ![...CONSUMER_SENSORS, ...CONSUMER_SWITCH, "name"].includes(f.path)))}
           ${!c?.entity && !c?.energy_entity ? html`<div class="warn">⚠ ${this._tr("consumer_no_sensor")}</div>` : nothing}
           ${this._elementThresholds(ptr, "consumer")}
         </div>`;
@@ -741,7 +769,7 @@ export class DetailedEnergyCardEditor extends LitElement {
         return html`<div class="item ${nested ? "nested" : ""}" @dragover=${(e: DragEvent) => this._onOver(e, listPtr)} @drop=${(e: DragEvent) => this._onDrop(e, listPtr, i)}>
           ${this._itemHead(key, this._areaName(r.area_id), this._tr("count_consumers", r.consumers?.length ?? 0), ptr, i, rooms.length)}
           ${this._open.has(key)
-            ? html`${this._form(ptr, roomFields(this._areaOptions(floorId, r.area_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "room")}${this._renderConsumers(ptr)}`
+            ? html`${this._meterForm(ptr, roomFields(this._areaOptions(floorId, r.area_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "room")}${this._renderConsumers(ptr)}`
             : nothing}
         </div>`;
       })}
@@ -781,7 +809,7 @@ export class DetailedEnergyCardEditor extends LitElement {
                 return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, ["floors"])} @drop=${(e: DragEvent) => this._onDrop(e, ["floors"], i)}>
                   ${this._itemHead(key, this._floorName(f.floor_id), this._tr("count_rooms", f.rooms?.length ?? 0), ptr, i, floors.length)}
                   ${this._open.has(key)
-                    ? html`${this._form(ptr, floorFields(this._floorChoices(f.floor_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "floor")}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
+                    ? html`${this._meterForm(ptr, floorFields(this._floorChoices(f.floor_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "floor")}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
                     : nothing}
                 </div>`;
               })}

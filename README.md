@@ -27,15 +27,15 @@ Home → floor → room → consumers. Click a floor to show its rooms (all of t
 
 | With floors | Without floors |
 | --- | --- |
-| ![Card with floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-with-floors.png?v=3) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-without-floors.png?v=3) |
+| ![Card with floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-with-floors.png?v=4) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-without-floors.png?v=4) |
 
 | All rooms of a floor selected | Many rooms wrapped into two rows |
 | --- | --- |
-| ![All rooms selected](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-all-rooms.png?v=3) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-many-rooms-wrapped.png?v=3) |
+| ![All rooms selected](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-all-rooms.png?v=4) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-many-rooms-wrapped.png?v=4) |
 
 | Thresholds per level | Compact view at the width of a phone |
 | --- | --- |
-| ![Card with thresholds per level](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-thresholds.png?v=3) | ![Compact view: sources, home and floors in small circles](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-compact.png?v=3) |
+| ![Card with thresholds per level](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-thresholds.png?v=4) | ![Compact view: sources, home and floors in small circles](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-compact.png?v=4) |
 
 Thresholds can differ per level, and a single element can have its own list: here the floor and room lines have their own limits and widths, and the oven (green until 1 kW) has its own thresholds instead of the consumer level's. The compact view shows only sources, home and floors.
 
@@ -43,15 +43,15 @@ Thresholds can differ per level, and a single element can have its own list: her
 
 | Energy mode | Own meters of floors and rooms |
 | --- | --- |
-| ![Card in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-energy.png?v=3) | ![Floors and rooms with their own meter](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-meters.png?v=3) |
+| ![Card in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-energy.png?v=4) | ![Floors and rooms with their own meter](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-meters.png?v=4) |
 
 | Second value: power now, energy of today | Feed-in, charging and self-consumption |
 | --- | --- |
-| ![Power now with the energy of today below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-secondary.png?v=3) | ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png?v=3) |
+| ![Power now with the energy of today below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-secondary.png?v=4) | ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png?v=4) |
 
 | Costs from a dynamic price | Base load and consumers that run all the time |
 | --- | --- |
-| ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png?v=3) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png?v=3) |
+| ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png?v=4) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png?v=4) |
 
 The energy mode shows how much each part used today, this week or this month; the lines show the share of the consumption, and the coffee machine has no energy sensor. Floors and rooms can have their own meter (small meter icon): here the ground floor (distribution board), the kitchen and the hall are metered, and the kitchen meter measures 0.4 kWh more than the kitchen's consumers. With `options.secondary_value: auto` every node shows the energy of today below its power (and the power now in the energy mode). With counters for both directions the grid and the battery show what went back (feed-in 3.8 kWh, charged 2.4 kWh), and the *Self-consumption* badge says how much of the solar energy stayed in the home.
 
@@ -59,11 +59,11 @@ The energy mode shows how much each part used today, this week or this month; th
 
 | Timeline of the day | Sankey diagram |
 | --- | --- |
-| ![Timeline of today stacked by room, yesterday dashed](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-timeline.png?v=3) | ![Sankey diagram of sources, floors, rooms and consumers with feed-in and charging below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-sankey.png?v=3) |
+| ![Timeline of today stacked by room, yesterday dashed](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-timeline.png?v=4) | ![Sankey diagram of sources, floors, rooms and consumers with feed-in and charging below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-sankey.png?v=4) |
 
 | Heatmap card | Switches in the consumer list |
 | --- | --- |
-| ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png?v=3) | ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png?v=3) |
+| ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png?v=4) | ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png?v=4) |
 
 The card screenshots are rendered from mock data with `npm run screenshots`, in English (`SHOT_LANG=de` renders them in German).
 
@@ -73,15 +73,15 @@ Everything can be configured without YAML. Floors and rooms are picked from the 
 
 | General and options | Thresholds per level |
 | --- | --- |
-| ![Editor: general](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-general.png?v=3) | ![Editor: thresholds](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-thresholds.png?v=3) |
+| ![Editor: general](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-general.png?v=4) | ![Editor: thresholds](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-thresholds.png?v=4) |
 
 | Energy sensors | Structure with energy sensors |
 | --- | --- |
-| ![Editor: energy sensors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-energy.png?v=3) | ![Editor: structure](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-structure.png?v=3) |
+| ![Editor: energy sensors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-energy.png?v=4) | ![Editor: structure](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-structure.png?v=4) |
 
 **Import from the Energy dashboard:** the button *Import from Energy dashboard* at the top of the editor proposes the structure of the card from what you already set up in Home Assistant's Energy dashboard, in three steps: *Sources* (grid, solar and battery with their counters, and a power sensor each: the one of the dashboard, or the only one at the same device, otherwise you choose), *Structure* (floors, rooms and devices by their areas; tick or untick on every level, rename a device, put it into another room; devices without an area are off by default, external statistics are shown but cannot be taken over) and *Preview* (a live card, *Now* or *Today*). A device that is part of another one (`included_in_stat`) sits under its parent: the parent becomes the meter of the room when the whole family is in that room, otherwise its parts are off by default, so nothing is counted twice. Devices need no power sensor in the card any more: a consumer with only an energy counter shows in the energy mode and is greyed out in the mode *Now*. When the card already has a structure you choose: *Replace* (new sources, floors and rooms; title, colors and options stay) or *Add what is missing* (existing entries stay as they are, they only get the energy counter the dashboard knows for their power sensor). Gas and water are not electricity and are left out. A device that the dashboard also lists as a "grid" source (a common way to give a plug a price) is offered as a device only, so it is not counted twice. Areas without a floor can only be shown when no floors are used.
 
-![Import wizard: structure from the Energy dashboard](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-import.png?v=3)
+![Import wizard: structure from the Energy dashboard](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-import.png?v=4)
 
 The editor screenshots are rendered from demo data with `npm run screenshots`, in English too. The form fields are drawn by a stand-in for Home Assistant's form (`dev/ha-form-stub.js`), so they look like the real ones but are not taken in a real Home Assistant.
 

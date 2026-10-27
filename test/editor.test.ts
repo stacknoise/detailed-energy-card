@@ -215,14 +215,14 @@ describe("consumers are unique", () => {
       ],
     };
     expect(consumerEntitiesExcept(e, ["rooms", 0, "consumers", 0]).sort()).toEqual(["sensor.e2", "sensor.p2"]);
-    const [, energyField] = consumerFields(["sensor.e2"]);
+    const [, , energyField] = consumerFields(["sensor.e2"]);
     expect(energyField.selector).toEqual({ entity: { domain: "sensor", device_class: "energy", exclude_entities: ["sensor.e2"] } });
     expect(findDuplicates({ ...e, rooms: [e.rooms![0], { area_id: "b", name: "B", consumers: [{ entity: "sensor.p2", energy_entity: "sensor.e1" }] }] })).toEqual([
       { entity: "sensor.e1", places: ["a", "B"] },
     ]);
   });
   it("hands the taken sensors to the entity picker as excluded", () => {
-    const [entity] = consumerFields(["sensor.two"]);
+    const [, entity] = consumerFields(["sensor.two"]);
     expect(entity.selector).toEqual({ entity: { domain: "sensor", device_class: "power", exclude_entities: ["sensor.two"] } });
   });
   it("rejects an energy sensor that is assigned twice", () => {
