@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Internal
+
+- Groundwork for more views (package P3 of the expansion concept), no visible change: the tree diagram is drawn by its own `TreeView` (`src/view/tree.ts`); the energy statistics are loaded as hourly or daily rows (`loadEnergySeries`) for any period, earlier ones included (`periodRange` with an offset); loading, keeping and refreshing them moved into an `EnergyStore` (`src/model/energy-store.ts`) that can hold several queries side by side; a view switch next to *Now | Today | Week | Month* appears once a second view exists, and the chosen view is remembered with mode and period.
+
 ## 1.1.2
 
 ### Added

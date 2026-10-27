@@ -177,6 +177,30 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .modes .status.warn")).toHaveText("Energiedaten nicht verfügbar");
   });
 
+  test("the view switch only appears with two views or more, and the view is remembered", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "energy");
+    // only the tree can be drawn for now: no view switch, the mode switch looks as before
+    await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
+    await expect(page.locator("detailed-energy-card .switches")).toHaveCount(0);
+    const offerTimeline = () =>
+      page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _testViews: string[]; _config: object; setConfig(c: object): void };
+        el._testViews = ["tree", "timeline"];
+        el.setConfig({ ...el._config, options: { ...(el._config as { options?: object }).options } });
+      });
+    await offerTimeline();
+    // the test offers a second view through an internal field: the switch shows both, the tree first
+    const view = (label: string) => page.locator(`detailed-energy-card .views button[aria-label="${label}"]`);
+    await expect(view("Baum")).toHaveAttribute("aria-pressed", "true");
+    await view("Verlauf").click();
+    await expect(view("Verlauf")).toHaveAttribute("aria-pressed", "true");
+    await expect(mode(page, "Heute")).toHaveAttribute("aria-pressed", "true");
+    // the view is stored with mode and period and comes back with the next configuration
+    await offerTimeline();
+    await expect(view("Verlauf")).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("a card without energy sensors has no switch", async ({ page }) => {
     await open(page, "floors");
     await expect(page.locator("detailed-energy-card .modes")).toHaveCount(0);

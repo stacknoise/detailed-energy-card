@@ -206,7 +206,7 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 
 ```
 src/
-  detailed-energy-card.ts   // Custom Element, hass-Setter, Auswahlzustand, Rendering
+  detailed-energy-card.ts   // Custom Element, hass-Setter, Auswahl, Modus und Ansicht, Energie-Store, Kopf, Schalter, Verbraucherliste
   register.ts               // customElements.define, customCards und Konsolenzeile nur einmal
   env.d.ts                  // __VERSION__ (Version aus package.json, per Vite-define)
   editor/
@@ -225,11 +225,22 @@ src/
     selection.ts              // gemerkte Auswahl: Key aus Struktur-IDs, typgeprüftes Laden
     registry.ts               // Floors/Areas aus hass, WebSocket-Fallback mit Backoff
     stub-config.ts            // Startkonfiguration für den Karten-Picker
-  view/layout.ts            // Geometrie: Positionen, Kurven, Linienstärke, Animationsdauer
+    energy.ts                 // Zeiträume (periodRange mit offset), Statistik-Abfrage als Stunden-/Tageszeilen (loadEnergySeries), Summen
+    energy-store.ts           // EnergyStore: lädt die gezeigten Abfragen, merkt sie 5 Minuten, Token gegen veraltete Antworten, Pause bei unsichtbarer Card
+  view/
+    layout.ts                 // Geometrie: Positionen, Kurven, Linienstärke, Animationsdauer
+    focus.ts                  // Zielpositionen und Gleiten bei focus_selected
+    tree.ts                   // TreeView: das Baum-Diagramm (Quellen, Haus, Etagen, Räume, Linien) samt Gleiten
+    views.ts                  // Ansichten (tree, sankey, timeline), welche angeboten werden, gemerkter Modus/Zeitraum/Ansicht
   styles/theme.ts           // CSS-Variablen und Styles
   localize/index.ts         // Texte der Card (DE/EN), Standardnamen der Quellen
   localize/editor.ts        // Texte des Editors (DE/EN, typisierte Schlüssel)
 ```
+
+**Ansichten**
+
+- Die Card zeichnet ihr Diagramm über eine Ansicht. Bisher gibt es nur den Baum (`TreeView` in `view/tree.ts`); Sankey (P9) und Verlauf (P7) folgen. Die Card behält Konfiguration, Modus, Auswahl, Energie-Store, Kopfzeile und Verbraucherliste und gibt der Ansicht pro Frame einen `TreeContext`. `prepare()` läuft in `willUpdate()`, `render()` liest nur.
+- Der Ansichts-Schalter (Icon-Gruppe rechts neben *Jetzt | Heute | Woche | Monat*) erscheint erst, wenn mindestens zwei Ansichten angeboten werden; mit nur dem Baum bleibt die Card unverändert. Die gewählte Ansicht wird zusammen mit Modus und Zeitraum gemerkt (`remember_selection`, Schlüssel `…:mode`). Die Optionen `view` und `views` kommen mit P7.
 
 **Texte und Sprachen**
 
@@ -445,7 +456,7 @@ Die Karte zeigt neben der Leistung jetzt auch die Energie eines Zeitraums.
 
 - **Konfiguration:** `energy_entity` an Quellen und Verbrauchern (Zähler mit `device_class: energy`, Wh/kWh/MWh), `home.total_energy_entity` für „Nicht erfasst“ und die Autarkie, `options.mode` (`power` | `energy`, Startansicht) und `options.energy_periods` (Liste aus `today`, `week`, `month`, Standard alle).
 - **Schalter:** *Jetzt | Heute | Woche | Monat* im Kopf der Karte, sichtbar, sobald ein Element einen Energiesensor hat. Modus und Zeitraum werden wie die Auswahl gemerkt (`remember_selection`).
-- **Daten:** WebSocket `recorder/statistics_during_period` mit `types: ["change"]` und `units: { energy: "kWh" }` (Home Assistant rechnet jede Einheit um). Heute wird stündlich, Woche und Monat täglich summiert. Beginn von Tag, Woche und Monat liegt um Mitternacht in der Zeitzone von Home Assistant, die Woche beginnt am ersten Wochentag der Sprache (`locale.first_weekday`). Tage mit Zeitumstellung werden korrekt behandelt. Die Abfrage wiederholt sich alle 5 Minuten, solange die Karte sichtbar ist.
+- **Daten:** WebSocket `recorder/statistics_during_period` mit `types: ["change"]` und `units: { energy: "kWh" }` (Home Assistant rechnet jede Einheit um). Heute wird stündlich, Woche und Monat täglich summiert. Beginn von Tag, Woche und Monat liegt um Mitternacht in der Zeitzone von Home Assistant, die Woche beginnt am ersten Wochentag der Sprache (`locale.first_weekday`). Tage mit Zeitumstellung werden korrekt behandelt. Die Abfrage wiederholt sich alle 5 Minuten, solange die Karte sichtbar ist. Die Statistik kommt als Stunden- bzw. Tageszeilen (`loadEnergySeries`), die Card summiert sie; frühere Zeiträume (gestern, letzte Woche) lassen sich über `periodRange(…, offset)` abfragen. Laden, Merken und Aktualisieren übernimmt der `EnergyStore` (`model/energy-store.ts`), der mehrere Abfragen nebeneinander halten kann.
 - **Zustände:** Beim ersten Laden zählen alle Werte 0 und ein Hinweis „Lade Energiedaten …“ erscheint. Schlägt die Abfrage fehl, zeigt die Karte „Energiedaten nicht verfügbar“. Ein Element ohne `energy_entity` ist ausgegraut („Kein Energiesensor konfiguriert“), ein Sensor ohne Statistik gilt als nicht verfügbar.
 - **Darstellung:** Werte in kWh (`decimals`, Standard 1). Linienstärke nach Anteil am Verbrauch des Hauses (1 bis 6 px), keine Fließanimation, keine Schwellwerte, normale Flussfarbe. Intern rechnet der Modus in Wh, damit die Ruhegrenze (unter 1 Wh) und die Verbraucherliste unverändert funktionieren.
 - **Grenzen:** Einspeisung und Batterie-Laden fehlen, weil ein Energiezähler nur eine Richtung kennt. Kosten und Vergleiche mit dem Vortag gibt es nicht.

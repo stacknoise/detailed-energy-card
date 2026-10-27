@@ -1,32 +1,22 @@
-import { LitElement, html, nothing, svg, type TemplateResult } from "lit";
+import { LitElement, html, nothing, type TemplateResult } from "lit";
 import { state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
 import { collectEnergyIds, collectEntityIds, hasEnergy, validateConfig, type EnergyCardConfig } from "./model/config";
-import { energyReader, firstWeekdayIndex, loadEnergy, offeredPeriods, type EnergyPeriod } from "./model/energy";
-import { computeModel, listedConsumers, type EnergyModel, type RoomNode, type SourceNode } from "./model/compute";
+import { energyReader, firstWeekdayIndex, loadEnergySeries, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
+import { EnergyStore, type EnergyQuery } from "./model/energy-store";
+import { computeModel, listedConsumers, type EnergyModel, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
-import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "./model/thresholds";
+import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
 import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
-import { Tween, focusTargets, type Pos } from "./view/focus";
+import { MAX_LEVEL, TreeView, type ResolvedSelection, type TreeContext } from "./view/tree";
+import { AVAILABLE_VIEWS, VIEW_ICONS, offeredViews, parseShown, type ViewId } from "./view/views";
 import { parseSelection, removeLegacyKeysOnce, selectionKey, type Selection } from "./model/selection";
-import {
-  computeLayout,
-  curve,
-  roomPath,
-  flowDuration,
-  strokeWidth,
-  FLOOR_H,
-  HOME_H,
-  SOURCE_H,
-  type Layout,
-} from "./view/layout";
-
 interface Hass {
   language?: string;
   locale?: { language?: string; first_weekday?: string };
@@ -36,30 +26,6 @@ interface Hass {
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
   states: Record<string, StateLike | undefined>;
 }
-
-/** More ranges than this do not get any thicker. */
-const MAX_LEVEL = 3;
-/** Room columns narrower than this get a smaller label font, so that more of the name stays readable. */
-const TIGHT_COL_W = 90;
-/** How often the energy of the period is asked for again. */
-const ENERGY_REFRESH_MS = 5 * 60_000;
-
-/** A room with where it is shown; rooms of a floor that was just left are still drawn while they fade out. */
-interface RoomView {
-  room: RoomNode;
-  p: Pos;
-  leaving: boolean;
-}
-
-/** Inline opacity of a node that is fading; undefined leaves it to the stylesheet (idle nodes are dimmed there). */
-const fade = (o: number, idle: boolean): string | undefined => (o >= 1 ? undefined : String(o * (idle ? 0.45 : 1)));
-
-const SOURCE_ICONS: Record<string, string> = {
-  solar: "mdi:white-balance-sunny",
-  battery: "mdi:battery-high",
-  grid: "mdi:transmission-tower",
-  generic: "mdi:flash",
-};
 
 export class DetailedEnergyCard extends LitElement {
   static styles = cardStyles;
@@ -71,13 +37,19 @@ export class DetailedEnergyCard extends LitElement {
   /** "power": the power now; "energy": the energy of a period (needs energy sensors) */
   @state() private _mode: "power" | "energy" = "power";
   @state() private _period: EnergyPeriod = "today";
-  /** watt hours of the period per energy sensor; undefined until the first answer */
-  @state() private _energy?: Map<string, number>;
-  @state() private _energyState: "idle" | "loading" | "ok" | "error" = "idle";
-  private _energyTimer = 0;
-  /** when the last answer arrived (ms); 0 = none for the current view */
-  private _energyAt = 0;
-  private _energyToken = 0;
+  /** the view chosen in the view switch; every view draws the tree until the others exist (P7, P9) */
+  @state() private _view: ViewId = "tree";
+  /** views offered regardless of the configuration: only for tests, until `options.views` exists (P7) */
+  private _testViews?: ViewId[];
+  /** energy of the shown period, loaded from the statistics and refreshed while the card is visible */
+  private _energyStore = new EnergyStore(
+    (q) => this._loadEnergy(q),
+    () => {
+      this._recompute();
+      this.requestUpdate();
+    },
+    () => !this.classList.contains("offscreen"),
+  );
 
   private _hass?: Hass;
   private _entityIds: string[] = [];
@@ -85,15 +57,8 @@ export class DetailedEnergyCard extends LitElement {
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
-  /** slide after a selection change (only with options.focus_selected) */
-  private _tween?: Tween;
-  private _raf = 0;
-  private _lastSelKey?: string;
-  /** positions drawn by the current render, computed in `willUpdate` */
-  private _frame?: { floorViews: Pos[]; roomViews: RoomView[] };
-  /** what the previous render showed, the start of the next slide */
-  private _lastShown = new Map<string, Pos>();
-  private _lastRooms = new Map<string, RoomNode>();
+  /** the diagram of floors and rooms (the only view for now) */
+  private _tree = new TreeView(() => this.requestUpdate());
   /** Config with names from the registry; rebuilt only when the config or the registry changes. */
   private _resolved?: { reg: object; cfg: EnergyCardConfig };
   private _registries = new RegistrySource(() => {
@@ -117,6 +82,7 @@ export class DetailedEnergyCard extends LitElement {
       this._thresholds = resolveThresholds(this._config.colors?.thresholds, this._config.colors?.level_thresholds);
       this._resolved = undefined;
       this._sel = this._loadSelection();
+      this._energyStore.clear();
       this._loadMode();
       this._ensureEnergy();
     } catch (e) {
@@ -164,24 +130,21 @@ export class DetailedEnergyCard extends LitElement {
         if (!last) return;
         this.classList.toggle("offscreen", !last.isIntersecting);
         // the timer chain pauses while the card is hidden: catch up when it is seen again
-        if (last.isIntersecting) this._refreshEnergy();
+        if (last.isIntersecting) this._energyStore.refresh();
       });
       this._io.observe(this);
     }
     // re-attached (moved in the edit mode, view change): the refresh stopped when the card was detached
-    this._refreshEnergy();
+    this._energyStore.refresh();
   }
 
   disconnectedCallback(): void {
     this._ro?.disconnect();
     this._io?.disconnect();
     this._io = undefined;
-    cancelAnimationFrame(this._raf);
-    clearTimeout(this._energyTimer);
-    this._energyToken++;
-    // an answer that is still on its way is dropped (token), so "loading" would never end
-    if (this._energyState === "loading") this._energyState = "idle";
-    this._tween = undefined;
+    this._tree.stop();
+    // an answer that is still on its way is dropped; the last values stay for when the card is back
+    this._energyStore.pause();
     this.classList.remove("offscreen");
     this._observed = undefined;
     super.disconnectedCallback();
@@ -208,10 +171,12 @@ export class DetailedEnergyCard extends LitElement {
       cfg = this._resolved.cfg;
     }
     const names = sourceNames(this._hass.locale?.language ?? this._hass.language);
-    if (this._mode === "energy") {
+    const query = this._energyQuery();
+    if (query) {
       // while the first answer is on its way everything counts 0 instead of showing warnings; after an error nothing is known
-      const ids = collectEnergyIds(cfg);
-      const values = this._energy ?? (this._energyState === "error" ? new Map<string, number>() : new Map(ids.map((id) => [id, 0] as const)));
+      const values =
+        this._energyStore.values(query) ??
+        (this._energyStore.status(query) === "error" ? new Map<string, number>() : new Map(query.ids.map((id) => [id, 0] as const)));
       this._model = computeModel(cfg, energyReader(values), socReader(states), names, true);
     } else {
       this._model = computeModel(cfg, powerReader(states), socReader(states), names);
@@ -243,7 +208,7 @@ export class DetailedEnergyCard extends LitElement {
   }
 
   /** Applies the stored selection: the largest floor by default (all floors with focus_selected), all of its rooms unless one is chosen. */
-  private _resolve(model: EnergyModel): { floor?: number; rooms: RoomNode[]; room?: number } {
+  private _resolve(model: EnergyModel): ResolvedSelection {
     const largest = <T extends { watts: number }>(list: T[]) =>
       list.reduce((best, x, i) => (x.watts > list[best].watts ? i : best), 0);
     let floor: number | undefined;
@@ -267,116 +232,91 @@ export class DetailedEnergyCard extends LitElement {
     return `${this._storageKey}:mode`;
   }
 
-  /** Mode and period: the remembered ones, else the configured mode and the first period offered. */
+  /** Views the view switch offers. */
+  private get _views(): ViewId[] {
+    return this._testViews ?? offeredViews(undefined, AVAILABLE_VIEWS);
+  }
+
+  /** Mode, period and view: the remembered ones, else the configured mode, the first period and the first view offered. */
   private _loadMode(): void {
     const cfg = this._config;
     const periods = offeredPeriods(cfg?.options?.energy_periods);
+    const views = this._views;
     let mode: "power" | "energy" = cfg?.options?.mode === "energy" ? "energy" : "power";
     let period: EnergyPeriod = periods[0];
+    let view: ViewId = views[0];
     if (cfg?.options?.remember_selection !== false) {
       try {
-        const v = JSON.parse(localStorage.getItem(this._modeKey) ?? "null") as { mode?: unknown; period?: unknown } | null;
-        if (v?.mode === "power" || v?.mode === "energy") mode = v.mode;
-        if (periods.includes(v?.period as EnergyPeriod)) period = v!.period as EnergyPeriod;
+        const v = parseShown(localStorage.getItem(this._modeKey), periods, views);
+        mode = v.mode ?? mode;
+        period = v.period ?? period;
+        view = v.view ?? view;
       } catch {
-        /* storage may be unavailable or hold something else */
+        /* storage may be unavailable */
       }
     }
     if (!cfg || !hasEnergy(cfg)) mode = "power";
     this._mode = mode;
     this._period = period;
-    this._energy = undefined;
-    this._energyState = "idle";
-    this._energyAt = 0;
-    clearTimeout(this._energyTimer);
-    this._energyToken++;
+    this._view = view;
+  }
+
+  /** Remembers mode, period and view together, like the selection. */
+  private _saveShown(): void {
+    if (this._config?.options?.remember_selection === false) return;
+    try {
+      localStorage.setItem(this._modeKey, JSON.stringify({ mode: this._mode, period: this._period, view: this._view }));
+    } catch {
+      /* storage may be unavailable */
+    }
+  }
+
+  private _showView(view: ViewId): void {
+    this._view = view;
+    this._saveShown();
   }
 
   private _setView(mode: "power" | "energy", period: EnergyPeriod): void {
     const changed = mode !== this._mode || period !== this._period;
     this._mode = mode;
     this._period = period;
-    if (this._config?.options?.remember_selection !== false) {
-      try {
-        localStorage.setItem(this._modeKey, JSON.stringify({ mode, period }));
-      } catch {
-        /* storage may be unavailable */
-      }
-    }
+    this._saveShown();
     if (!changed) return;
-    clearTimeout(this._energyTimer);
-    this._energyToken++;
-    // the numbers of another period would be wrong for this one
-    this._energy = undefined;
-    this._energyAt = 0;
-    if (mode === "energy") {
-      this._energyState = "idle";
-      this._ensureEnergy(true);
-    }
+    // the store drops the numbers of the period that was shown and loads the new one
+    this._ensureEnergy();
     this._recompute();
   }
 
-  /** Loads the energy of the period when the energy mode needs it. */
-  private _ensureEnergy(force = false): void {
-    if (this._mode !== "energy" || !this._config || !this._hass) return;
-    if (!force && this._energyState !== "idle") return;
-    void this._fetchEnergy();
+  /** The energy the card shows now: the sensors and the period of the energy mode; undefined in the power mode. */
+  private _energyQuery(): EnergyQuery | undefined {
+    if (this._mode !== "energy" || !this._config) return undefined;
+    return { ids: collectEnergyIds(this._config), period: this._period };
   }
 
-  /**
-   * Brings the energy values up to date after the refresh chain was interrupted (card detached or hidden):
-   * loads again when the last answer is old, otherwise waits out the rest of the interval.
-   */
-  private _refreshEnergy(): void {
-    if (this._mode !== "energy" || !this._config || !this._hass || this._energyState === "loading") return;
-    const age = Date.now() - this._energyAt;
-    if (this._energyState === "ok" && age < ENERGY_REFRESH_MS) {
-      clearTimeout(this._energyTimer);
-      this._energyTimer = window.setTimeout(() => this._onEnergyTimer(), ENERGY_REFRESH_MS - age);
-      return;
-    }
-    void this._fetchEnergy();
+  /** Tells the store what the card shows; it loads what it does not have yet. */
+  private _ensureEnergy(): void {
+    if (!this._config || !this._hass) return;
+    const query = this._energyQuery();
+    this._energyStore.want(query ? [query] : []);
   }
 
-  private _onEnergyTimer(): void {
-    // while the card is hidden the chain just ends; the observer starts it again when the card is seen
-    if (!this.classList.contains("offscreen")) void this._fetchEnergy();
-  }
-
-  private async _fetchEnergy(): Promise<void> {
-    const cfg = this._config;
-    const hass = this._hass;
-    if (!cfg || !hass || this._mode !== "energy") return;
-    const token = ++this._energyToken;
-    clearTimeout(this._energyTimer);
-    // an answer for the period that was shown stays visible while the new one is loading
-    if (this._energyState !== "ok") this._energyState = "loading";
-    try {
-      const values = await loadEnergy(
-        hass,
-        collectEnergyIds(cfg),
-        this._period,
-        new Date(),
-        hass.config?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-        firstWeekdayIndex(hass.locale?.first_weekday, hass.locale?.language ?? hass.language),
-      );
-      if (token !== this._energyToken) return;
-      this._energy = values;
-      this._energyAt = Date.now();
-      this._energyState = "ok";
-    } catch {
-      if (token !== this._energyToken) return;
-      this._energy = undefined;
-      this._energyState = "error";
-    }
-    this._recompute();
-    // the statistics are compiled every few minutes: ask again from time to time
-    this._energyTimer = window.setTimeout(() => this._onEnergyTimer(), ENERGY_REFRESH_MS);
+  private _loadEnergy(q: EnergyQuery) {
+    const hass = this._hass!;
+    const { start, end } = periodRange(
+      q.period,
+      new Date(),
+      hass.config?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      firstWeekdayIndex(hass.locale?.first_weekday, hass.locale?.language ?? hass.language),
+      q.offset,
+    );
+    return loadEnergySeries(hass, q.ids, start, end, statPeriodFor(q.period));
   }
 
   private _renderModeSwitch(cfg: EnergyCardConfig): TemplateResult | typeof nothing {
     if (!hasEnergy(cfg)) return nothing;
     const periods = offeredPeriods(cfg.options?.energy_periods);
+    const query = this._energyQuery();
+    const status = query ? this._energyStore.status(query) : "idle";
     const items: Array<{ mode: "power" | "energy"; period: EnergyPeriod; label: string; on: boolean }> = [
       { mode: "power", period: this._period, label: this._t("mode_now"), on: this._mode === "power" },
       ...periods.map((p) => ({ mode: "energy" as const, period: p, label: this._t(`period_${p}`), on: this._mode === "energy" && this._period === p })),
@@ -386,8 +326,29 @@ export class DetailedEnergyCard extends LitElement {
         ${items.map(
           (i) => html`<button class=${i.on ? "on" : ""} aria-pressed=${i.on} @click=${() => this._setView(i.mode, i.period)}>${i.label}</button>`,
         )}
-        ${this._mode === "energy" && this._energyState === "loading" ? html`<span class="status">${this._t("energy_loading")}</span>` : nothing}
-        ${this._mode === "energy" && this._energyState === "error" ? html`<span class="status warn">${this._t("energy_error")}</span>` : nothing}
+        ${status === "loading" ? html`<span class="status">${this._t("energy_loading")}</span>` : nothing}
+        ${status === "error" ? html`<span class="status warn">${this._t("energy_error")}</span>` : nothing}
+      </div>
+    `;
+  }
+
+  /** Mode switch and, with two views or more, the view switch to its right. */
+  private _renderSwitches(cfg: EnergyCardConfig): TemplateResult | typeof nothing {
+    const modes = this._renderModeSwitch(cfg);
+    const views = this._views;
+    if (views.length < 2) return modes;
+    return html`
+      <div class="switches">
+        ${modes}
+        <div class="views" role="group" aria-label=${this._t("view_label")}>
+          ${views.map((v) => {
+            const on = v === this._view;
+            const label = this._t(`view_${v}`);
+            return html`<button class=${on ? "on" : ""} aria-pressed=${on} title=${label} aria-label=${label} @click=${() => this._showView(v)}>
+              <ha-icon icon=${VIEW_ICONS[v]}></ha-icon>
+            </button>`;
+          })}
+        </div>
       </div>
     `;
   }
@@ -410,97 +371,55 @@ export class DetailedEnergyCard extends LitElement {
     return this._config?.options?.focus_selected === true;
   }
 
-  private _startTween(next: Map<string, Pos>, origin: Pos): void {
-    const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const tween = new Tween(this._lastShown, next, () => origin, reduced, performance.now());
-    this._tween = tween;
-    cancelAnimationFrame(this._raf);
-    const step = () => {
-      this.requestUpdate();
-      if (this._tween === tween && !tween.finished(performance.now())) this._raf = requestAnimationFrame(step);
-    };
-    this._raf = requestAnimationFrame(step);
-  }
-
   private _moreInfo(entityId: string): void {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
 
   // ---------- render ----------
 
-  /** What the selection and the width of the card make of the diagram: pure, nothing is stored. */
-  private _geometry(model: EnergyModel) {
-    const cfg = this._config;
-    const sel = this._resolve(model);
-    const layout = computeLayout({
-      width: this._width || 320,
-      sources: model.sources.length,
-      floors: model.floors.length,
-      rooms: sel.rooms.length,
-      wrap: cfg?.options?.wrap_rooms === true,
-    });
-    // Positions of the floors and rooms. With options.focus_selected the selected element of a level
-    // slides to the middle under its parent and the rest of that level fades out behind it.
-    const tg = focusTargets({
-      layout,
-      floors: model.floors.length,
-      selFloor: sel.floor,
-      rooms: sel.rooms.length,
-      selRoom: sel.room,
+  /** Everything the tree view needs for this frame. */
+  private _treeContext(cfg: EnergyCardConfig, model: EnergyModel, sel: ResolvedSelection, home: string): TreeContext {
+    return {
+      config: cfg,
+      model,
+      sel,
+      stored: this._sel,
+      width: this._width,
+      energy: this._mode === "energy",
       focus: this._focus,
-    });
-    const targets = new Map<string, Pos>();
-    model.floors.forEach((f, i) => targets.set(`f:${f.id}`, tg.floors[i]));
-    sel.rooms.forEach((r, i) => targets.set(`r:${r.id}`, tg.rooms[i]));
-    const selKey = `${sel.floor ?? ""}|${sel.room ?? ""}`;
-    return { sel, layout, tg, targets, selKey };
+      thresholds: this._thresholds,
+      home,
+      fmt: (w) => this._fmt(w),
+      t: (k) => this._t(k),
+      select: (s) => this._select(s),
+      moreInfo: (id) => this._moreInfo(id),
+    };
   }
 
-  /**
-   * Where the floors and rooms are drawn now. Runs before every render (and not in `render()`, which only
-   * reads the result): a changed selection starts the slide from what the previous frame showed.
-   */
+  private get _homeName(): string {
+    return this._hass?.config?.location_name ?? this._t("home");
+  }
+
+  /** Positions of the diagram, before every render: `render()` only reads them. */
   protected willUpdate(): void {
     const model = this._model;
     if (this._error || !this._config || !model) {
-      this._frame = undefined;
+      this._tree.reset();
       return;
     }
-    const { sel, layout, tg, targets, selKey } = this._geometry(model);
-    if (this._focus && this._lastSelKey !== undefined && selKey !== this._lastSelKey) {
-      const parent = sel.floor !== undefined ? tg.floors[sel.floor] : { x: layout.homeX, y: layout.yHome, o: 1 };
-      this._startTween(targets, { x: parent.x, y: parent.y + FLOOR_H / 2, o: 0 });
-    }
-    this._lastSelKey = selKey;
-    const now = performance.now();
-    if (this._tween?.finished(now)) this._tween = undefined;
-    const pos = (id: string): Pos => this._tween?.sample(id, now) ?? targets.get(id) ?? { x: 0, y: 0, o: 0 };
-    const floorViews = model.floors.map((f) => pos(`f:${f.id}`));
-    sel.rooms.forEach((r) => this._lastRooms.set(r.id, r));
-    const roomViews: RoomView[] = sel.rooms.map((r) => ({ room: r, p: pos(`r:${r.id}`), leaving: false }));
-    // rooms of a floor that was just left fade out where they were
-    for (const id of this._tween?.leaving ?? []) {
-      const gone = id.startsWith("r:") ? this._lastRooms.get(id.slice(2)) : undefined;
-      if (gone) roomViews.push({ room: gone, p: pos(id), leaving: true });
-    }
-    this._lastShown = new Map([
-      ...model.floors.map((f, i) => [`f:${f.id}`, floorViews[i]] as const),
-      ...roomViews.map((v) => [`r:${v.room.id}`, v.p] as const),
-    ]);
-    this._frame = { floorViews, roomViews };
+    this._tree.prepare(this._treeContext(this._config, model, this._resolve(model), this._homeName));
   }
 
   protected render(): TemplateResult {
     if (this._error) return html`<ha-card><div class="error">${this._error}</div></ha-card>`;
     const cfg = this._config;
     const model = this._model;
-    const frame = this._frame;
-    if (!cfg || !model || !frame) return html`<ha-card></ha-card>`;
+    if (!cfg || !model || !this._tree.ready) return html`<ha-card></ha-card>`;
 
-    const { sel, layout } = this._geometry(model);
+    const sel = this._resolve(model);
     const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
     const room = sel.room !== undefined ? sel.rooms[sel.room] : undefined;
-    const home = this._hass?.config?.location_name ?? this._t("home");
+    const home = this._homeName;
     const allFloors = model.floors.length > 0 && sel.floor === undefined;
     // No single room selected: all rooms of the visible row count as selected.
     const allRooms = sel.rooms.length > 0 && !room;
@@ -524,8 +443,6 @@ export class DetailedEnergyCard extends LitElement {
       : room;
     const path = [home, floor?.name, room?.name].filter(Boolean).join(" › ");
 
-    const { floorViews, roomViews } = frame;
-
     return html`
       <ha-card style=${colorVars(cfg.colors)}>
         <header>
@@ -537,143 +454,10 @@ export class DetailedEnergyCard extends LitElement {
             ? html`<div class="badge">${this._t("autarky")} ${Math.round(model.autarky * 100)} %</div>`
             : nothing}
         </header>
-        ${this._renderModeSwitch(cfg)}
-        <div class="scroll">
-          <div class="graph" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px` })}>
-            ${this._renderLines(model, layout, floorViews, roomViews, sel.floor, sel.room, allRooms, allFloors)}
-            ${model.sources.map((s, i) => this._renderSource(s, layout.sourceXs[i]))}
-            ${this._renderHome(model, layout, home, allFloors || (!model.floors.length && allRooms))}
-            ${model.floors.map((f, i) => this._renderFloor(f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors))}
-            ${roomViews.map((v) => this._renderRoom(v.room, v.p, layout.roomColW, !v.leaving && v.room.id === sel.rooms[sel.room ?? -1]?.id, allRooms, v.leaving))}
-          </div>
-        </div>
+        ${this._renderSwitches(cfg)}
+        ${this._tree.render(this._treeContext(cfg, model, sel, home))}
         ${this._config?.options?.show_consumers === false ? nothing : this._renderDetail(model, detailRoom)}
       </ha-card>
-    `;
-  }
-
-  private _renderLines(model: EnergyModel, l: Layout, floorViews: Pos[], roomViews: RoomView[], floorIdx?: number, roomIdx?: number, allRooms = false, allFloors = false): TemplateResult {
-    const energy = this._mode === "energy";
-    const animate = this._config?.options?.animation !== false && !energy;
-    const thresholds = this._thresholds;
-    // energy mode: the width shows the share of the consumption of the home (or of all sources), no thresholds
-    const shareOf = (v: number, total: number) => 1 + Math.min(1, Math.max(0, total > 0 ? v / total : 0)) * 5;
-    const produced = model.sources.reduce((sum, s) => sum + Math.max(0, s.watts), 0);
-    // a line belongs to the level of the node it leads to
-    const line = (lvl: ThresholdLevel, own: ThresholdConfig[] | undefined, d: string, watts: number, active: boolean, reverse = false, opacity = 1) => {
-      const dur = energy ? null : flowDuration(watts);
-      // only lines of the selected path take the threshold color, the others stay muted
-      const list = elementThresholds(own, thresholds[lvl]);
-      const color = !energy && active && !isIdle(watts) ? thresholdColor(list, watts) : undefined;
-      const level = color ? Math.min(thresholdLevel(list, watts), MAX_LEVEL) : 0;
-      // a width set on the reached range replaces the width that follows the power
-      const width = energy ? shareOf(watts, lvl === "source" ? produced : model.homeWatts) : (color ? thresholdWidth(list, watts) : undefined) ?? strokeWidth(watts) + level * 0.75;
-      return svg`<path
-        class="line ${active ? "active" : ""} ${dur && animate ? "flowing" : ""} ${reverse ? "reverse" : ""}"
-        d=${d}
-        stroke-width=${width}
-        style=${(dur ? `--dur:${dur}s;` : "") + (color ? `stroke:${color};` : "") + (opacity < 1 ? `opacity:${opacity}` : "")}
-      />`;
-    };
-    const parts: TemplateResult[] = [];
-    model.sources.forEach((s, i) => {
-      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], SOURCE_H, l.homeX, l.yHome), s.watts, Math.abs(s.watts) >= 1, s.reverse));
-    });
-    const homeBottom = l.yHome + HOME_H;
-    let roomFromX = l.homeX;
-    let roomFromY = homeBottom;
-    model.floors.forEach((f, i) => {
-      const p = floorViews[i];
-      parts.push(line("floor", f.thresholds, curve(l.homeX, homeBottom, p.x, p.y), f.watts, allFloors || i === floorIdx, false, p.o));
-      if (i === floorIdx) {
-        roomFromX = p.x;
-        roomFromY = p.y + FLOOR_H;
-      }
-    });
-    roomViews
-      .filter((v) => !v.leaving)
-      .forEach(({ room: r, p }, i) => {
-        parts.push(line("room", r.thresholds, roomPath(roomFromX, roomFromY, p.x, p.y, l.yRoom), r.watts, allRooms || i === roomIdx, false, p.o));
-      });
-    return html`<svg class="lines" width=${l.width} height=${l.height}>${parts}</svg>`;
-  }
-
-  private _renderSource(s: SourceNode, x: number): TemplateResult {
-    const suffix =
-      s.type === "battery"
-        ? s.reverse
-          ? ` · ${this._t("charging")}`
-          : s.soc !== undefined
-            ? ` · ${Math.round(s.soc)} %`
-            : ""
-        : s.type === "grid"
-          ? ` · ${this._t(s.reverse ? "export" : "import")}`
-          : s.type === "solar" && s.share > 0
-            ? ` · ${Math.round(s.share * 100)} %`
-            : "";
-    return html`
-      <button
-        class="node ${s.valid ? "" : "warn"}"
-        style=${styleMap({ left: `${x}px`, top: "0px", "--node-color": s.color ?? "" })}
-        title=${s.valid ? s.name : `${s.name}: ${this._t(s.noEnergy ? "no_energy" : "unavailable")}`}
-        @click=${() => this._moreInfo(s.entity)}
-      >
-        <span class="circle source"><ha-icon icon=${s.icon ?? SOURCE_ICONS[s.type]}></ha-icon></span>
-        <span class="label">${s.name}${suffix}</span>
-        <span class="value">${this._fmt(s.watts)}</span>
-      </button>
-    `;
-  }
-
-  /** Clicking the home selects everything: all floors, or all rooms without floors. */
-  private _renderHome(model: EnergyModel, l: Layout, name: string, everything: boolean): TemplateResult {
-    return html`
-      <button
-        class="node"
-        style=${styleMap({ left: `${l.homeX}px`, top: `${l.yHome}px` })}
-        aria-pressed=${everything}
-        title=${name}
-        @click=${() => this._select(model.floors.length ? { floor: null } : { room: null })}
-      >
-        <span class="circle home">
-          <ha-icon icon="mdi:home"></ha-icon>
-          <span>${this._fmt(model.homeWatts)}</span>
-        </span>
-      </button>
-    `;
-  }
-
-  private _renderFloor(id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false): TemplateResult {
-    return html`
-      <button
-        class="node ${isIdle(watts) ? "idle" : ""} ${p.o < 0.5 ? "ghost" : ""}"
-        style=${styleMap({ left: `${p.x}px`, top: `${p.y}px`, opacity: fade(p.o, isIdle(watts)), "--node-color": color ?? "" })}
-        aria-pressed=${selected}
-        aria-hidden=${p.o < 0.5 ? "true" : nothing}
-        tabindex=${p.o < 0.5 ? "-1" : nothing}
-        title=${name}
-        @click=${() => this._select(selected && !this._focus ? { floor: null } : { floor: id })}
-      >
-        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${this._fmt(watts)}</small></span>
-      </button>
-    `;
-  }
-
-  private _renderRoom(r: RoomNode, p: Pos, colW: number, selected: boolean, allRooms = false, leaving = false): TemplateResult {
-    return html`
-      <button
-        class="node ${isIdle(r.watts) ? "idle" : ""} ${colW < TIGHT_COL_W ? "tight" : ""} ${p.o < 0.5 || leaving ? "ghost" : ""}"
-        style=${styleMap({ left: `${p.x}px`, top: `${p.y}px`, width: `${Math.max(0, colW - 4)}px`, opacity: fade(p.o, isIdle(r.watts)), "--node-color": r.color ?? "" })}
-        aria-pressed=${selected}
-        aria-hidden=${p.o < 0.5 || leaving ? "true" : nothing}
-        tabindex=${p.o < 0.5 || leaving ? "-1" : nothing}
-        title=${r.name}
-        @click=${() => this._select({ ...this._sel, room: selected && !this._focus ? null : r.id })}
-      >
-        <span class="circle room ${selected || allRooms ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon></span>
-        <span class="label">${r.name}</span>
-        <span class="value">${this._fmt(r.watts)}</span>
-      </button>
     `;
   }
 
