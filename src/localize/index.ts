@@ -72,6 +72,14 @@ const de = {
   source_grid: "Netz",
   source_generic: "Quelle",
   default_title: "Energiefluss",
+  hm_picker_description: "Wann wird Strom verbraucht? Heatmap der letzten Tage, Stunde für Stunde",
+  hm_title: "Stromverbrauch nach Tag und Stunde",
+  hm_total: "{0} Tage gesamt",
+  hm_peak: "Spitze {0}",
+  hm_costly: "Teuerste Stunde {0}",
+  hm_base_tip: "Niedrigster Stundenverbrauch zwischen 1 und 5 Uhr in den gezeigten Tagen",
+  hm_missing: "keine Daten",
+  hm_empty: "Keine Statistik für diesen Sensor",
   picker_description: "Energiefluss von Quellen über Etagen und Räume bis zu den Verbrauchern",
 };
 const en: typeof de = {
@@ -148,6 +156,14 @@ const en: typeof de = {
   source_grid: "Grid",
   source_generic: "Source",
   default_title: "Energy flow",
+  hm_picker_description: "When is electricity used? Heatmap of the last days, hour by hour",
+  hm_title: "Electricity use by day and hour",
+  hm_total: "{0} days total",
+  hm_peak: "Peak {0}",
+  hm_costly: "Most expensive hour {0}",
+  hm_base_tip: "Lowest hourly use between 1 and 5 o'clock in the days shown",
+  hm_missing: "no data",
+  hm_empty: "No statistics for this sensor",
   picker_description: "Power flow from sources through floors and rooms down to the consumers",
 };
 

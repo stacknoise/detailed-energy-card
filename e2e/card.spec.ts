@@ -378,6 +378,34 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .standby")).toHaveCount(0);
   });
 
+  test("the heatmap card shows a row per day and a column per hour, gaps in gray and the figures of the days", async ({ page }) => {
+    await fixClock(page);
+    await page.goto("/dev/index.html?card=heatmap&days=10");
+    const card = page.locator("detailed-energy-heatmap-card");
+    await expect(card.locator("h2")).toHaveText("Wann wird Strom verbraucht?");
+    await expect(card.locator(".day")).toHaveCount(10);
+    await expect(card.locator(".cell")).toHaveCount(240);
+    // the hours after now have not begun, the hours without statistics are gaps
+    await expect(card.locator(".cell.future").first()).toBeAttached();
+    await expect(card.locator(".cell.missing").first()).toBeAttached();
+    const kpis = card.locator(".kpi span");
+    await expect(kpis.nth(0)).toHaveText("Grundlast");
+    await expect(kpis.nth(1)).toHaveText("10 Tage gesamt");
+    // with a price sensor the card names the most expensive hour with its cost, without one the peak
+    await expect(card.locator(".kpi b").nth(2)).toHaveText(/\d+,\d\d\s€/);
+    await expect(kpis.nth(2)).toHaveText(/^Teuerste Stunde \S+ \d+\.\d+\. \d\d–\d\d Uhr$/);
+    await page.goto("/dev/index.html?card=heatmap&days=10&price=0");
+    await expect(kpis.nth(2)).toHaveText(/^Spitze /);
+    await expect(card.locator(".cell:not(.missing):not(.future)").first()).toHaveAttribute("title", /kWh$/);
+  });
+
+  test("the heatmap card says so when its configuration is wrong", async ({ page }) => {
+    await page.goto("/dev/index.html?card=heatmap");
+    await expect(page.locator("detailed-energy-heatmap-card .cell").first()).toBeVisible();
+    await page.evaluate(() => (document.querySelector("detailed-energy-heatmap-card") as unknown as { setConfig(c: object): void }).setConfig({ type: "x", entity: "sensor.a", days: 3 }));
+    await expect(page.locator("detailed-energy-heatmap-card .error")).toContainText("days must be a whole number from 7 to 28");
+  });
+
   test("arrows browse back through the periods of the energy mode and stop at the running one", async ({ page }) => {
     await fixClock(page);
     await open(page, "energy");

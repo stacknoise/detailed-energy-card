@@ -109,6 +109,24 @@ const shots: Array<{ scenario: string; file: string; clock?: string; before?: (p
   }, // all rooms of the floor are selected by default
 ];
 
+/** A fixed clock, so that a picture shows the same hours and amounts on every day. */
+async function fixClock(page: import("@playwright/test").Page, at: string): Promise<void> {
+  await page.addInitScript((at) => {
+    const Real = Date;
+    const fixed = new Real(at).getTime();
+    class Fake extends Real {
+      constructor(...args: unknown[]) {
+        if (args.length) super(...(args as [string]));
+        else super(fixed);
+      }
+      static now() {
+        return fixed;
+      }
+    }
+    (window as unknown as { Date: unknown }).Date = Fake;
+  }, at);
+}
+
 // Every card image has the same size, so that they line up in tables and galleries. A card is shorter or longer
 // depending on its content; the picture always shows the same height and the rest is the dark background of the card.
 // card-hero keeps the height of the card (the product page uses it next to the headline).
@@ -119,22 +137,7 @@ const natural = new Set(["card-hero"]);
 
 for (const { scenario, file, clock, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {
-    if (clock) {
-      await page.addInitScript((at) => {
-        const Real = Date;
-        const fixed = new Real(at).getTime();
-        class Fake extends Real {
-          constructor(...args: unknown[]) {
-            if (args.length) super(...(args as [string]));
-            else super(fixed);
-          }
-          static now() {
-            return fixed;
-          }
-        }
-        (window as unknown as { Date: unknown }).Date = Fake;
-      }, clock);
-    }
+    if (clock) await fixClock(page, clock);
     await page.setViewportSize({ width: 512, height: CARD_IMAGE_HEIGHT + 100 });
     await page.goto(`/dev/index.html?scenario=${scenario}`);
     await expect(page.locator("detailed-energy-card .path")).toContainText("Zuhause");
@@ -153,6 +156,21 @@ for (const { scenario, file, clock, before } of shots) {
     });
   });
 }
+
+// The heatmap card (dev/index.html?card=heatmap), 14 days
+test("screenshot card-heatmap", async ({ page }) => {
+  await fixClock(page, "2026-10-13T17:30:00Z");
+  await page.setViewportSize({ width: 512, height: CARD_IMAGE_HEIGHT + 100 });
+  await page.goto("/dev/index.html?card=heatmap");
+  const card = page.locator("detailed-energy-heatmap-card");
+  await expect(card.locator(".cell").first()).toBeVisible();
+  const box = await card.boundingBox();
+  if (!box) throw new Error("card-heatmap: no card");
+  await page.screenshot({
+    path: "docs/screenshots/card-heatmap.png",
+    clip: { x: box.x - IMAGE_MARGIN, y: box.y - IMAGE_MARGIN, width: box.width + 2 * IMAGE_MARGIN, height: box.height + 2 * IMAGE_MARGIN },
+  });
+});
 
 // The editor, rendered in a dialog like the one of Home Assistant with demo data (dev/index.html?editor=editor).
 // The form fields are drawn by a stand-in for <ha-form> (dev/ha-form-stub.js).
