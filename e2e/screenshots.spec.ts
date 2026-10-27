@@ -81,6 +81,15 @@ const shots: Array<{ scenario: string; file: string; clock?: string; before?: (p
     },
   },
   {
+    scenario: "actions",
+    file: "card-actions",
+    // the toggles of two consumers at the end of their rows; the kitchen is selected
+    before: async (page) => {
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+      await expect(page.locator("detailed-energy-card .switch").first()).toBeVisible();
+    },
+  },
+  {
     scenario: "sankey",
     file: "card-sankey",
     // sources, floors and rooms with feed-in and charging below; the kitchen is selected, the hours do not matter

@@ -376,6 +376,30 @@
       };
       // Timeline (like mock B3): the energy of the day per hour, stacked by floor, yesterday dashed.
       scenarios.timeline = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"] } };
+      // Actions and switches (package P15): the sun navigates and, held, opens the battery; a double tap on OG runs a
+      // script; two consumers have a switch, the heating asks before it is turned off.
+      scenarios.actions = {
+        ...scenarios.floors,
+        sources: scenarios.floors.sources.map((src) =>
+          src.type === "solar"
+            ? { ...src, tap_action: { action: "navigate", navigation_path: "/dev-target" }, hold_action: { action: "more-info", entity: "sensor.soc" } }
+            : src,
+        ),
+        floors: scenarios.floors.floors.map((f) => ({
+          ...f,
+          ...(f.floor_id === "og" ? { double_tap_action: { action: "perform-action", perform_action: "script.turn_on", target: { entity_id: "script.demo" } } } : {}),
+          rooms: f.rooms.map((r) => ({
+            ...r,
+            consumers: r.consumers.map((cn) =>
+              cn.entity === "sensor.kaffee"
+                ? { ...cn, switch_entity: "switch.kaffee" }
+                : cn.entity === "sensor.og"
+                  ? { ...cn, switch_entity: "switch.heizung", confirm_switch: true }
+                  : cn,
+            ),
+          })),
+        })),
+      };
       // Sankey diagram (like mock B1): sources, floors, rooms; click a floor for its rooms, a room for its consumers.
       scenarios.sankey = { ...scenarios.feedin, options: { unit: "kW", mode: "energy", view: "sankey", views: ["tree", "sankey", "timeline"] } };
       // Base load and standby (package P11): the badge in the head, the fridge runs all the time.
@@ -503,7 +527,22 @@
           { stat_consumption: "tibber:consumption_home" },
         ],
       };
+      // services the page records in window.__calls; a switch changes its state, so that the card shows it
+      window.__calls = [];
+      states["switch.kaffee"] = { state: "off", attributes: { friendly_name: "Kaffeemaschine" } };
+      states["switch.heizung"] = { state: "on", attributes: { friendly_name: "Heizung" } };
       const hass = {
+        callService: async (domain, service, data, target) => {
+          window.__calls.push({ domain, service, data, target });
+          const id = data?.entity_id;
+          const cur = window.__hass ?? hass;
+          if (domain === "homeassistant" && cur.states[id]) {
+            const on = service === "turn_on" || (service === "toggle" && cur.states[id].state === "off");
+            // a new hass with a new states object, like Home Assistant sends one: the card compares the entries
+            window.__hass = { ...cur, states: { ...cur.states, [id]: { ...cur.states[id], state: on ? "on" : "off" } } };
+            el.hass = window.__hass;
+          }
+        },
         language: params.get("lang") ?? "de", // ?lang=en previews the English texts
         config: { location_name: "Zuhause" },
         states,

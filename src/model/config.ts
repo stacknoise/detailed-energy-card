@@ -1,9 +1,18 @@
 import { MAX_THRESHOLD_WIDTH, MIN_THRESHOLD_WIDTH, THRESHOLD_LEVELS, type LevelThresholds, type ThresholdConfig } from "./thresholds";
 import { isValidColor } from "./colors";
+import { actionError, type ActionConfig } from "./actions";
+
+/** The three actions every element can have (Home Assistant standard); the default is what a click did before. */
+export interface ActionFields {
+  /** default: a source or consumer opens its more-info dialog, a floor or room is selected */
+  tap_action?: ActionConfig;
+  hold_action?: ActionConfig;
+  double_tap_action?: ActionConfig;
+}
 
 export type SourceType = "solar" | "battery" | "grid" | "generic";
 
-export interface SourceConfig {
+export interface SourceConfig extends ActionFields {
   entity: string;
   name?: string;
   type?: SourceType;
@@ -19,7 +28,7 @@ export interface SourceConfig {
   thresholds?: ThresholdConfig[];
 }
 
-export interface ConsumerConfig {
+export interface ConsumerConfig extends ActionFields {
   /** power sensor (W); optional when `energy_entity` is set: the consumer then only shows in the energy mode */
   entity?: string;
   name?: string;
@@ -27,10 +36,14 @@ export interface ConsumerConfig {
   energy_entity?: string;
   /** own thresholds for the bar of this consumer */
   thresholds?: ThresholdConfig[];
+  /** a switch (switch, input_boolean, light, fan) of the consumer: the list shows a toggle at the end of its row */
+  switch_entity?: string;
+  /** ask before the switch is turned off */
+  confirm_switch?: boolean;
 }
 
 /** Rooms are Home Assistant areas; name and icon are resolved from the area registry. */
-export interface RoomConfig {
+export interface RoomConfig extends ActionFields {
   area_id: string;
   /** resolved at runtime, not user configurable */
   name?: string;
@@ -46,7 +59,7 @@ export interface RoomConfig {
 }
 
 /** Floors are Home Assistant floors; name and icon are resolved from the floor registry. */
-export interface FloorConfig {
+export interface FloorConfig extends ActionFields {
   floor_id: string;
   /** resolved at runtime, not user configurable */
   name?: string;
@@ -164,6 +177,22 @@ function checkColor(value: unknown, where: string): void {
   }
 }
 
+/** Faulty `tap_action`, `hold_action` or `double_tap_action` of an element. */
+function checkActions(o: Record<string, unknown>, where: string): void {
+  for (const key of ["tap_action", "hold_action", "double_tap_action"]) {
+    const message = actionError(o[key], `${where}.${key}`);
+    if (message) throw new ConfigError(message);
+  }
+}
+
+const SWITCH_DOMAINS = ["switch", "input_boolean", "light", "fan"];
+
+function checkSwitch(id: unknown, where: string): void {
+  if (typeof id !== "string" || !new RegExp(`^(${SWITCH_DOMAINS.join("|")})\\.[a-z0-9_]+$`).test(id)) {
+    throw new ConfigError(`${where}: "${String(id)}" is not a switch (${SWITCH_DOMAINS.join(", ")})`);
+  }
+}
+
 function checkBool(value: unknown, where: string): void {
   if (value !== undefined && typeof value !== "boolean") throw new ConfigError(`${where} must be true or false`);
 }
@@ -174,6 +203,7 @@ function checkRoom(room: unknown, where: string): void {
   }
   checkColor(room.color, `${where}.color`);
   checkThresholds(room.thresholds, `${where}.thresholds`);
+  checkActions(room, where);
   if (room.entity) checkEntity(room.entity, `${where}.entity`);
   if (room.energy_entity) checkEntity(room.energy_entity, `${where}.energy_entity`);
   list(room.consumers, `${where}.consumers`).forEach((c, i) => {
@@ -187,6 +217,9 @@ function checkRoom(room: unknown, where: string): void {
     }
     if (isObj(c) && c.energy_entity) checkEntity(c.energy_entity, `${where}.consumers[${i}].energy_entity`);
     if (isObj(c)) checkThresholds(c.thresholds, `${where}.consumers[${i}].thresholds`);
+    if (isObj(c)) checkActions(c, `${where}.consumers[${i}]`);
+    if (isObj(c) && c.switch_entity !== undefined && c.switch_entity !== "") checkSwitch(c.switch_entity, `${where}.consumers[${i}].switch_entity`);
+    if (isObj(c)) checkBool(c.confirm_switch, `${where}.consumers[${i}].confirm_switch`);
   });
 }
 
@@ -356,6 +389,7 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     checkBool(s.invert, `sources[${i}].invert`);
     checkColor(s.color, `sources[${i}].color`);
     checkThresholds(s.thresholds, `sources[${i}].thresholds`);
+    checkActions(s, `sources[${i}]`);
   });
 
   checkColors(raw.colors);
@@ -367,6 +401,7 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     }
     checkColor(f.color, `floors[${i}].color`);
     checkThresholds(f.thresholds, `floors[${i}].thresholds`);
+    checkActions(f, `floors[${i}]`);
     if (f.entity) checkEntity(f.entity, `floors[${i}].entity`);
     if (f.energy_entity) checkEntity(f.energy_entity, `floors[${i}].energy_entity`);
     list(f.rooms, `floors[${i}].rooms`).forEach((r, j) => checkRoom(r, `floors[${i}].rooms[${j}]`));
@@ -390,7 +425,11 @@ export function collectEntityIds(cfg: EnergyCardConfig): string[] {
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   for (const r of rooms) {
     if (r.entity) ids.add(r.entity);
-    for (const c of r.consumers ?? []) if (c.entity) ids.add(c.entity);
+    for (const c of r.consumers ?? []) {
+      if (c.entity) ids.add(c.entity);
+      // the state of a switch is shown, so a change of it has to render the card
+      if (c.switch_entity) ids.add(c.switch_entity);
+    }
   }
   return [...ids];
 }

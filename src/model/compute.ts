@@ -1,3 +1,4 @@
+import { actionsOf, type NodeActions } from "./actions";
 import type { EnergyCardConfig, RoomConfig, SourceType } from "./config";
 import { isIdle, type ThresholdConfig } from "./thresholds";
 
@@ -17,6 +18,12 @@ export interface ConsumerNode {
   noEnergy?: boolean;
   /** power mode: the consumer has no power sensor, only an energy counter */
   noPower?: boolean;
+  /** tap, hold and double tap actions of the config; undefined: the click does what it always did */
+  actions?: NodeActions;
+  /** the switch of the consumer: a toggle in the list */
+  switchEntity?: string;
+  /** ask before the switch is turned off */
+  confirmSwitch?: boolean;
   /** own thresholds from the config, replace the level thresholds */
   thresholds?: ThresholdConfig[];
 }
@@ -44,6 +51,8 @@ export interface RoomNode {
   icon?: string;
   color?: string;
   thresholds?: ThresholdConfig[];
+  /** tap, hold and double tap actions of the config; undefined: the click does what it always did */
+  actions?: NodeActions;
   /** the own meter, or the sum of the consumers */
   watts: number;
   meter?: MeterInfo;
@@ -56,6 +65,8 @@ export interface FloorNode {
   icon?: string;
   color?: string;
   thresholds?: ThresholdConfig[];
+  /** tap, hold and double tap actions of the config; undefined: the click does what it always did */
+  actions?: NodeActions;
   /** the own meter, or the sum of the rooms */
   watts: number;
   meter?: MeterInfo;
@@ -68,6 +79,8 @@ export interface SourceNode {
   icon?: string;
   color?: string;
   thresholds?: ThresholdConfig[];
+  /** tap, hold and double tap actions of the config; undefined: the click does what it always did */
+  actions?: NodeActions;
   /** signed watts after `invert`; solar/generic are clipped at 0 (watt hours in the energy mode: what the source delivered) */
   watts: number;
   /** energy mode: watt hours of the other direction (grid feed-in, battery charged), when a return counter is set and readable */
@@ -144,7 +157,19 @@ function computeRoom(room: RoomConfig, read: Reader, energy: boolean): RoomNode 
     const noPower = !energy && !c.entity;
     const r = noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
     // `entity` is the key of the consumer: its power sensor, else its energy counter
-    return { entity: (c.entity ?? c.energy_entity)!, name: c.name, watts: r.valid ? Math.max(0, r.watts) : 0, valid: r.valid, noEnergy: noEnergy || undefined, noPower: noPower || undefined, thresholds: c.thresholds };
+    const key = (c.entity ?? c.energy_entity)!;
+    return {
+      entity: key,
+      name: c.name,
+      watts: r.valid ? Math.max(0, r.watts) : 0,
+      valid: r.valid,
+      noEnergy: noEnergy || undefined,
+      noPower: noPower || undefined,
+      thresholds: c.thresholds,
+      actions: actionsOf(c, c.switch_entity ?? key),
+      switchEntity: c.switch_entity || undefined,
+      confirmSwitch: c.confirm_switch || undefined,
+    };
   });
   const sum = consumers.reduce((s, c) => s + c.watts, 0);
   const { watts, meter } = metered(energy ? room.energy_entity : room.entity, sum, read, energy);
@@ -154,6 +179,7 @@ function computeRoom(room: RoomConfig, read: Reader, energy: boolean): RoomNode 
     icon: room.icon,
     color: room.color,
     thresholds: room.thresholds,
+    actions: actionsOf(room, room.entity ?? room.energy_entity),
     watts,
     meter,
     consumers,
@@ -193,6 +219,7 @@ export function computeModel(
       icon: s.icon,
       color: s.color,
       thresholds: s.thresholds,
+      actions: actionsOf(s, s.entity),
       watts,
       valid: r.valid,
       noEnergy: noEnergy || undefined,
@@ -211,7 +238,7 @@ export function computeModel(
   const floors: FloorNode[] = (cfg.floors ?? []).map((f) => {
     const rooms = (f.rooms ?? []).map((r) => computeRoom(r, read, energy));
     const { watts, meter } = metered(energy ? f.energy_entity : f.entity, rooms.reduce((s, r) => s + r.watts, 0), read, energy);
-    return { id: f.floor_id, name: f.name ?? f.floor_id, icon: f.icon, color: f.color, thresholds: f.thresholds, watts, meter, rooms };
+    return { id: f.floor_id, name: f.name ?? f.floor_id, icon: f.icon, color: f.color, thresholds: f.thresholds, actions: actionsOf(f, f.entity ?? f.energy_entity), watts, meter, rooms };
   });
   const rooms = (cfg.rooms ?? []).map((r) => computeRoom(r, read, energy));
 

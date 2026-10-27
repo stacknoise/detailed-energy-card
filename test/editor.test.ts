@@ -17,7 +17,7 @@ const FULL: EnergyCardConfig = {
   title: "Energiefluss",
   home: { total_entity: "sensor.total", total_energy_entity: "sensor.total_energy" },
   sources: [
-    { entity: "sensor.grid", energy_entity: "sensor.grid_import", energy_entity_return: "sensor.grid_export", type: "grid" },
+    { entity: "sensor.grid", energy_entity: "sensor.grid_import", energy_entity_return: "sensor.grid_export", type: "grid", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" } },
     { entity: "sensor.pv", energy_entity: "sensor.pv_energy", name: "PV", type: "solar", icon: "mdi:solar-power", color: "#f2c94c", soc_entity: "sensor.soc", invert: false, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] },
   ],
   floors: [
@@ -26,11 +26,12 @@ const FULL: EnergyCardConfig = {
       entity: "sensor.eg",
       energy_entity: "sensor.eg_energy",
       color: "#fff",
+      tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" },
       thresholds: [{ from: 100, color: "#ff9800", width: 3 }],
-      rooms: [{ area_id: "kueche", entity: "sensor.kueche", energy_entity: "sensor.kueche_energy", color: "#fff", thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.a", energy_entity: "sensor.a_energy", name: "Backofen", thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
+      rooms: [{ area_id: "kueche", entity: "sensor.kueche", energy_entity: "sensor.kueche_energy", color: "#fff", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.a", energy_entity: "sensor.a_energy", name: "Backofen", switch_entity: "switch.a", confirm_switch: true, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
     },
   ],
-  rooms: [{ area_id: "bad", entity: "sensor.bad", energy_entity: "sensor.bad_energy", color: "#fff", thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.b", energy_entity: "sensor.b_energy", name: "Boiler", thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
+  rooms: [{ area_id: "bad", entity: "sensor.bad", energy_entity: "sensor.bad_energy", color: "#fff", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.b", energy_entity: "sensor.b_energy", name: "Boiler", switch_entity: "switch.b", confirm_switch: false, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
   colors: {
     preset: "custom",
     accent: "#111",

@@ -38,6 +38,10 @@ Home → floor → room → consumers. Click a floor to show its rooms (all of t
 | --- | --- |
 | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png) | ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png) |
 
+| Switches in the consumer list |
+| --- |
+| ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png) |
+
 Thresholds can differ per level, and a single element can have its own list: here the floor and room lines have their own limits and widths, and the oven (green until 1 kW) has its own thresholds instead of the consumer level's. The energy mode shows how much each part used today, this week or this month; the lines show the share of the consumption, and the coffee machine has no energy sensor. Floors and rooms can have their own meter (small meter icon): here EG (distribution board), the kitchen and the hall are metered, and the kitchen meter measures 0.4 kWh more than the kitchen's consumers. With `options.secondary_value: auto` every node shows the energy of today below its power (and the power now in the energy mode). With counters for both directions the grid and the battery show what went back (feed-in 3.8 kWh, charged 2.4 kWh), and the *Self-consumption* badge says how much of the solar energy stayed in the home.
 
 The card screenshots are rendered from mock data with `npm run screenshots`.
@@ -169,6 +173,26 @@ rooms:
 ```
 
 In the visual editor they are under *Colors → Thresholds* (with a traffic-light preset, a level selector and a "scale limits" button that multiplies the limits of the shown list by a factor); an element's own thresholds are in its entry under *Own thresholds*. Every color field takes a single CSS color: hex (`#9184d9`), `rgb()`/`hsl()`, a named color (`orange`) or a theme variable (`var(--primary-color)`); anything else is a configuration error. Only `sensor.*` power entities (W / kW / MW) are supported; a sensor with another unit (for example kWh or V) is not counted as watts and shows a warning on its node. A battery state-of-charge sensor (`soc_entity`) must report `%`. All options are documented in the concept, section 3.
+
+**Actions and switches:** every source, floor, room and consumer takes the actions of the Home Assistant standard, `tap_action`, `hold_action` and `double_tap_action` (a press of 0.5 seconds is a hold, a second tap within a quarter of a second a double tap). Without them a click does what it always did: a source or consumer opens its dialog, a floor or room is selected; a `tap_action` replaces that. Supported are `more-info`, `toggle`, `navigate` (`navigation_path` starting with `/`), `url` (http, https or a path), `perform-action` (`perform_action: light.turn_on`, with `data` and `target`; `call-service` with `service` is the older form), `none`, and `confirmation` (`true` or `{ text: … }`). `entity` in an action names the entity it acts on, else the sensor of the element (a consumer with a switch: the switch). A consumer can also have `switch_entity` (a `switch`, `input_boolean`, `light` or `fan`): the list then shows a toggle at the end of its row, which turns it on or off without opening the dialog, and `confirm_switch: true` asks before it is turned off. The actions work on the tree and the consumer list; the Sankey diagram keeps its clicks. The card runs the actions itself (the Home Assistant frontend has no event for it), the questions of `confirmation` and `confirm_switch` are the browser's own dialog.
+
+```yaml
+sources:
+  - entity: sensor.pv_power
+    type: solar
+    hold_action: { action: more-info, entity: sensor.pv_soc }
+floors:
+  - floor_id: eg
+    double_tap_action: { action: navigate, navigation_path: /lovelace/energy }
+    rooms:
+      - area_id: kueche
+        consumers:
+          - entity: sensor.kaffeemaschine_power
+            switch_entity: switch.kaffeemaschine
+          - entity: sensor.heizung_power
+            switch_entity: switch.heizung
+            confirm_switch: true
+```
 
 ## Heatmap card
 

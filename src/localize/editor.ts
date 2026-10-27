@@ -16,6 +16,11 @@ const de = {
   source_default_name: "Quelle",
   // general fields
   field_title: "Titel",
+  field_tap_action: "Aktion bei Tipp (Standard: Auswahl bzw. Details)",
+  field_hold_action: "Aktion bei langem Drücken",
+  field_double_tap_action: "Aktion bei Doppeltipp",
+  field_switch_entity: "Schalter des Verbrauchers (Kippschalter in der Liste)",
+  field_confirm_switch: "Vor dem Ausschalten nachfragen",
   wiz_button: "Aus Energie-Dashboard übernehmen",
   wiz_title: "Aus dem Energie-Dashboard übernehmen",
   wiz_loading: "Lade das Energie-Dashboard …",
@@ -200,6 +205,11 @@ const en: typeof de = {
   source_default_name: "Source",
   // general fields
   field_title: "Title",
+  field_tap_action: "Tap action (default: select, or details)",
+  field_hold_action: "Hold action",
+  field_double_tap_action: "Double tap action",
+  field_switch_entity: "Switch of the consumer (toggle in the list)",
+  field_confirm_switch: "Ask before turning it off",
   wiz_button: "Import from Energy dashboard",
   wiz_title: "Import from the Energy dashboard",
   wiz_loading: "Loading the Energy dashboard …",
