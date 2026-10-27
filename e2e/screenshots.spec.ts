@@ -33,6 +33,15 @@ const shots: Array<{ scenario: string; file: string; before?: (page: import("@pl
       await page.locator("detailed-energy-card button.node[title=Küche]").click();
     },
   },
+  {
+    scenario: "meters",
+    file: "card-meters",
+    // own meters of EG, kitchen and hall; the kitchen list shows what its consumers miss
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .pill small", { hasText: "kWh" }).first()).toBeVisible();
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",

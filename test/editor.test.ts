@@ -22,12 +22,14 @@ const FULL: EnergyCardConfig = {
   floors: [
     {
       floor_id: "eg",
+      entity: "sensor.eg",
+      energy_entity: "sensor.eg_energy",
       color: "#fff",
       thresholds: [{ from: 100, color: "#ff9800", width: 3 }],
-      rooms: [{ area_id: "kueche", color: "#fff", thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.a", energy_entity: "sensor.a_energy", name: "Backofen", thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
+      rooms: [{ area_id: "kueche", entity: "sensor.kueche", energy_entity: "sensor.kueche_energy", color: "#fff", thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.a", energy_entity: "sensor.a_energy", name: "Backofen", thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
     },
   ],
-  rooms: [{ area_id: "bad", color: "#fff", thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.b", energy_entity: "sensor.b_energy", name: "Boiler", thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
+  rooms: [{ area_id: "bad", entity: "sensor.bad", energy_entity: "sensor.bad_energy", color: "#fff", thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.b", energy_entity: "sensor.b_energy", name: "Boiler", thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
   colors: {
     preset: "custom",
     accent: "#111",

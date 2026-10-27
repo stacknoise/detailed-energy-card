@@ -95,14 +95,20 @@ export function toggleFloors(
   if (!floors) return cfg;
   const flat: RoomConfig[] = floors.flatMap((f) => f.rooms ?? []);
   const usedAreas = new Set(flat.map((r) => r.area_id));
-  const sensorsOf = (r: RoomConfig) => (r.consumers ?? []).flatMap((c) => [c.entity, c.energy_entity].filter((e): e is string => !!e));
+  const sensorsOf = (r: RoomConfig) =>
+    [r.entity, r.energy_entity, ...(r.consumers ?? []).flatMap((c) => [c.entity, c.energy_entity])].filter((e): e is string => !!e);
   const usedSensors = new Set(flat.flatMap(sensorsOf));
+  const free = (e: string | undefined) => (e && usedSensors.has(e) ? undefined : e);
   for (const r of restore) {
     if (usedAreas.has(r.area_id)) continue;
     usedAreas.add(r.area_id);
     const consumers = (r.consumers ?? []).filter((c) => ![c.entity, c.energy_entity].some((e) => e && usedSensors.has(e)));
-    sensorsOf({ ...r, consumers }).forEach((e) => usedSensors.add(e));
-    flat.push({ ...r, consumers });
+    // a meter taken in the meantime is dropped like a consumer
+    const room: RoomConfig = { ...r, entity: free(r.entity), energy_entity: free(r.energy_entity), consumers };
+    if (!room.entity) delete room.entity;
+    if (!room.energy_entity) delete room.energy_entity;
+    sensorsOf(room).forEach((e) => usedSensors.add(e));
+    flat.push(room);
   }
   return { ...rest, rooms: flat };
 }
@@ -113,40 +119,54 @@ export interface Duplicate {
 }
 
 /**
- * Consumer sensors (power and energy) that are taken by any slot other than `ptr` (a pointer like
- * ["floors", 0, "rooms", 1, "consumers", 2]); these must not be offered again.
+ * Sensors (power and energy) taken by any slot other than `ptr`: consumers and the meters of rooms and
+ * floors. `ptr` points at a consumer (["floors", 0, "rooms", 1, "consumers", 2]), a room
+ * (["floors", 0, "rooms", 1] or ["rooms", 1]) or a floor (["floors", 0]); these sensors must not be offered again.
  */
 export function consumerEntitiesExcept(cfg: EnergyCardConfig | undefined, ptr: Pointer): string[] {
   const own = ptr.join(".");
   const taken: string[] = [];
+  const add = (slot: { entity?: string; energy_entity?: string }, at: Pointer) => {
+    if (at.join(".") === own) return;
+    if (slot.entity) taken.push(slot.entity);
+    if (slot.energy_entity) taken.push(slot.energy_entity);
+  };
   const scan = (rooms: RoomConfig[] | undefined, base: Pointer) =>
-    (rooms ?? []).forEach((r, i) =>
-      (r.consumers ?? []).forEach((c, j) => {
-        const at = [...base, i, "consumers", j].join(".");
-        if (at === own) return;
-        if (c.entity) taken.push(c.entity);
-        if (c.energy_entity) taken.push(c.energy_entity);
-      }),
-    );
+    (rooms ?? []).forEach((r, i) => {
+      add(r, [...base, i]);
+      (r.consumers ?? []).forEach((c, j) => add(c, [...base, i, "consumers", j]));
+    });
   scan(cfg?.rooms, ["rooms"]);
-  (cfg?.floors ?? []).forEach((f, i) => scan(f.rooms, ["floors", i, "rooms"]));
+  (cfg?.floors ?? []).forEach((f, i) => {
+    add(f, ["floors", i]);
+    scan(f.rooms, ["floors", i, "rooms"]);
+  });
   return taken;
 }
 
-/** Sensors (power or energy) assigned to more than one consumer slot; the card refuses such a config. */
+/** Sensors (power or energy) assigned to more than one slot (consumer, room or floor meter); the card refuses such a config. */
 export function findDuplicates(cfg: EnergyCardConfig): Duplicate[] {
   const seen = new Map<string, string[]>();
-  const add = (entity: string, place: string) => seen.set(entity, [...(seen.get(entity) ?? []), place]);
+  const add = (entity: string | undefined, place: string) => {
+    if (entity) seen.set(entity, [...(seen.get(entity) ?? []), place]);
+  };
   const rooms = (rs: RoomConfig[], prefix: string) =>
-    rs.forEach((r) =>
+    rs.forEach((r) => {
+      const place = `${prefix}${r.name ?? r.area_id}`;
+      add(r.entity, place);
+      add(r.energy_entity, place);
       (r.consumers ?? []).forEach((c) => {
-        const place = `${prefix}${r.name ?? r.area_id}`;
-        if (c.entity) add(c.entity, place);
-        if (c.energy_entity) add(c.energy_entity, place);
-      }),
-    );
+        add(c.entity, place);
+        add(c.energy_entity, place);
+      });
+    });
   rooms(cfg.rooms ?? [], "");
-  (cfg.floors ?? []).forEach((f) => rooms(f.rooms ?? [], `${f.name ?? f.floor_id} › `));
+  (cfg.floors ?? []).forEach((f) => {
+    const name = f.name ?? f.floor_id;
+    add(f.entity, name);
+    add(f.energy_entity, name);
+    rooms(f.rooms ?? [], `${name} › `);
+  });
   return [...seen].filter(([, p]) => p.length > 1).map(([entity, places]) => ({ entity, places }));
 }
 

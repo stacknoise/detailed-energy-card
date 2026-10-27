@@ -35,6 +35,10 @@ export interface RoomConfig {
   color?: string;
   /** own thresholds for the line to this room */
   thresholds?: ThresholdConfig[];
+  /** own power meter of the room (W); without it the room shows the sum of its consumers */
+  entity?: string;
+  /** own energy counter of the room (kWh) for the energy mode */
+  energy_entity?: string;
   consumers?: ConsumerConfig[];
 }
 
@@ -47,6 +51,10 @@ export interface FloorConfig {
   color?: string;
   /** own thresholds for the line to this floor */
   thresholds?: ThresholdConfig[];
+  /** own power meter of the floor (W), e.g. of its distribution board; without it the floor shows the sum of its rooms */
+  entity?: string;
+  /** own energy counter of the floor (kWh) for the energy mode */
+  energy_entity?: string;
   rooms?: RoomConfig[];
 }
 
@@ -132,6 +140,8 @@ function checkRoom(room: unknown, where: string): void {
   }
   checkColor(room.color, `${where}.color`);
   checkThresholds(room.thresholds, `${where}.thresholds`);
+  if (room.entity) checkEntity(room.entity, `${where}.entity`);
+  if (room.energy_entity) checkEntity(room.energy_entity, `${where}.energy_entity`);
   list(room.consumers, `${where}.consumers`).forEach((c, i) => {
     checkEntity(isObj(c) ? c.entity : undefined, `${where}.consumers[${i}]`);
     if (isObj(c) && c.energy_entity) checkEntity(c.energy_entity, `${where}.consumers[${i}].energy_entity`);
@@ -209,7 +219,7 @@ function checkThresholds(value: unknown, path: string): void {
   });
 }
 
-/** A sensor (power or energy) may be assigned to one consumer slot only. */
+/** A sensor (power or energy) may be assigned to one slot only: a consumer, or the meter of a room or a floor. */
 function checkUniqueConsumers(cfg: EnergyCardConfig): void {
   const seen = new Map<string, string>();
   const claim = (id: string, where: string) => {
@@ -217,16 +227,24 @@ function checkUniqueConsumers(cfg: EnergyCardConfig): void {
     if (first) throw new ConfigError(`${where}: "${id}" is already assigned to ${first}; a sensor can be assigned only once`);
     seen.set(id, where);
   };
+  const meters = (m: { entity?: string; energy_entity?: string }, where: string) => {
+    if (m.entity) claim(m.entity, `${where}.entity`);
+    if (m.energy_entity) claim(m.energy_entity, `${where}.energy_entity`);
+  };
   const scan = (rooms: RoomConfig[] | undefined, prefix: string) =>
-    (rooms ?? []).forEach((r, i) =>
+    (rooms ?? []).forEach((r, i) => {
+      meters(r, `${prefix}[${i}]`);
       (r.consumers ?? []).forEach((c, j) => {
         const where = `${prefix}[${i}].consumers[${j}]`;
         claim(c.entity, where);
         if (c.energy_entity) claim(c.energy_entity, `${where}.energy_entity`);
-      }),
-    );
+      });
+    });
   scan(cfg.rooms, "rooms");
-  (cfg.floors ?? []).forEach((f, i) => scan(f.rooms, `floors[${i}].rooms`));
+  (cfg.floors ?? []).forEach((f, i) => {
+    meters(f, `floors[${i}]`);
+    scan(f.rooms, `floors[${i}].rooms`);
+  });
 }
 
 /** Validates a raw Lovelace config; throws ConfigError with a readable message. */
@@ -269,6 +287,8 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     }
     checkColor(f.color, `floors[${i}].color`);
     checkThresholds(f.thresholds, `floors[${i}].thresholds`);
+    if (f.entity) checkEntity(f.entity, `floors[${i}].entity`);
+    if (f.energy_entity) checkEntity(f.energy_entity, `floors[${i}].energy_entity`);
     list(f.rooms, `floors[${i}].rooms`).forEach((r, j) => checkRoom(r, `floors[${i}].rooms[${j}]`));
   });
   rooms.forEach((r, i) => checkRoom(r, `rooms[${i}]`));
@@ -286,8 +306,12 @@ export function collectEntityIds(cfg: EnergyCardConfig): string[] {
     ids.add(s.entity);
     if (s.soc_entity) ids.add(s.soc_entity);
   }
+  for (const f of cfg.floors ?? []) if (f.entity) ids.add(f.entity);
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
-  for (const r of rooms) for (const c of r.consumers ?? []) ids.add(c.entity);
+  for (const r of rooms) {
+    if (r.entity) ids.add(r.entity);
+    for (const c of r.consumers ?? []) ids.add(c.entity);
+  }
   return [...ids];
 }
 
@@ -297,7 +321,8 @@ export function hasEnergy(cfg: EnergyCardConfig): boolean {
   return (
     !!cfg.home?.total_energy_entity ||
     (cfg.sources ?? []).some((s) => !!s.energy_entity) ||
-    rooms.some((r) => (r.consumers ?? []).some((c) => !!c.energy_entity))
+    (cfg.floors ?? []).some((f) => !!f.energy_entity) ||
+    rooms.some((r) => !!r.energy_entity || (r.consumers ?? []).some((c) => !!c.energy_entity))
   );
 }
 
@@ -306,7 +331,11 @@ export function collectEnergyIds(cfg: EnergyCardConfig): string[] {
   const ids = new Set<string>();
   if (cfg.home?.total_energy_entity) ids.add(cfg.home.total_energy_entity);
   for (const s of cfg.sources ?? []) if (s.energy_entity) ids.add(s.energy_entity);
+  for (const f of cfg.floors ?? []) if (f.energy_entity) ids.add(f.energy_entity);
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
-  for (const r of rooms) for (const c of r.consumers ?? []) if (c.energy_entity) ids.add(c.energy_entity);
+  for (const r of rooms) {
+    if (r.energy_entity) ids.add(r.energy_entity);
+    for (const c of r.consumers ?? []) if (c.energy_entity) ids.add(c.energy_entity);
+  }
   return [...ids];
 }
