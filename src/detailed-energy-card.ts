@@ -11,7 +11,7 @@ import { elementThresholds, isIdle, resolveThresholds, thresholdColor, threshold
 import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
-import { defineOnce, registerCardOnce } from "./register";
+import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { Tween, focusTargets, type Pos } from "./view/focus";
 import { parseSelection, removeLegacyKeysOnce, selectionKey, type Selection } from "./model/selection";
@@ -726,6 +726,7 @@ declare global {
     customCards?: Array<Record<string, unknown>>;
   }
 }
+logBannerOnce(__VERSION__, window as Window & BannerTarget);
 defineOnce("detailed-energy-card", DetailedEnergyCard);
 window.customCards ??= [];
 registerCardOnce(window.customCards, {

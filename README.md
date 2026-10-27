@@ -140,6 +140,10 @@ rooms:
 
 In the visual editor they are under *Colors → Thresholds* (with a traffic-light preset, a level selector and a "scale limits" button that multiplies the limits of the shown list by a factor); an element's own thresholds are in its entry under *Own thresholds*. Every color field takes a single CSS color: hex (`#9184d9`), `rgb()`/`hsl()`, a named color (`orange`) or a theme variable (`var(--primary-color)`); anything else is a configuration error. Only `sensor.*` power entities (W / kW / MW) are supported; a sensor with another unit (for example kWh or V) is not counted as watts and shows a warning on its node. A battery state-of-charge sensor (`soc_entity`) must report `%`. All options are documented in the concept, section 3.
 
+## Credits
+
+Detailed Energy Card is made by Anton Graichen-Hartl ([stacknoise](https://stacknoise.com/energy-card)). The original repository is [stacknoise/detailed-energy-card](https://github.com/stacknoise/detailed-energy-card). The card is MIT licensed: forks and reuse are welcome, keep the copyright notice and the [LICENSE](LICENSE), and a link back to this repository is appreciated. When the card loads it writes its name, version and this link to the browser console.
+
 ## Development
 
 ```bash
