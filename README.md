@@ -10,6 +10,8 @@ Status: **1.2.0** (see the [changelog](CHANGELOG.md)). Configure it in the visua
 
 Home → floor → room → consumers. Click a floor to show its rooms (all of them are selected), click a room to list just its consumers. Click the selected room again to see all rooms of the floor together, click the selected floor again (or the home) to select all floors and list every consumer.
 
+### The diagram
+
 | With floors | Without floors |
 | --- | --- |
 | ![Card with floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-with-floors.png) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-without-floors.png) |
@@ -18,35 +20,37 @@ Home → floor → room → consumers. Click a floor to show its rooms (all of t
 | --- | --- |
 | ![All rooms selected](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-all-rooms.png) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-many-rooms-wrapped.png) |
 
-| Thresholds per level | Energy mode |
+| Thresholds per level | Compact view at the width of a phone |
 | --- | --- |
-| ![Card with thresholds per level](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-thresholds.png) | ![Card in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-energy.png) |
+| ![Card with thresholds per level](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-thresholds.png) | ![Compact view: sources, home and floors in small circles](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-compact.png) |
 
-| Own meters of floors and rooms | Second value: power now, energy of today |
+Thresholds can differ per level, and a single element can have its own list: here the floor and room lines have their own limits and widths, and the oven (green until 1 kW) has its own thresholds instead of the consumer level's. The compact view shows only sources, home and floors.
+
+### Energy, meters and costs
+
+| Energy mode | Own meters of floors and rooms |
 | --- | --- |
-| ![Floors and rooms with their own meter](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-meters.png) | ![Power now with the energy of today below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-secondary.png) |
+| ![Card in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-energy.png) | ![Floors and rooms with their own meter](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-meters.png) |
 
-| Feed-in, charging and self-consumption | Timeline of the day |
+| Second value: power now, energy of today | Feed-in, charging and self-consumption |
 | --- | --- |
-| ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png) | ![Timeline of today stacked by room, yesterday dashed](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-timeline.png) |
+| ![Power now with the energy of today below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-secondary.png) | ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png) |
 
-| Costs from a dynamic price | Sankey diagram |
+| Costs from a dynamic price | Base load and consumers that run all the time |
 | --- | --- |
-| ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png) | ![Sankey diagram of sources, floors, rooms and consumers with feed-in and charging below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-sankey.png) |
+| ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png) |
 
-| Base load and consumers that run all the time | Heatmap card |
+The energy mode shows how much each part used today, this week or this month; the lines show the share of the consumption, and the coffee machine has no energy sensor. Floors and rooms can have their own meter (small meter icon): here EG (distribution board), the kitchen and the hall are metered, and the kitchen meter measures 0.4 kWh more than the kitchen's consumers. With `options.secondary_value: auto` every node shows the energy of today below its power (and the power now in the energy mode). With counters for both directions the grid and the battery show what went back (feed-in 3.8 kWh, charged 2.4 kWh), and the *Self-consumption* badge says how much of the solar energy stayed in the home.
+
+### More views
+
+| Timeline of the day | Sankey diagram |
 | --- | --- |
-| ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png) | ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png) |
+| ![Timeline of today stacked by room, yesterday dashed](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-timeline.png) | ![Sankey diagram of sources, floors, rooms and consumers with feed-in and charging below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-sankey.png) |
 
-| Switches in the consumer list |
-| --- |
-| ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png) |
-
-| Compact view at the width of a phone |
-| --- |
-| ![Compact view: sources, home and floors in small circles](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-compact.png) |
-
-Thresholds can differ per level, and a single element can have its own list: here the floor and room lines have their own limits and widths, and the oven (green until 1 kW) has its own thresholds instead of the consumer level's. The energy mode shows how much each part used today, this week or this month; the lines show the share of the consumption, and the coffee machine has no energy sensor. Floors and rooms can have their own meter (small meter icon): here EG (distribution board), the kitchen and the hall are metered, and the kitchen meter measures 0.4 kWh more than the kitchen's consumers. With `options.secondary_value: auto` every node shows the energy of today below its power (and the power now in the energy mode). With counters for both directions the grid and the battery show what went back (feed-in 3.8 kWh, charged 2.4 kWh), and the *Self-consumption* badge says how much of the solar energy stayed in the home.
+| Heatmap card | Switches in the consumer list |
+| --- | --- |
+| ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png) | ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png) |
 
 The card screenshots are rendered from mock data with `npm run screenshots`.
 
