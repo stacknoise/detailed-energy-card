@@ -15,12 +15,14 @@ export interface ConsumerNode {
   valid: boolean;
   /** energy mode: the consumer has no energy sensor */
   noEnergy?: boolean;
+  /** power mode: the consumer has no power sensor, only an energy counter */
+  noPower?: boolean;
   /** own thresholds from the config, replace the level thresholds */
   thresholds?: ThresholdConfig[];
 }
 /** Consumers the list shows: with `onlyActive` the ones at rest (under 1 W) are left out, unreadable sensors stay as warnings. */
 export function listedConsumers(consumers: ConsumerNode[], onlyActive: boolean): ConsumerNode[] {
-  return onlyActive ? consumers.filter((c) => !c.valid || !isIdle(c.watts)) : consumers;
+  return onlyActive ? consumers.filter((c) => !c.noPower && (!c.valid || !isIdle(c.watts))) : consumers;
 }
 
 /** What the own meter of a room or a floor says about it (absent without a meter for the shown mode). */
@@ -139,8 +141,10 @@ export function metered(
 function computeRoom(room: RoomConfig, read: Reader, energy: boolean): RoomNode {
   const consumers = (room.consumers ?? []).map((c): ConsumerNode => {
     const noEnergy = energy && !c.energy_entity;
-    const r = noEnergy ? MISSING : read(energy ? c.energy_entity! : c.entity);
-    return { entity: c.entity, name: c.name, watts: r.valid ? Math.max(0, r.watts) : 0, valid: r.valid, noEnergy: noEnergy || undefined, thresholds: c.thresholds };
+    const noPower = !energy && !c.entity;
+    const r = noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
+    // `entity` is the key of the consumer: its power sensor, else its energy counter
+    return { entity: (c.entity ?? c.energy_entity)!, name: c.name, watts: r.valid ? Math.max(0, r.watts) : 0, valid: r.valid, noEnergy: noEnergy || undefined, noPower: noPower || undefined, thresholds: c.thresholds };
   });
   const sum = consumers.reduce((s, c) => s + c.watts, 0);
   const { watts, meter } = metered(energy ? room.energy_entity : room.entity, sum, read, energy);
@@ -287,7 +291,7 @@ export function nodeValues(model: EnergyModel): Map<string, number> {
   const room = (r: RoomNode): boolean => {
     let has = !!r.meter?.metered;
     for (const c of r.consumers) {
-      if (!c.valid || c.noEnergy) continue;
+      if (!c.valid || c.noEnergy || c.noPower) continue;
       out.set(nodeKey.consumer(c.entity), c.watts);
       has = true;
     }

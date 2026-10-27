@@ -378,6 +378,25 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .standby")).toHaveCount(0);
   });
 
+  test("a consumer with only an energy counter is greyed out in the mode Now and counts in the energy mode", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "energy");
+    await page.evaluate(() => {
+      const el = document.querySelector("detailed-energy-card") as unknown as { _config: { floors: Array<{ rooms: Array<{ consumers: object[] }> }> }; setConfig(c: object): void };
+      el._config.floors[0].rooms[0].consumers.push({ energy_entity: "sensor.e_nur_zaehler", name: "Nur Zähler" });
+      el.setConfig(el._config);
+    });
+    await mode(page, "Jetzt").click();
+    await node(page, "Küche").click();
+    const row = page.locator("detailed-energy-card .detail .row", { hasText: "Nur Zähler" });
+    await expect(row).toHaveClass(/idle/);
+    await expect(row).not.toHaveClass(/warn/);
+    await expect(row.locator("small")).toHaveText("Kein Leistungssensor konfiguriert");
+    await mode(page, "Heute").click();
+    await expect(row.locator(".val")).toHaveText(/kWh$/);
+    await expect(row).not.toHaveClass(/idle/);
+  });
+
   test("the heatmap card shows a row per day and a column per hour, gaps in gray and the figures of the days", async ({ page }) => {
     await fixClock(page);
     await page.goto("/dev/index.html?card=heatmap&days=10");

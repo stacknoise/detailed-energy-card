@@ -702,7 +702,7 @@ export class DetailedEnergyCardEditor extends LitElement {
     const consumers = getIn(this._config, [...roomPtr, "consumers"]) ?? [];
     return html`
       <h3>${this._tr("section_consumers", consumers.length)}</h3>
-      ${consumers.map((_c: unknown, i: number) => {
+      ${consumers.map((c: { entity?: string; energy_entity?: string }, i: number) => {
         const ptr: Pointer = [...roomPtr, "consumers", i];
         return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, [...roomPtr, "consumers"])} @drop=${(e: DragEvent) => this._onDrop(e, [...roomPtr, "consumers"], i)}>
           <div class="head">
@@ -715,6 +715,7 @@ export class DetailedEnergyCardEditor extends LitElement {
             <button class="icon" title=${this._tr("remove")} aria-label=${this._tr("remove")}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => removeItem(l, i))}>✕</button>
           </div>
+          ${!c?.entity && !c?.energy_entity ? html`<div class="warn">⚠ ${this._tr("consumer_no_sensor")}</div>` : nothing}
           ${this._elementThresholds(ptr, "consumer")}
         </div>`;
       })}

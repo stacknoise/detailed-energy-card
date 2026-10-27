@@ -292,8 +292,7 @@ export const consumerFields = (exclude: string[] = []): Field[] => [
   {
     path: "entity",
     selector: { entity: { domain: "sensor", device_class: "power", exclude_entities: exclude } },
-    label: "field_sensor",
-    required: true,
+    label: "field_sensor_optional",
     check: "power",
   },
   {
