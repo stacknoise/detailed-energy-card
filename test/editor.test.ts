@@ -47,7 +47,7 @@ const FULL: EnergyCardConfig = {
       consumer: [{ from: 300, color: "#ff9800", width: 3 }],
     },
   },
-  options: { unit: "auto", decimals: 2, animation: true, show_self_consumption: true, show_unassigned: true, show_consumers: true, only_active_consumers: false, remember_selection: true, storage_id: "main", wrap_rooms: false, focus_selected: false, mode: "power", energy_periods: ["today", "week"], secondary_value: "auto", view: "tree", views: ["tree", "timeline"] },
+  options: { unit: "auto", decimals: 2, animation: true, show_self_consumption: true, show_unassigned: true, show_consumers: true, only_active_consumers: false, remember_selection: true, storage_id: "main", wrap_rooms: false, focus_selected: false, mode: "power", energy_periods: ["today", "week"], secondary_value: "auto", view: "tree", views: ["tree", "timeline"], price: 0.32, price_entity: "sensor.price", currency: "EUR", feed_in_price: 0.08, feed_in_price_entity: "sensor.feed_in_price" },
 };
 
 describe("editor coverage", () => {
@@ -61,7 +61,11 @@ describe("editor coverage", () => {
     expect(coveredPaths().filter((p) => !known.has(p))).toEqual([]);
   });
   it("full sample config is itself valid", () => {
-    expect(() => validateConfig({ ...FULL, rooms: undefined })).not.toThrow();
+    // a price is fixed or a sensor: the sample lists both forms for the coverage, a real config has one
+    const { price_entity, feed_in_price_entity, ...options } = FULL.options!;
+    expect(() => validateConfig({ ...FULL, rooms: undefined, options })).not.toThrow();
+    expect(() => validateConfig({ ...FULL, rooms: undefined, options: { ...options, price: undefined, price_entity, feed_in_price: undefined, feed_in_price_entity } })).not.toThrow();
+    expect(() => validateConfig({ ...FULL, rooms: undefined })).toThrow(/use one of them, not both/);
   });
 });
 

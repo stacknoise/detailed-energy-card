@@ -361,6 +361,43 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
   });
 
+  test("the costs show as a badge and as the second value, from hourly prices", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "costs");
+    const badge = page.locator("detailed-energy-card .badge.costs");
+    // the feed-in: 3,8 kWh x 0,08 €
+    await expect(badge).toHaveText(/^Kosten \d+,\d\d\s€ · Vergütung 0,30\s€$/);
+    await expect(node(page, "Küche").locator(".second")).toHaveText(/^\d+,\d\d\s€$/);
+    await expect(node(page, "Küche").locator(".second")).toHaveAttribute("title", /^8,7 kWh, davon \d+,\d kWh aus dem Netz, \d+,\d\d\s€$/);
+    await node(page, "Küche").click();
+    await expect(page.locator("detailed-energy-card .detail .row", { hasText: "Backofen" }).locator(".val2")).toHaveText(/^\d+,\d\d\s€$/);
+    // the coffee machine has no energy counter: no costs
+    await expect(page.locator("detailed-energy-card .detail .row", { hasText: "Kaffeemaschine" }).locator(".val2")).toHaveText("");
+    // the mode Now shows the costs of today
+    await mode(page, "Jetzt").click();
+    await expect(badge).toHaveText(/^Kosten \d+,\d\d\s€/);
+  });
+
+  test("the costs take the amount of the cost statistics of Home Assistant when they exist", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "costs");
+    await page.evaluate(() => {
+      const el = document.querySelector("detailed-energy-card") as unknown as { _hass: { states: Record<string, unknown> }; hass: unknown; _config: object; setConfig(c: object): void };
+      const money = { state: "0", attributes: { device_class: "monetary", state_class: "total", unit_of_measurement: "EUR" } };
+      el.hass = { ...el._hass, states: { ...el._hass.states, "sensor.e_netz_cost": money, "sensor.e_netz_einspeisung_compensation": money } };
+      // in Home Assistant the cost entities exist from the start; here the configuration is loaded again
+      el.setConfig(el._config);
+    });
+    await expect(page.locator("detailed-energy-card .badge.costs")).toHaveText(/^Kosten 1,62\s€ · Vergütung 0,30\s€$/);
+  });
+
+  test("without a price there is no cost badge", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "feedin");
+    await expect(page.locator("detailed-energy-card .badge.self")).toBeVisible();
+    await expect(page.locator("detailed-energy-card .badge.costs")).toHaveCount(0);
+  });
+
   test("a card without energy sensors has no switch", async ({ page }) => {
     await open(page, "floors");
     await expect(page.locator("detailed-energy-card .modes")).toHaveCount(0);

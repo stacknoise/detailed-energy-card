@@ -104,9 +104,20 @@ export interface OptionsConfig {
    * energy of today in the power mode, "power" the power now in the energy mode, "auto" both
    */
   secondary_value?: SecondaryValue;
+  /** fixed price per kWh drawn from the grid; enables the costs (needs an energy counter on the grid) */
+  price?: number;
+  /** price sensor per kWh (dynamic tariff, recorded as statistics); instead of `price` */
+  price_entity?: string;
+  /** currency of the prices (default the currency of Home Assistant) */
+  currency?: string;
+  /** fixed compensation per kWh fed into the grid (needs `energy_entity_return` on the grid) */
+  feed_in_price?: number;
+  /** sensor of the compensation per kWh; instead of `feed_in_price` */
+  feed_in_price_entity?: string;
 }
 
-export const SECONDARY_VALUES = ["none", "auto", "today", "power"] as const;
+/** "cost": the costs of the shown period (power mode: of today), with `price` or `price_entity` */
+export const SECONDARY_VALUES = ["none", "auto", "today", "power", "cost"] as const;
 /** views that can be configured so far (the Sankey diagram follows with P9) */
 export const CONFIG_VIEWS = ["tree", "timeline"] as const;
 export type SecondaryValue = (typeof SECONDARY_VALUES)[number];
@@ -217,7 +228,23 @@ function checkOptions(options: unknown): void {
   for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "remember_selection", "wrap_rooms", "focus_selected"]) {
     checkBool(options[key], `options.${key}`);
   }
+  // a price is fixed or comes from a sensor, never both
+  for (const [fixed, entity] of [["price", "price_entity"], ["feed_in_price", "feed_in_price_entity"]] as const) {
+    const v = options[fixed];
+    if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0)) {
+      throw new ConfigError(`options.${fixed} must be a number of 0 or more (price per kWh)`);
+    }
+    if (options[entity] !== undefined) checkEntity(options[entity], `options.${entity}`);
+    if (v !== undefined && options[entity] !== undefined) throw new ConfigError(`options.${fixed} and options.${entity}: use one of them, not both`);
+  }
+  const cur = options.currency;
+  if (cur !== undefined && (typeof cur !== "string" || !/^[A-Z]{3}$/.test(cur))) {
+    throw new ConfigError(`options.currency must be a three-letter currency code like EUR`);
+  }
 }
+
+/** The costs are configured: a fixed price or a price sensor. */
+export const hasPrice = (cfg: EnergyCardConfig): boolean => cfg.options?.price !== undefined || !!cfg.options?.price_entity;
 
 function checkColors(colors: unknown): void {
   if (colors === undefined || colors === null) return;

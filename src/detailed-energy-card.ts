@@ -2,8 +2,9 @@ import { LitElement, html, nothing, type TemplateResult } from "lit";
 import { state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
-import { collectEnergyIds, collectEntityIds, hasEnergy, validateConfig, type EnergyCardConfig } from "./model/config";
-import { energyReader, firstWeekdayIndex, loadEnergySeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
+import { collectEnergyIds, collectEntityIds, hasEnergy, hasPrice, validateConfig, type EnergyCardConfig } from "./model/config";
+import { computeCosts, type CostResult } from "./model/costs";
+import { energyReader, firstWeekdayIndex, loadStatSeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
 import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
@@ -31,7 +32,7 @@ import { parseSelection, removeLegacyKeysOnce, selectionKey, type Selection } fr
 interface Hass {
   language?: string;
   locale?: { language?: string; first_weekday?: string };
-  config?: { location_name?: string; time_zone?: string };
+  config?: { location_name?: string; time_zone?: string; currency?: string };
   areas?: Record<string, AreaEntry | undefined>;
   floors?: Record<string, FloorEntry | undefined>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
@@ -52,7 +53,7 @@ export class DetailedEnergyCard extends LitElement {
   @state() private _view: ViewId = "tree";
   /** energy of the shown period, loaded from the statistics and refreshed while the card is visible */
   private _energyStore = new EnergyStore(
-    (q) => this._loadEnergy(q),
+    (q, since) => this._loadEnergy(q, since),
     () => {
       this._recompute();
       this.requestUpdate();
@@ -65,6 +66,8 @@ export class DetailedEnergyCard extends LitElement {
   private _model?: EnergyModel;
   /** second values of the nodes (options.secondary_value), by nodeKey; empty while they are not known */
   private _second = new Map<string, number>();
+  /** costs of the shown period (power mode: today), with the amounts of the cost statistics of Home Assistant */
+  private _costs?: { result: CostResult; ha?: number; haFeedIn?: number };
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
@@ -195,12 +198,15 @@ export class DetailedEnergyCard extends LitElement {
     // the second value: the energy of today in the power mode (once it is loaded), the power now in the energy mode
     const kind = this._secondKind();
     const today = kind === "today" ? this._energyStore.values(this._todayQuery()) : undefined;
+    this._costs = this._computeCosts();
     this._second =
       kind === "power"
         ? nodeValues(computeModel(cfg, powerReader(states), socReader(states), names))
-        : today
-          ? nodeValues(computeModel(cfg, energyReader(today), socReader(states), names, true))
-          : new Map();
+        : kind === "cost"
+          ? (this._costs?.result.nodes ?? new Map())
+          : today
+            ? nodeValues(computeModel(cfg, energyReader(today), socReader(states), names, true))
+            : new Map();
   }
 
   private get _storageKey(): string {
@@ -325,10 +331,12 @@ export class DetailedEnergyCard extends LitElement {
    * Which second value the nodes show now (options.secondary_value): the energy of today in the power mode
    * (only with energy sensors), the power now in the energy mode; undefined for none.
    */
-  private _secondKind(): "today" | "power" | undefined {
+  private _secondKind(): "today" | "power" | "cost" | undefined {
     const cfg = this._config;
     const sv = cfg?.options?.secondary_value ?? "none";
     if (!cfg) return undefined;
+    // the costs of the shown period, in the power mode of today
+    if (sv === "cost") return this._costsOn ? "cost" : undefined;
     if (this._mode === "power") return (sv === "auto" || sv === "today") && hasEnergy(cfg) ? "today" : undefined;
     return sv === "auto" || sv === "power" ? "power" : undefined;
   }
@@ -338,7 +346,98 @@ export class DetailedEnergyCard extends LitElement {
     const v = this._second.get(key);
     if (v === undefined) return undefined;
     const kind = this._secondKind();
+    if (kind === "cost") return this._money(v);
     return this._t(kind === "today" ? "second_today" : "second_power").replace("{0}", this._fmtAs(kind === "today" ? "energy" : "power", v));
+  }
+
+  /** Tooltip of a second line with costs: "2,1 kWh, davon 0,6 kWh aus dem Netz, 0,18 €". */
+  private _secondTitle(key: string): string | undefined {
+    const r = this._costs?.result;
+    if (this._secondKind() !== "cost" || !r || !r.nodes.has(key)) return undefined;
+    const energy = r.energy.get(key);
+    if (energy === undefined) return this._money(r.nodes.get(key)!);
+    return this._t("cost_tip")
+      .replace("{0}", this._fmtAs("energy", energy))
+      .replace("{1}", this._fmtAs("energy", r.fromGrid.get(key) ?? 0))
+      .replace("{2}", this._money(r.nodes.get(key)!));
+  }
+
+  // ---------- costs ----------
+
+  /** The costs can be shown: a price and an energy counter on the grid. */
+  private get _costsOn(): boolean {
+    const cfg = this._config;
+    return !!cfg && hasPrice(cfg) && (cfg.sources ?? []).some((s) => s.type === "grid" && !!s.energy_entity);
+  }
+
+  /** The period of the costs: the one of the energy mode, today in the power mode. */
+  private get _costPeriod(): EnergyPeriod {
+    return this._mode === "energy" ? this._period : "today";
+  }
+
+  /** The cost statistics Home Assistant keeps for the grid in the Energy dashboard, when they exist. */
+  private _haCostIds(): { cost?: string; feedIn?: string } {
+    const grid = (this._config?.sources ?? []).find((s) => s.type === "grid" && s.energy_entity);
+    const has = (id: string | undefined) => (id && this._hass?.states[id] ? id : undefined);
+    return {
+      cost: has(grid?.energy_entity && `${grid.energy_entity}_cost`),
+      feedIn: has(grid?.energy_entity_return && `${grid.energy_entity_return}_compensation`),
+    };
+  }
+
+  /** Hourly energy and prices of the cost period (loaded incrementally) and the cost statistics of Home Assistant. */
+  private _costQueries(): EnergyQuery[] {
+    if (!this._costsOn) return [];
+    const cfg = this._config!;
+    const period = this._costPeriod;
+    const out: EnergyQuery[] = [{ ids: collectEnergyIds(cfg), period, stat: "hour", incremental: true }];
+    const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity].filter((e): e is string => !!e);
+    if (prices.length) out.push({ ids: prices, period, stat: "hour", kind: "mean", incremental: true });
+    const ha = Object.values(this._haCostIds()).filter((e): e is string => !!e);
+    if (ha.length) out.push({ ids: ha, period, kind: "change" });
+    return out;
+  }
+
+  private _computeCosts(): { result: CostResult; ha?: number; haFeedIn?: number } | undefined {
+    if (!this._costsOn || !this._hass) return undefined;
+    const cfg = this._config!;
+    const o = cfg.options ?? {};
+    const queries = this._costQueries();
+    const rows = this._energyStore.series(queries[0]);
+    if (!rows) return undefined;
+    const priceQ = queries.find((q) => q.kind === "mean");
+    const haQ = queries.find((q) => q.kind === "change");
+    const priceRows = priceQ ? this._energyStore.series(priceQ) : undefined;
+    const now = new Date();
+    const b = periodBounds(this._costPeriod, now, this._timeZone, this._firstWeekday);
+    const result = computeCosts({
+      cfg,
+      rows,
+      starts: bucketStarts(b.start, b.end, "hour", this._timeZone),
+      end: b.end.getTime(),
+      until: now.getTime(),
+      price: o.price !== undefined ? { fixed: o.price } : { rows: o.price_entity ? priceRows?.get(o.price_entity) : undefined },
+      feedInPrice:
+        o.feed_in_price !== undefined
+          ? { fixed: o.feed_in_price }
+          : o.feed_in_price_entity
+            ? { rows: priceRows?.get(o.feed_in_price_entity) }
+            : undefined,
+    });
+    if (!result) return undefined;
+    const ids = this._haCostIds();
+    const ha = haQ ? this._energyStore.values(haQ) : undefined;
+    return { result, ha: ids.cost ? ha?.get(ids.cost) : undefined, haFeedIn: ids.feedIn ? ha?.get(ids.feedIn) : undefined };
+  }
+
+  /** An amount in the currency of the options, else the one of Home Assistant. */
+  private _money(v: number): string {
+    const currency = this._config?.options?.currency ?? this._hass?.config?.currency ?? "EUR";
+    try {
+      return new Intl.NumberFormat(this._hass?.locale?.language ?? this._hass?.language, { style: "currency", currency }).format(v);
+    } catch {
+      return `${v.toFixed(2)} ${currency}`;
+    }
   }
 
   /** Tells the store what the card shows; it loads what it does not have yet. */
@@ -349,6 +448,8 @@ export class DetailedEnergyCard extends LitElement {
     const wanted = query ? [query] : this._secondKind() === "today" ? [this._todayQuery()] : [];
     // the timeline also needs the previous period and, for a week or a month, the day today is compared with
     if (this._showsTimeline) wanted.push(...this._timelineQueries());
+    // the costs need the hours of their period and the prices
+    wanted.push(...this._costQueries());
     this._energyStore.want(wanted);
   }
 
@@ -361,9 +462,12 @@ export class DetailedEnergyCard extends LitElement {
     return firstWeekdayIndex(hass?.locale?.first_weekday, hass?.locale?.language ?? hass?.language);
   }
 
-  private _loadEnergy(q: EnergyQuery) {
+  /** Loads a query; a refresh of an incremental query only from `since` on, unless a new period has begun. */
+  private async _loadEnergy(q: EnergyQuery, since?: number) {
     const { start, end } = periodRange(q.period, new Date(), this._timeZone, this._firstWeekday, q.offset);
-    return loadEnergySeries(this._hass!, q.ids, start, end, statPeriodFor(q.period));
+    const from = since !== undefined && since >= start.getTime() ? since : undefined;
+    const series = await loadStatSeries(this._hass!, q.ids, from !== undefined ? new Date(from) : start, end, q.stat ?? statPeriodFor(q.period), q.kind);
+    return { series, since: from };
   }
 
   // ---------- timeline ----------
@@ -605,6 +709,7 @@ export class DetailedEnergyCard extends LitElement {
       fmt: (w) => this._fmt(w),
       secondary: this._secondKind() !== undefined,
       second: (key) => this._secondLabel(key),
+      secondTitle: (key) => this._secondTitle(key),
       t: (k) => this._t(k),
       select: (s) => this._select(s),
       moreInfo: (id) => this._moreInfo(id),
@@ -674,14 +779,37 @@ export class DetailedEnergyCard extends LitElement {
     `;
   }
 
-  /** Self-sufficiency and self-consumption, each only when it can be computed; they wrap on narrow cards. */
+  /** Self-sufficiency, self-consumption and costs, each only when it can be computed; they wrap on narrow cards. */
   private _renderBadges(cfg: EnergyCardConfig, model: EnergyModel): TemplateResult | typeof nothing {
     const own = cfg.options?.show_self_consumption !== false ? model.selfConsumption : null;
-    if (model.autarky === null && own === null) return nothing;
+    const costs = this._renderCostBadge();
+    if (model.autarky === null && own === null && costs === nothing) return nothing;
     return html`<div class="badges">
       ${model.autarky !== null ? html`<div class="badge">${this._t("autarky")} ${Math.round(model.autarky * 100)} %</div>` : nothing}
       ${own !== null ? html`<div class="badge self">${this._t("self_consumption")} ${Math.round(own * 100)} %</div>` : nothing}
+      ${costs}
     </div>`;
+  }
+
+  /**
+   * "Kosten 3,84 € · Vergütung 1,20 €" for the shown period (power mode: today). The amount comes from the cost
+   * statistics of Home Assistant when it keeps them, else from the hourly prices; the tooltip says what the
+   * battery charged from the grid, when a price was missing and how the hourly calculation differs.
+   */
+  private _renderCostBadge(): TemplateResult | typeof nothing {
+    const c = this._costs;
+    if (!c) return nothing;
+    const r = c.result;
+    const approx = c.ha === undefined && r.approx;
+    const feedIn = c.haFeedIn ?? r.feedIn;
+    const text =
+      `${this._t("costs")} ${approx ? "≈ " : ""}${this._money(c.ha ?? r.grid)}` +
+      (feedIn !== undefined ? ` · ${this._t("feed_in_pay")} ${this._money(feedIn)}` : "");
+    const tips: string[] = [];
+    if (r.battery >= 0.005) tips.push(this._t("costs_battery").replace("{0}", this._money(r.battery)));
+    if (approx) tips.push(this._t("costs_approx"));
+    if (c.ha !== undefined && Math.abs(c.ha - r.grid) >= 0.01) tips.push(this._t("costs_ha").replace("{0}", this._money(r.grid)));
+    return html`<div class="badge costs" title=${tips.join("\n") || nothing}>${text}</div>`;
   }
 
   /** The "Unassigned" row of the list, or the warning that the children measure more than the meter. */
@@ -732,7 +860,7 @@ export class DetailedEnergyCard extends LitElement {
               <span class="name">${name}<small>${c.noEnergy ? this._t("no_energy") : c.entity}</small></span>
               <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
-              ${second ? html`<span class="val2">${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}
+              ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}
             </button>
           `;
         })}

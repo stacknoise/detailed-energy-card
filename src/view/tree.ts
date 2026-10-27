@@ -44,7 +44,7 @@ function meterMark(c: TreeContext, m: MeterInfo | undefined, children: "consumer
 /** The second line under a node, or nothing (a node without a second value keeps the line empty). */
 function secondLine(c: TreeContext, key: string): TemplateResult | typeof nothing {
   if (!c.secondary) return nothing;
-  return html`<span class="second">${c.second(key) ?? ""}</span>`;
+  return html`<span class="second" title=${c.secondTitle?.(key) ?? nothing}>${c.second(key) ?? ""}</span>`;
 }
 
 /** The selection applied to the model: the selected floor (index), the room row it shows and the selected room in it. */
@@ -71,6 +71,8 @@ export interface TreeContext {
   secondary: boolean;
   /** the second line of a node by nodeKey, undefined when it has none */
   second(key: string): string | undefined;
+  /** tooltip of the second line (costs: energy, the part from the grid, the amount) */
+  secondTitle?(key: string): string | undefined;
   t(key: Key): string;
   select(sel: Selection): void;
   moreInfo(entityId: string): void;
@@ -300,7 +302,7 @@ export class TreeView {
           <ha-icon icon="mdi:home"></ha-icon>
           <span>${c.fmt(c.model.homeWatts)}</span>
         </span>
-        ${c.secondary && c.second(nodeKey.home) ? html`<span class="second home-second">${c.second(nodeKey.home)}</span>` : nothing}
+        ${c.secondary && c.second(nodeKey.home) ? html`<span class="second home-second" title=${c.secondTitle?.(nodeKey.home) ?? nothing}>${c.second(nodeKey.home)}</span>` : nothing}
       </button>
     `;
   }
@@ -316,7 +318,7 @@ export class TreeView {
         title=${name}
         @click=${() => c.select(selected && !c.focus ? { floor: null } : { floor: id })}
       >
-        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second">${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
+        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }

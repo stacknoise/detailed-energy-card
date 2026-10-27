@@ -31,6 +31,9 @@ export function checkSensor(
   } else if (check === "energy") {
     if (attrs.device_class !== "energy") return tr("err_not_energy");
     if (!ENERGY_UNITS.includes(String(attrs.unit_of_measurement))) return tr("err_energy_unit");
+  } else if (check === "price") {
+    // the costs need the hourly means of the price: only a measurement is kept as statistics
+    if (attrs.state_class !== "measurement") return tr("err_price_statistics");
   } else if (attrs.device_class !== "battery" && attrs.unit_of_measurement !== "%") {
     return tr("err_not_battery");
   }
