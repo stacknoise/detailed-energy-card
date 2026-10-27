@@ -237,6 +237,7 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 | Klick auf Raum | Die Liste zeigt die Verbraucher des Raums, absteigend nach Leistung. |
 | Klick auf Verbraucher | Öffnet den HA-More-Info-Dialog (`hass-more-info`). |
 | Klick auf Quelle | Öffnet ebenfalls den More-Info-Dialog. |
+| Pfeile ‹ › (Energiemodus, neben den Zeiträumen) | Blättern um einen Zeitraum zurück bzw. vor; › endet beim laufenden Zeitraum. Der Kopf nennt den Zeitraum („Gestern“, „Mo 19.10.“, „KW 43“, „September“). Nicht gemerkt; Wechsel von Zeitraum oder Modus setzt zurück. |
 | Ansichts-Schalter (Icons rechts neben *Jetzt \| Heute \| Woche \| Monat*) | Wechselt zwischen Baum, Sankey und Verlauf, nur mit `options.views` (mindestens zwei). |
 | Sankey: Klick auf eine Etage | Zeigt nur die Räume dieser Etage; ein zweiter Klick zeigt die Räume aller Etagen. Pfad und Verbraucherliste folgen wie im Baum. |
 | Sankey: Klick auf einen Raum | Zeigt dessen Verbraucher als letzte Spalte; ein zweiter Klick blendet sie aus. |
@@ -273,6 +274,7 @@ src/
     registry.ts               // Floors/Areas aus hass, WebSocket-Fallback mit Backoff
     stub-config.ts            // Startkonfiguration für den Karten-Picker
     energy.ts                 // Zeiträume (periodRange mit offset), Statistik-Abfrage als Stunden-/Tageszeilen (loadEnergySeries), Summen
+    browse.ts                 // Beschriftung des geblätterten Zeitraums (periodLabel, isoWeek)
     timeline.ts               // Balken (Stunden/Tage), Werte je Etage/Raum/Verbraucher (treeSeries), Vergleich mit der Vorperiode
     sankey.ts                 // buildSankey: Knoten und Bänder aus dem Modell und der Auswahl (reine Funktion)
     costs.ts                  // Stundenpreise (hourlyPrices), Kosten je Knoten über den Netzanteil (computeCosts)
@@ -294,6 +296,12 @@ src/
 
 - Die Card zeichnet ihr Diagramm über eine Ansicht: den Baum (`TreeView` in `view/tree.ts`), das Sankey-Diagramm (`SankeyView` in `view/sankey.ts`, Graph aus `model/sankey.ts`) oder den Verlauf (`renderTimeline` in `view/timeline.ts`, Daten aus `model/timeline.ts`). Die Card behält Konfiguration, Modus, Auswahl, Energie-Store, Kopfzeile und Verbraucherliste und gibt der Ansicht pro Frame einen `TreeContext` bzw. `SankeyContext`. `prepare()` läuft in `willUpdate()`, `render()` liest nur.
 - Der Ansichts-Schalter (Icon-Gruppe rechts neben *Jetzt | Heute | Woche | Monat*) erscheint erst, wenn mindestens zwei Ansichten angeboten werden; mit nur dem Baum bleibt die Card unverändert. Die gewählte Ansicht wird zusammen mit Modus und Zeitraum gemerkt (`remember_selection`, Schlüssel `…:mode`). Angeboten werden `options.views` (feste Reihenfolge), ohne diese Option nur `options.view`; der Verlauf nur mit Energiesensor, sonst bleibt der Baum; das Sankey-Diagramm braucht keinen (es zeigt im Modus *Jetzt* die Leistung).
+
+**Blättern**
+
+- Zustand `_offset` (0 = laufender Zeitraum, −1 = der davor …) nur im Energiemodus (`_off`); alle Abfragen (Werte, Kosten, Verlauf) tragen den Offset (`EnergyQuery.offset`), der `EnergyStore` hält sie getrennt. Ein vergangener Zeitraum ist vollständig (`periodRange` mit negativem Offset), Kosten rechnen bis zu seinem Ende.
+- Der Verlauf vergleicht einen beendeten Zeitraum ganz mit dem ganzen davor (`compareWithPrevious` mit `whole`), ohne „jetzt“-Linie und ohne Abfrage des Vergleichstags.
+- Die Wochennummer ist die ISO-Woche des mittleren Tages der Woche (`isoWeek`).
 
 **Sankey (`view: sankey`)**
 

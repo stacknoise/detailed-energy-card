@@ -361,6 +361,52 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
   });
 
+  test("arrows browse back through the periods of the energy mode and stop at the running one", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "energy");
+    const label = page.locator("detailed-energy-card .browse-label");
+    const back = page.locator('detailed-energy-card .browse button[aria-label="Früherer Zeitraum"]');
+    const forward = page.locator('detailed-energy-card .browse button[aria-label="Späterer Zeitraum"]');
+    await mode(page, "Heute").click();
+    await expect(label).toHaveCount(0);
+    await expect(forward).toBeDisabled();
+    const valueOf = () => node(page, "Küche").innerText();
+    await expect(node(page, "Küche")).toBeVisible();
+    const today = await valueOf();
+    await back.click();
+    await expect(label).toHaveText("Gestern");
+    await expect(forward).toBeEnabled();
+    await expect.poll(valueOf).not.toBe(today);
+    await back.click();
+    await expect(label).toHaveText(/^(Mo|Di|Mi|Do|Fr|Sa|So)\.?,? \d+\.\d+\.$/);
+    await forward.click();
+    await forward.click();
+    await expect(label).toHaveCount(0);
+    await expect(forward).toBeDisabled();
+    // another period starts at the running one again; the mode Now has no arrows
+    await back.click();
+    await mode(page, "Woche").click();
+    await expect(label).toHaveCount(0);
+    await back.click();
+    await expect(label).toHaveText(/^KW \d+$/);
+    await mode(page, "Monat").click();
+    await back.click();
+    await expect(label).toHaveText(/^[A-ZÄÖÜ][a-zäöü]+$/);
+    await mode(page, "Jetzt").click();
+    await expect(page.locator("detailed-energy-card .browse")).toHaveCount(0);
+  });
+
+  test("the timeline of an earlier period is compared with the whole period before it", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "timeline");
+    await page.locator('detailed-energy-card .browse button[aria-label="Früherer Zeitraum"]').click();
+    const kpis = page.locator("detailed-energy-card .kpi span");
+    await expect(kpis.nth(0)).toHaveText("gesamt");
+    await expect(kpis.nth(1)).toHaveText("ggü. Vortag");
+    await expect(page.locator("detailed-energy-card .chart .now")).toHaveCount(0);
+    await expect(page.locator("detailed-energy-card .legend-item.prev-key")).toHaveText("Vortag");
+  });
+
   test("the Sankey diagram draws sources, floors and rooms; floors and rooms are selected by clicking them", async ({ page }) => {
     await fixClock(page);
     await open(page, "sankey");

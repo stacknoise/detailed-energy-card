@@ -133,10 +133,14 @@ export function compareWithPrevious(i: {
   /** week / month: the hours of the day compared with today, and their values */
   dayStarts?: number[];
   dayValues?: number[];
+  /** the period is over: compare it with the whole previous period */
+  whole?: boolean;
 }): { current: number; previous: number; change: number | null } {
   const current = i.values.reduce((s, v) => s + v, 0);
   let previous: number;
-  if (i.unit === "hour") {
+  if (i.whole) {
+    previous = i.prevValues.reduce((s, v) => s + v, 0);
+  } else if (i.unit === "hour") {
     // the statistics hold full hours only: compare as many full hours
     const hours = Math.floor((i.now - i.starts[0]) / HOUR);
     previous = sumBefore(i.prevValues, i.prevStarts, (i.prevStarts[0] ?? 0) + hours * HOUR);

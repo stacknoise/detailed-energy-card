@@ -435,6 +435,23 @@ export const cardStyles = css`
     padding: 40px 0;
     text-align: center;
   }
+  /* arrows to browse the periods (energy mode) */
+  .browse {
+    align-items: center;
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 4px;
+  }
+  .browse .arrow:disabled {
+    cursor: default;
+    opacity: 0.35;
+  }
+  .browse-label {
+    color: var(--_text);
+    font-size: 0.85em;
+    padding: 0 4px;
+    white-space: nowrap;
+  }
   .crumb {
     background: none;
     border: none;
