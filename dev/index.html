@@ -355,6 +355,17 @@
         floors: scenarios.floors.floors.map((f) => ({ ...f, rooms: withEnergy(f.rooms) })),
         options: { unit: "kW", mode: "energy" },
       };
+      // Feed-in and charging in the energy mode: the grid and the battery count both directions.
+      scenarios.feedin = {
+        ...scenarios.energy,
+        sources: scenarios.energy.sources.map((src) =>
+          src.type === "grid"
+            ? { ...src, energy_entity_return: "sensor.e_netz_einspeisung" }
+            : src.type === "battery"
+              ? { ...src, energy_entity_return: "sensor.e_akku_geladen" }
+              : src,
+        ),
+      };
       // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
       scenarios.secondary = { ...scenarios.energy, options: { unit: "kW", mode: "power", secondary_value: "auto" } };
       // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a
@@ -384,6 +395,8 @@
         "sensor.e_backofen": 4.2, "sensor.e_spuel": 2.6, "sensor.e_kuehl": 1.9, "sensor.e_wz": 3.1,
         "sensor.e_flur": 0, "sensor.e_og": 4.9, "sensor.e_keller": 2.1,
         "sensor.e_uv_eg": 12.6, "sensor.e_kueche_zaehler": 9.1, "sensor.e_flur_zaehler": 0.4,
+        // the other direction (scenario "feedin"): fed into the grid, charged into the battery
+        "sensor.e_netz_einspeisung": 3.8, "sensor.e_akku_geladen": 2.4,
       };
 
       // names for the entity pickers of the editor view, and the energy counters

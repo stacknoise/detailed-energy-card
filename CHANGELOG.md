@@ -9,6 +9,9 @@
 - A warning when the consumers of a room (or the rooms of a floor) measure more than its meter: more than 5 % and at least 10 W or 50 Wh. The node gets a warning icon, the list says by how much.
 - `options.secondary_value` (editor: *Second value under the values*): a second, smaller value under every source, floor, room and the home, and a fourth column in the consumer list. `today` shows the energy of today in the mode *Now* (loaded in the background every 5 minutes while the card is visible), `power` the power now in the energy mode, `auto` the other value of whichever mode is shown. Nodes without a value leave the line empty instead of showing 0 kWh.
 
+- Feed-in and battery charging in the energy mode: `energy_entity_return` on grid, battery and generic sources (editor: *Energy sensor of the other direction*). The node keeps the import (battery: discharged) as its value and shows "feed-in 3.8 kWh" / "charged 2.4 kWh" in a small line below; the line follows the balance. This closes the gap of 1.0.0.
+- Second badge *Self-consumption* next to the self-sufficiency: (solar − feed-in) / solar, shown only when it can be computed (in the power mode from the grid export, in the energy mode from the feed-in counter). `options.show_self_consumption: false` (editor: *Show self-consumption*) hides it. On narrow cards the badges wrap.
+
 ### Changed
 
 - The "Unassigned" row of the list belongs to what the list shows: a selected room shows its own remainder (only with a room meter), a floor with all its rooms its own (only when the floor or one of its rooms has a meter), the home the rest of the home. Before, every list showed the remainder of the whole home, also the list of a single room.
@@ -16,7 +19,7 @@
 
 ### Docs
 
-- README: meters of floors and rooms, the second value, new screenshots `card-meters` and `card-secondary`, all dev scenarios listed. The screenshots with a room list no longer show the remainder of the home.
+- README: meters of floors and rooms, the second value, feed-in and self-consumption, new screenshots `card-meters`, `card-secondary` and `card-feedin`, all dev scenarios listed. The card screenshots in the power mode show the new badge. The screenshots with a room list no longer show the remainder of the home.
 
 ### Internal
 

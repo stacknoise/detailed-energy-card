@@ -66,12 +66,18 @@ export interface SourceNode {
   icon?: string;
   color?: string;
   thresholds?: ThresholdConfig[];
-  /** signed watts after `invert`; solar/generic are clipped at 0 (watt hours in the energy mode) */
+  /** signed watts after `invert`; solar/generic are clipped at 0 (watt hours in the energy mode: what the source delivered) */
   watts: number;
+  /** energy mode: watt hours of the other direction (grid feed-in, battery charged), when a return counter is set and readable */
+  returned?: number;
+  /** what the line shows: the power, or in the energy mode the balance of delivered minus returned */
+  flow: number;
+  /** energy mode: the source has a return counter, so it shows a line for the other direction */
+  returnCounter?: boolean;
   valid: boolean;
   /** energy mode: the source has no energy sensor */
   noEnergy?: boolean;
-  /** true while the source consumes power (battery charging, grid export) */
+  /** true while the source consumes power (battery charging, grid export); in the energy mode when the balance is negative */
   reverse: boolean;
   /** share of all producing sources, 0..1 */
   share: number;
@@ -87,6 +93,12 @@ export interface EnergyModel {
   unassigned: number;
   /** 0..1, null when home consumption is zero or the grid is not measured (no grid source, or unreadable) */
   autarky: number | null;
+  /**
+   * Share of the solar production used in the home, 0..1: (solar - feed-in) / solar. Null without a solar
+   * source, without production, or when the feed-in is not known (power mode: grid unreadable; energy mode:
+   * a grid source without a readable return counter).
+   */
+  selfConsumption: number | null;
   totalValid: boolean;
 }
 
@@ -166,6 +178,10 @@ export function computeModel(
     if (s.invert && !energy) watts = -watts;
     if (type === "solar" || type === "generic") watts = Math.max(0, watts);
     const soc = s.soc_entity ? readSoc(s.soc_entity) : undefined;
+    // the energy mode reads the other direction from its own counter; the line follows the balance
+    const back = energy && s.energy_entity_return ? read(s.energy_entity_return) : undefined;
+    const returned = back?.valid ? Math.max(0, back.watts) : undefined;
+    const flow = returned !== undefined ? watts - returned : watts;
     return {
       entity: s.entity,
       name: s.name ?? names[type],
@@ -176,7 +192,10 @@ export function computeModel(
       watts,
       valid: r.valid,
       noEnergy: noEnergy || undefined,
-      reverse: watts < 0,
+      returned,
+      flow,
+      returnCounter: (energy && !!s.energy_entity_return) || undefined,
+      reverse: flow < 0,
       share: 0,
       soc: soc?.valid ? soc.watts : undefined,
     };
@@ -210,7 +229,14 @@ export function computeModel(
   const gridImport = grids.reduce((sum, s) => sum + Math.max(0, s.watts), 0);
   const autarky = gridKnown && homeWatts > 0 ? Math.min(1, Math.max(0, 1 - gridImport / homeWatts)) : null;
 
-  return { sources, floors, rooms, homeWatts, unassigned, autarky, totalValid };
+  // Self-consumption: the part of the solar production that was not fed into the grid.
+  const solar = sources.filter((s) => s.type === "solar" && s.valid);
+  const solarProduced = solar.reduce((sum, s) => sum + Math.max(0, s.watts), 0);
+  const feedInKnown = grids.length > 0 && (energy ? grids.every((s) => s.returned !== undefined) : gridKnown);
+  const feedIn = energy ? grids.reduce((sum, s) => sum + (s.returned ?? 0), 0) : grids.reduce((sum, s) => sum + Math.max(0, -s.watts), 0);
+  const selfConsumption = solar.length && feedInKnown && solarProduced > 0 ? Math.min(1, Math.max(0, 1 - feedIn / solarProduced)) : null;
+
+  return { sources, floors, rooms, homeWatts, unassigned, autarky, selfConsumption, totalValid };
 }
 
 /**

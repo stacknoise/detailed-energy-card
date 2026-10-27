@@ -21,6 +21,8 @@ export interface LayoutInput {
   wrap?: boolean;
   /** the nodes show a second value: sources, floors and rooms get one line more */
   secondary?: boolean;
+  /** a source shows the other direction (feed-in, charged) in a line of its own: the sources get one line more */
+  returnLine?: boolean;
 }
 
 export interface Layout {
@@ -71,10 +73,11 @@ export function computeLayout(i: LayoutInput): Layout {
   const perRow = wrapped ? wrapColumns(i.rooms) : i.rooms;
   const width = Math.max(i.width, perRow * ROOM_COL_W);
   const extra = i.secondary ? SECONDARY_H : 0;
-  const sourceH = SOURCE_H + extra;
+  const back = i.returnLine ? SECONDARY_H : 0;
+  const sourceH = SOURCE_H + extra + back;
   const floorH = FLOOR_H + extra;
   const roomH = ROOM_H + extra;
-  const yHome = i.sources > 0 ? 124 + extra : 0;
+  const yHome = i.sources > 0 ? 124 + extra + back : 0;
   // Without a room row the floors sit closer to the home, and nothing is cut off below them.
   const yFloor = yHome + (i.floors > 0 && i.rooms === 0 ? 88 : 102);
   const yRoom = i.floors > 0 ? yFloor + 74 + extra : yHome + 102;

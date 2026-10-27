@@ -51,6 +51,15 @@ const shots: Array<{ scenario: string; file: string; before?: (page: import("@pl
       await page.locator("detailed-energy-card button.node[title=Küche]").click();
     },
   },
+  {
+    scenario: "feedin",
+    file: "card-feedin",
+    // feed-in and charging in the energy mode, with the self-consumption badge
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .back", { hasText: "kWh" }).first()).toBeVisible();
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",
