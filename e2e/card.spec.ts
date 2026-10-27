@@ -1095,6 +1095,16 @@ test.describe("editor", () => {
     await expect(hint(page)).toHaveCount(0);
   });
 
+  test("explains fields in a help text under them", async ({ page }) => {
+    await page.goto("/dev/index.html?editor=energy");
+    const help = page.locator("detailed-energy-card-editor ha-form .helper");
+    await expect(help.filter({ hasText: "mehrere Karten mit denselben Etagen und Räumen" })).toHaveCount(1);
+    await expect(page.locator("detailed-energy-card-editor ha-form", { hasText: "Name der gemerkten Auswahl" }).first()).toBeVisible();
+    // no word "Kennung" any more
+    await expect(page.locator("detailed-energy-card-editor")).not.toContainText("Kennung der Auswahl");
+    await expect(help.filter({ hasText: "Ansichten" }).first()).toBeVisible();
+  });
+
   test("shows no hint when the card has an energy sensor", async ({ page }) => {
     await page.goto("/dev/index.html?editor=energy");
     await expect(page.locator("detailed-energy-card-editor h3").first()).toBeVisible();

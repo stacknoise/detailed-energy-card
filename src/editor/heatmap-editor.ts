@@ -5,7 +5,7 @@ import type { StateLike } from "../model/units";
 import { defineOnce } from "../register";
 import { makeTr } from "../localize/editor";
 import { getPath, setPath } from "./config-utils";
-import { HEATMAP, labelFor, toSchema } from "./schema";
+import { HEATMAP, helperFor, labelFor, toSchema } from "./schema";
 import { fieldErrors } from "./validation";
 
 interface Hass {
@@ -62,6 +62,7 @@ export class DetailedEnergyHeatmapCardEditor extends LitElement {
       .schema=${toSchema(HEATMAP, obj, this._tr)}
       .error=${fieldErrors(obj, HEATMAP, states, getPath, this._tr)}
       .computeLabel=${(s: { name: string }) => labelFor(HEATMAP, s.name, this._tr)}
+      .computeHelper=${(s: { name: string }) => helperFor(HEATMAP, s.name, this._tr)}
       @value-changed=${(ev: CustomEvent) => this._onForm(ev)}
     ></ha-form>`;
   }

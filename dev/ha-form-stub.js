@@ -183,6 +183,12 @@ export class HaFormStub extends LitElement {
       transform: rotate(45deg);
       width: 4px;
     }
+    .helper {
+      color: #9aa0ad;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 4px 16px 0;
+    }
     .error {
       color: #ff6b5e;
       font-size: 12px;
@@ -279,7 +285,8 @@ export class HaFormStub extends LitElement {
   render() {
     return html`${(this.schema ?? []).map((item) => {
       const err = this.error?.[item.name];
-      return html`<div class="item">${this._control(item)}${err ? html`<div class="error">${err}</div>` : nothing}</div>`;
+      const help = typeof this.computeHelper === "function" ? this.computeHelper(item) : undefined;
+      return html`<div class="item">${this._control(item)}${help ? html`<div class="helper">${help}</div>` : nothing}${err ? html`<div class="error">${err}</div>` : nothing}</div>`;
     })}`;
   }
 }
