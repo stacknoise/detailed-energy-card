@@ -131,6 +131,7 @@ export class TreeView {
       rooms: sel.rooms.length,
       wrap: c.config.options?.wrap_rooms === true,
       secondary: c.secondary,
+      returnLine: c.energy && model.sources.some((s) => s.returnCounter),
     });
     // Positions of the floors and rooms. With options.focus_selected the selected element of a level
     // slides to the middle under its parent and the rest of that level fades out behind it.
@@ -227,7 +228,9 @@ export class TreeView {
     };
     const parts: TemplateResult[] = [];
     model.sources.forEach((s, i) => {
-      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), s.watts, Math.abs(s.watts) >= 1, s.reverse));
+      // in the energy mode the width follows the balance of delivered and returned energy
+      const w = energy ? Math.abs(s.flow) : s.watts;
+      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), w, Math.abs(w) >= 1, s.reverse));
     });
     const homeBottom = l.yHome + HOME_H;
     let roomFromX = l.homeX;
@@ -249,15 +252,17 @@ export class TreeView {
   }
 
   private _renderSource(c: TreeContext, s: SourceNode, x: number): TemplateResult {
+    // the energy mode shows what the source delivered (import, discharged); the other direction has a line of its own
+    const reverse = !c.energy && s.reverse;
     const suffix =
       s.type === "battery"
-        ? s.reverse
+        ? reverse
           ? ` · ${c.t("charging")}`
           : s.soc !== undefined
             ? ` · ${Math.round(s.soc)} %`
             : ""
         : s.type === "grid"
-          ? ` · ${c.t(s.reverse ? "export" : "import")}`
+          ? ` · ${c.t(reverse ? "export" : "import")}`
           : s.type === "solar" && s.share > 0
             ? ` · ${Math.round(s.share * 100)} %`
             : "";
@@ -271,6 +276,11 @@ export class TreeView {
         <span class="circle source"><ha-icon icon=${s.icon ?? SOURCE_ICONS[s.type]}></ha-icon></span>
         <span class="label">${s.name}${suffix}</span>
         <span class="value">${c.fmt(s.watts)}</span>
+        ${s.returnCounter
+          ? html`<span class="second back">${c.t(s.type === "grid" ? "return_grid" : s.type === "battery" ? "return_battery" : "return_generic").replace("{0}", s.returned !== undefined ? c.fmt(s.returned) : "–")}</span>`
+          : c.energy && c.model.sources.some((x) => x.returnCounter)
+            ? html`<span class="second back"></span>`
+            : nothing}
         ${secondLine(c, nodeKey.source(s.entity))}
       </button>
     `;

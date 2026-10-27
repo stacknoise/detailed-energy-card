@@ -129,6 +129,12 @@ export const cardStyles = css`
     font-size: 0.9em;
     margin-top: 4px;
   }
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+  }
   .badge {
     background: color-mix(in srgb, var(--_accent) 30%, transparent);
     border-radius: 8px;

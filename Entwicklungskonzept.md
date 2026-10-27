@@ -63,6 +63,8 @@ sources:
   - entity: sensor.netz_leistung
     name: Netz
     type: grid
+    energy_entity: sensor.netz_bezug             # optional, Bezug (kWh) für den Energie-Modus
+    energy_entity_return: sensor.netz_einspeisung # optional, Gegenrichtung (kWh): Einspeisung, bei Batterie „geladen“; nicht bei solar
 floors:                    # optional – weglassen = Räume direkt am Zuhause
   - floor_id: erdgeschoss   # Etage aus Home Assistant (Floor-Registry)
     color: ""              # optional, auch je Raum möglich
@@ -99,6 +101,7 @@ options:
   decimals: 2
   animation: true
   show_unassigned: true
+  show_self_consumption: true # Badge „Eigenverbrauch“, wenn berechenbar
   show_consumers: true        # false: Verbraucher-Liste ausblenden
   only_active_consumers: false # true: nur Verbraucher ab 1 W listen
   remember_selection: true
@@ -131,6 +134,7 @@ Nur **Sensoren** sind zulässig. Die Validierung erfolgt im Editor und zur Laufz
 - `device_class: power`, Einheit `W`, `kW` oder `MW`
 - `device_class: energy` (`Wh`/`kWh`/`MWh`) als `energy_entity` für den Energie-Modus (Abschnitt 15)
 - Dieselben Regeln gelten für die Zähler von Etagen und Räumen: `entity` ist ein Leistungssensor, `energy_entity` ein Energiezähler.
+- `energy_entity_return` einer Quelle (Gegenrichtung) ist wie `energy_entity` ein Energiezähler; bei Quellen vom Typ `solar` ist er ein Validierungsfehler.
 
 Nicht passende Entitäten werden im Editor ausgefiltert. Kommen sie per YAML trotzdem in die Konfiguration, zeigt die Card eine Warnung am Knoten statt abzustürzen. Eine unbekannte Einheit (z. B. `kWh`, `V`) wird nie als Watt gezählt, sondern gilt als ungültig; der SoC-Sensor einer Batterie wird getrennt gelesen und muss `%` liefern (Wert auf 0…100 begrenzt).
 
@@ -174,6 +178,7 @@ Mit `invert: true` wird das Vorzeichen eines Sensors gedreht.
 
 - Anteil einer Quelle = Quelle / Σ positive Quellen
 - Autarkie = 1 − Netzbezug / Zuhause, begrenzt auf 0…100 %. Das Badge erscheint nur, wenn mindestens eine Quelle vom Typ `grid` konfiguriert ist, alle Netz-Sensoren lesbar sind und das Zuhause Leistung verbraucht; ohne gemessenes Netz wäre der Wert immer 100 % und wird deshalb weggelassen.
+- Eigenverbrauch = (PV − Einspeisung) / PV, begrenzt auf 0…100 %: der Teil der PV-Erzeugung, der nicht ins Netz ging. Im Leistungsmodus ist die Einspeisung die negative Netzleistung (alle Netz-Sensoren lesbar), im Energie-Modus der Rücklauf-Zähler `energy_entity_return` jeder Netz-Quelle. Ein zweites Badge „Eigenverbrauch“ erscheint neben der Autarkie, nur wenn der Wert berechenbar ist: mindestens eine PV-Quelle mit Erzeugung und eine bekannte Einspeisung. Sonst kein Badge, nie „0 %“. Abschaltbar mit `options.show_self_consumption: false`. Auf schmalen Karten brechen die Badges in eine zweite Zeile um.
 
 **Ungültige Werte:** `unavailable`, `unknown` und nicht numerische Werte zählen als 0. Der Knoten wird dann gedimmt und mit einem Warn-Icon versehen.
 
@@ -298,10 +303,10 @@ src/
 
 | Bereich | Felder |
 |---|---|
-| Allgemein | Titel, Einheit (auto/W/kW), Nachkommastellen, Animation, „Nicht erfasst“ anzeigen, Auswahl merken; mit Energiesensor zusätzlich Startansicht, Zeiträume und Zweitwert (Aus, Automatisch, Heute, Jetzt) |
+| Allgemein | Titel, Einheit (auto/W/kW), Nachkommastellen, Animation, Eigenverbrauch anzeigen, „Nicht erfasst“ anzeigen, Auswahl merken; mit Energiesensor zusätzlich Startansicht, Zeiträume und Zweitwert (Aus, Automatisch, Heute, Jetzt) |
 | Farben | Voreinstellung (HA-Theme / Nocturne / Eigene), Akzent, Fluss-Linien, inaktive Linien, Verbraucher-Balken, Hintergrund, Text |
 | Zuhause | Gesamt-Sensor (optional). Der Name ist fest (Standortname der Instanz). |
-| Stromquellen | Liste; je Quelle: Sensor, Typ, Name, Icon, Farbe, Invertieren, SoC-Sensor (nur Batterie) |
+| Stromquellen | Liste; je Quelle: Sensor, Energiesensor, Energiesensor Gegenrichtung (nicht bei PV), Typ, Name, Icon, Farbe, Invertieren, SoC-Sensor (nur Batterie) |
 | Struktur | Umschalter „Etagen verwenden“; Baum Etage → Raum → Verbraucher; Etagen und Räume nur per Auswahl aus HA, je Knoten zusätzlich Leistungssensor und Energiesensor (beide optional, eigener Zähler) und Farbe; je Verbraucher: Sensor, Name |
 
 **Details:**
@@ -477,10 +482,11 @@ registerCardOnce(window.customCards, {
 
 Die Karte zeigt neben der Leistung jetzt auch die Energie eines Zeitraums.
 
-- **Konfiguration:** `energy_entity` an Quellen, Etagen, Räumen und Verbrauchern (Zähler mit `device_class: energy`, Wh/kWh/MWh), `home.total_energy_entity` für „Nicht erfasst“ und die Autarkie, `options.mode` (`power` | `energy`, Startansicht) und `options.energy_periods` (Liste aus `today`, `week`, `month`, Standard alle).
+- **Konfiguration:** `energy_entity` an Quellen, Etagen, Räumen und Verbrauchern (Zähler mit `device_class: energy`, Wh/kWh/MWh), `energy_entity_return` an Netz-, Batterie- und allgemeinen Quellen für die Gegenrichtung (Einspeisung, geladen), `home.total_energy_entity` für „Nicht erfasst“ und die Autarkie, `options.mode` (`power` | `energy`, Startansicht) und `options.energy_periods` (Liste aus `today`, `week`, `month`, Standard alle).
 - **Schalter:** *Jetzt | Heute | Woche | Monat* im Kopf der Karte, sichtbar, sobald ein Element einen Energiesensor hat. Modus und Zeitraum werden wie die Auswahl gemerkt (`remember_selection`).
 - **Daten:** WebSocket `recorder/statistics_during_period` mit `types: ["change"]` und `units: { energy: "kWh" }` (Home Assistant rechnet jede Einheit um). Heute wird stündlich, Woche und Monat täglich summiert. Beginn von Tag, Woche und Monat liegt um Mitternacht in der Zeitzone von Home Assistant, die Woche beginnt am ersten Wochentag der Sprache (`locale.first_weekday`). Tage mit Zeitumstellung werden korrekt behandelt. Die Abfrage wiederholt sich alle 5 Minuten, solange die Karte sichtbar ist. Mit `secondary_value: auto` oder `today` lädt die Card den Wert von „Heute“ auch im Modus *Jetzt*, im selben Takt und nur solange sie sichtbar ist. Die Statistik kommt als Stunden- bzw. Tageszeilen (`loadEnergySeries`), die Card summiert sie; frühere Zeiträume (gestern, letzte Woche) lassen sich über `periodRange(…, offset)` abfragen. Laden, Merken und Aktualisieren übernimmt der `EnergyStore` (`model/energy-store.ts`), der mehrere Abfragen nebeneinander halten kann.
 - **Zustände:** Beim ersten Laden zählen alle Werte 0 und ein Hinweis „Lade Energiedaten …“ erscheint. Schlägt die Abfrage fehl, zeigt die Karte „Energiedaten nicht verfügbar“. Ein Element ohne `energy_entity` ist ausgegraut („Kein Energiesensor konfiguriert“), ein Sensor ohne Statistik gilt als nicht verfügbar.
 - **Darstellung:** Werte in kWh (`decimals`, Standard 1). Linienstärke nach Anteil am Verbrauch des Hauses (1 bis 6 px), keine Fließanimation, keine Schwellwerte, normale Flussfarbe. Intern rechnet der Modus in Wh, damit die Ruhegrenze (unter 1 Wh) und die Verbraucherliste unverändert funktionieren.
-- **Grenzen:** Einspeisung und Batterie-Laden fehlen, weil ein Energiezähler nur eine Richtung kennt. Kosten und Vergleiche mit dem Vortag gibt es nicht.
+- **Gegenrichtung:** Ein Energiezähler kennt nur eine Richtung. Deshalb hat eine Quelle optional einen zweiten Zähler `energy_entity_return`. Der Wert der Quelle bleibt das, was sie geliefert hat (Netz: Bezug, Batterie: entladen), die Beschriftung bleibt „Netz · Bezug“. Darunter steht klein „Einspeisung 3,8 kWh“ bzw. „geladen 2,4 kWh“ (allgemeine Quelle: „Rücklauf …“); ist der Zähler nicht lesbar, steht dort „–“. Die Quellenzeile wird dafür eine Zeile (20 px) höher, Quellen ohne Gegenrichtung lassen sie leer. Die Linie folgt dem Saldo (geliefert minus zurück), ihre Stärke dem Betrag. Die Autarkie rechnet weiter mit dem Bezug; der Eigenverbrauch nutzt die Einspeisung (Abschnitt 5).
+- **Grenzen:** Kosten und Vergleiche mit dem Vortag gibt es nicht.
 - **Editor:** `energy_entity` bei Quellen und Verbrauchern, `total_energy_entity` bei Zuhause, Startansicht und Zeiträume unter Allgemein (nur sichtbar, sobald ein Energiesensor eingetragen ist). Solange kein Energiesensor eingetragen ist, steht unter Allgemein stattdessen ein Hinweis, wo man einen einträgt, damit der Schalter *Jetzt | Heute | Woche | Monat* erscheint. Der Editor prüft live, ob der Sensor `device_class: energy` und eine passende Einheit hat.

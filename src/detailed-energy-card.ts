@@ -496,15 +496,23 @@ export class DetailedEnergyCard extends LitElement {
             ${cfg.title ? html`<h2>${cfg.title}</h2>` : nothing}
             <div class="path">${path}</div>
           </div>
-          ${model.autarky !== null
-            ? html`<div class="badge">${this._t("autarky")} ${Math.round(model.autarky * 100)} %</div>`
-            : nothing}
+          ${this._renderBadges(cfg, model)}
         </header>
         ${this._renderSwitches(cfg)}
         ${this._tree.render(this._treeContext(cfg, model, sel, home))}
         ${this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
       </ha-card>
     `;
+  }
+
+  /** Self-sufficiency and self-consumption, each only when it can be computed; they wrap on narrow cards. */
+  private _renderBadges(cfg: EnergyCardConfig, model: EnergyModel): TemplateResult | typeof nothing {
+    const own = cfg.options?.show_self_consumption !== false ? model.selfConsumption : null;
+    if (model.autarky === null && own === null) return nothing;
+    return html`<div class="badges">
+      ${model.autarky !== null ? html`<div class="badge">${this._t("autarky")} ${Math.round(model.autarky * 100)} %</div>` : nothing}
+      ${own !== null ? html`<div class="badge self">${this._t("self_consumption")} ${Math.round(own * 100)} %</div>` : nothing}
+    </div>`;
   }
 
   /** The "Unassigned" row of the list, or the warning that the children measure more than the meter. */

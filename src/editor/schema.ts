@@ -64,6 +64,7 @@ export const GENERAL: Field[] = [
   { path: "options.unit", selector: opts(["W", "kW", "auto"]), label: "field_unit", default: "W" },
   { path: "options.decimals", selector: { number: { min: 0, max: 4, mode: "box" } }, label: "field_decimals" },
   { path: "options.animation", selector: { boolean: {} }, label: "field_animation", default: true },
+  { path: "options.show_self_consumption", selector: { boolean: {} }, label: "field_show_self_consumption", default: true },
   { path: "options.show_consumers", selector: { boolean: {} }, label: "field_show_consumers", default: true },
   {
     path: "options.only_active_consumers",
@@ -164,6 +165,14 @@ export const HOME: Field[] = [
 export const SOURCE: Field[] = [
   { path: "entity", selector: power, label: "field_sensor", required: true, check: "power" },
   { path: "energy_entity", selector: energy, label: "field_energy_entity", check: "energy" },
+  {
+    path: "energy_entity_return",
+    selector: energy,
+    label: "field_energy_return",
+    check: "energy",
+    // the other direction exists for the grid (feed-in), a battery (charged) and a generic source, not for solar
+    when: (s) => s?.type !== "solar",
+  },
   { path: "type", selector: opts(["solar", "battery", "grid", "generic"]), label: "field_type" },
   { path: "name", selector: text, label: "field_name" },
   { path: "icon", selector: icon, label: "field_icon" },

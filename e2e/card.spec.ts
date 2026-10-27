@@ -10,7 +10,7 @@ const node = (page: Page, title: string) => page.locator(`detailed-energy-card b
 test("floors: shows sources, floors, rooms and the consumer list", async ({ page }) => {
   await open(page, "floors");
   await expect(page.locator("detailed-energy-card h2")).toHaveText("Energiefluss");
-  await expect(page.locator("detailed-energy-card .badge")).toContainText("Autarkie 92 %");
+  await expect(page.locator("detailed-energy-card .badge:not(.self)")).toContainText("Autarkie 92 %");
   await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause › EG");
   for (const t of ["PV", "Batterie", "Netz", "EG", "OG", "Keller", "Küche", "Wohnzimmer", "Flur"]) {
     await expect(node(page, t)).toBeVisible();
@@ -116,7 +116,7 @@ test.describe("energy mode", () => {
     await expect(mode(page, "Jetzt")).toBeVisible();
     await expect(mode(page, "Heute")).toHaveAttribute("aria-pressed", "true");
     await expect(value(page, "PV")).toHaveText("12,4 kWh");
-    await expect(page.locator("detailed-energy-card .badge")).toContainText("Autarkie 74 %");
+    await expect(page.locator("detailed-energy-card .badge:not(.self)")).toContainText("Autarkie 74 %");
     await expect(node(page, "EG").locator("small")).toHaveText("11,8 kWh");
     // no animation and no threshold colors in the energy mode
     await expect(page.locator("detailed-energy-card path.line.flowing")).toHaveCount(0);
@@ -272,6 +272,40 @@ test.describe("energy mode", () => {
     await expect(value(page, "PV")).toHaveText("12,4 kWh");
     await expect(page.locator("detailed-energy-card .second")).toHaveCount(0);
     await expect(page.locator("detailed-energy-card .list.second")).toHaveCount(0);
+  });
+
+  test("grid and battery show the other direction, and the self-consumption appears", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "feedin");
+    await expect(value(page, "Netz")).toHaveText("5,1 kWh");
+    await expect(node(page, "Netz").locator(".back")).toHaveText("Einspeisung 3,8 kWh");
+    await expect(node(page, "Netz").locator(".label")).toHaveText("Netz · Bezug");
+    await expect(node(page, "Batterie").locator(".back")).toHaveText("geladen 2,4 kWh");
+    // solar has no other direction: an empty line keeps the row aligned
+    await expect(node(page, "PV").locator(".back")).toHaveText("");
+    await expect(page.locator("detailed-energy-card .badge:not(.self)")).toHaveText("Autarkie 74 %");
+    // (12,4 - 3,8) / 12,4 = 69 %
+    await expect(page.locator("detailed-energy-card .badge.self")).toHaveText("Eigenverbrauch 69 %");
+    // the power mode has no line for the other direction
+    await mode(page, "Jetzt").click();
+    await expect(page.locator("detailed-energy-card .back")).toHaveCount(0);
+  });
+
+  test("the self-consumption badge can be switched off and wraps on a narrow card", async ({ page }) => {
+    await fixClock(page);
+    await page.setViewportSize({ width: 360, height: 900 });
+    await open(page, "feedin");
+    const [a, b] = [page.locator("detailed-energy-card .badge:not(.self)"), page.locator("detailed-energy-card .badge.self")];
+    await expect(b).toBeVisible();
+    const boxA = (await a.boundingBox())!;
+    const boxB = (await b.boundingBox())!;
+    expect(boxB.y).toBeGreaterThan(boxA.y + boxA.height - 1);
+    await page.evaluate(() => {
+      const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+      el.setConfig({ ...el._config, options: { ...el._config.options, show_self_consumption: false } });
+    });
+    await expect(b).toHaveCount(0);
+    await expect(a).toBeVisible();
   });
 
   test("a card without energy sensors has no switch", async ({ page }) => {
@@ -628,7 +662,7 @@ test("sources without a name are called after their type in the language of the 
   await page.goto("/dev/index.html?scenario=floors&lang=en");
   await expect(page.locator("detailed-energy-card .path")).not.toHaveText("");
   for (const t of ["Solar", "Battery", "Grid"]) await expect(node(page, t)).toBeVisible();
-  await expect(page.locator("detailed-energy-card .badge")).toContainText("Self-sufficiency");
+  await expect(page.locator("detailed-energy-card .badge:not(.self)")).toContainText("Self-sufficiency");
 });
 
 test.describe("editor", () => {

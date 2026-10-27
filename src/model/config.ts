@@ -13,6 +13,8 @@ export interface SourceConfig {
   invert?: boolean;
   /** energy counter (kWh) for the energy mode */
   energy_entity?: string;
+  /** energy counter of the other direction (kWh) for the energy mode: grid feed-in, battery charged; not for solar */
+  energy_entity_return?: string;
   /** own thresholds for the line of this source (replace the level thresholds) */
   thresholds?: ThresholdConfig[];
 }
@@ -89,6 +91,8 @@ export interface OptionsConfig {
   focus_selected?: boolean;
   /** what the card shows when it loads: the power now, or the energy of a period (default power) */
   mode?: "power" | "energy";
+  /** the badge "self-consumption" next to the self-sufficiency, when it can be computed (default true) */
+  show_self_consumption?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /**
@@ -192,7 +196,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_consumers", "only_active_consumers", "remember_selection", "wrap_rooms", "focus_selected"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "remember_selection", "wrap_rooms", "focus_selected"]) {
     checkBool(options[key], `options.${key}`);
   }
 }
@@ -280,6 +284,10 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     if (!isObj(s)) throw new ConfigError(`sources[${i}] must be a mapping with an entity`);
     checkEntity(s.entity, `sources[${i}].entity`);
     if (s.energy_entity) checkEntity(s.energy_entity, `sources[${i}].energy_entity`);
+    if (s.energy_entity_return) {
+      checkEntity(s.energy_entity_return, `sources[${i}].energy_entity_return`);
+      if (s.type === "solar") throw new ConfigError(`sources[${i}].energy_entity_return: only for the types grid, battery and generic`);
+    }
     if (s.type && !SOURCE_TYPES.includes(s.type as SourceType)) {
       throw new ConfigError(`sources[${i}].type: unknown type "${String(s.type)}"`);
     }
@@ -341,7 +349,10 @@ export function hasEnergy(cfg: EnergyCardConfig): boolean {
 export function collectEnergyIds(cfg: EnergyCardConfig): string[] {
   const ids = new Set<string>();
   if (cfg.home?.total_energy_entity) ids.add(cfg.home.total_energy_entity);
-  for (const s of cfg.sources ?? []) if (s.energy_entity) ids.add(s.energy_entity);
+  for (const s of cfg.sources ?? []) {
+    if (s.energy_entity) ids.add(s.energy_entity);
+    if (s.energy_entity_return) ids.add(s.energy_entity_return);
+  }
   for (const f of cfg.floors ?? []) if (f.energy_entity) ids.add(f.energy_entity);
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   for (const r of rooms) {
