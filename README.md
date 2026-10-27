@@ -6,6 +6,19 @@ Home Assistant Lovelace card showing the power flow from sources (PV, battery, g
 
 Status: **1.2.1** (see the [changelog](CHANGELOG.md)). Configure it in the visual editor (German and English) or in YAML.
 
+## Install (HACS)
+
+The card is part of the HACS default store, so no custom repository is needed.
+
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stacknoise&repository=detailed-energy-card&category=plugin)
+
+Click the button above to open the card in HACS on your Home Assistant instance, or find it yourself:
+
+1. Open HACS and search for *Detailed Energy Card*.
+2. Open the entry and click **Download**.
+3. Reload the browser. HACS registers the resource `/hacsfiles/detailed-energy-card/detailed-energy-card.js` automatically.
+4. Add the card to a dashboard: **Add card → Detailed Energy Card**, or use `type: custom:detailed-energy-card` in YAML.
+
 ## Preview
 
 Home → floor → room → consumers. Click a floor to show its rooms (all of them are selected), click a room to list just its consumers. Click the selected room again to see all rooms of the floor together, click the selected floor again (or the home) to select all floors and list every consumer.
@@ -71,19 +84,6 @@ Everything can be configured without YAML. Floors and rooms are picked from the 
 ![Import wizard: structure from the Energy dashboard](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-import.png?v=3)
 
 The editor screenshots are rendered from demo data with `npm run screenshots`, in English too. The form fields are drawn by a stand-in for Home Assistant's form (`dev/ha-form-stub.js`), so they look like the real ones but are not taken in a real Home Assistant.
-
-## Install (HACS)
-
-The card is part of the HACS default store, so no custom repository is needed.
-
-[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stacknoise&repository=detailed-energy-card&category=plugin)
-
-Click the button above to open the card in HACS on your Home Assistant instance, or find it yourself:
-
-1. Open HACS and search for *Detailed Energy Card*.
-2. Open the entry and click **Download**.
-3. Reload the browser. HACS registers the resource `/hacsfiles/detailed-energy-card/detailed-energy-card.js` automatically.
-4. Add the card to a dashboard: **Add card → Detailed Energy Card**, or use `type: custom:detailed-energy-card` in YAML.
 
 ## Options
 

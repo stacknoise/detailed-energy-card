@@ -8,6 +8,7 @@
 - README, section *Options*: the first column of every table shows the text of the field in the editor (English), next to the YAML key.
 - README: the image links carry `?v=3`, so that GitHub and HACS show the English screenshots instead of cached German ones. Raise the number when the screenshots change.
 - The last two German screenshots (`card-without-floors`, `card-many-rooms-wrapped`) are English now; all titles of the dev scenarios are English for `?lang=en`.
+- README: the section *Install (HACS)* is the first section, before the preview.
 
 ## 1.2.1
 
