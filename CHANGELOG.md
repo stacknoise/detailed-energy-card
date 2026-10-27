@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Docs
+
+- The screenshots of the README are rendered in English (demo data, titles and editor in English; `SHOT_LANG=de npm run screenshots` renders them German). The frame of the card images is a little higher (910 px) for the longer English texts.
+
 ## 1.2.1
 
 ### Changed
