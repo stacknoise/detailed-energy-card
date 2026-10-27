@@ -314,8 +314,9 @@ export class DetailedEnergyImportWizard extends LitElement {
     const tr = this._tr;
     const p = this._proposal!;
     const all = powerSensors(this.hass!);
-    if (!p.sources.length) return html`<div class="muted">${tr("wiz_no_sources")}</div>`;
+    if (!p.sources.length) return html`<div class="muted">${tr("wiz_no_sources")}</div>${p.foldedSources ? html`<div class="hint">${tr("wiz_folded", p.foldedSources)}</div>` : nothing}`;
     return html`<div class="hint">${tr("wiz_sources_hint")}</div>
+      ${p.foldedSources ? html`<div class="hint">${tr("wiz_folded", p.foldedSources)}</div>` : nothing}
       ${p.sources.map((s) => {
         const power = s.power ?? s.chosenPower;
         const choices = s.powerChoices.length ? s.powerChoices : all;

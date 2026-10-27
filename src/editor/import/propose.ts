@@ -40,6 +40,8 @@ export interface Proposal {
   looseRooms: ProposedRoom[];
   /** devices without an area, not taken over by default */
   noRoom: ProposedConsumer[];
+  /** entries of the dashboard that are listed as a source and as a device: only the device is offered */
+  foldedSources: number;
 }
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
@@ -124,7 +126,7 @@ export function propose(collected: Collected, hass: ImportHass): Proposal {
   const level = (f: ProposedFloor) => hass.floors?.[f.floorId]?.level ?? 0;
   const sortedFloors = [...floors.values()].sort((a, b) => level(a) - level(b) || byName(a, b));
   for (const f of sortedFloors) f.selected = f.rooms.some((r) => r.selected);
-  return { sources, floors: sortedFloors, looseRooms, noRoom };
+  return { sources, floors: sortedFloors, looseRooms, noRoom, foldedSources: collected.foldedSources };
 }
 
 const allRooms = (p: Proposal): ProposedRoom[] => [...p.floors.flatMap((f) => f.rooms), ...p.looseRooms];
