@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.2
 
 ### Added
 
@@ -11,6 +11,10 @@
 
 - README: new section *Credits* (author, original repository, product page, MIT license).
 - README: the sentence on when the energy switch appears is now at the start of the energy mode paragraph and in bold.
+
+### Internal
+
+- Updated dev dependencies (Dependabot).
 
 ## 1.1.1
 
