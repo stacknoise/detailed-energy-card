@@ -231,6 +231,14 @@ export const THRESHOLD: Field[] = [
   },
 ];
 
+/** The three actions of an element, edited with the action selector of Home Assistant (the value is the whole action). */
+export const ACTION_PATHS = ["tap_action", "hold_action", "double_tap_action"] as const;
+const actionFields: Field[] = [
+  { path: "tap_action", selector: { ui_action: {} }, label: "field_tap_action" },
+  { path: "hold_action", selector: { ui_action: {} }, label: "field_hold_action" },
+  { path: "double_tap_action", selector: { ui_action: {} }, label: "field_double_tap_action" },
+];
+
 export const HOME: Field[] = [
   { path: "home.total_entity", selector: power, label: "field_total_entity", check: "power" },
   { path: "home.total_energy_entity", selector: energy, label: "field_total_energy_entity", check: "energy" },
@@ -259,6 +267,7 @@ export const SOURCE: Field[] = [
     when: (s) => s?.type === "battery",
   },
   { path: "invert", selector: { boolean: {} }, label: "field_invert" },
+  ...actionFields,
 ];
 
 export interface Choice {
@@ -278,6 +287,7 @@ export const floorFields = (choices: Choice[] = [], exclude: string[] = []): Fie
   { path: "floor_id", selector: dropdown(choices), label: "field_floor", required: true },
   ...meterFields(exclude),
   color("color", "field_color"),
+  ...actionFields,
 ];
 
 /** Rooms can only be picked from the Home Assistant area registry. */
@@ -285,6 +295,7 @@ export const roomFields = (choices: Choice[] = [], exclude: string[] = []): Fiel
   { path: "area_id", selector: dropdown(choices), label: "field_area", required: true },
   ...meterFields(exclude),
   color("color", "field_color"),
+  ...actionFields,
 ];
 
 /** Consumer sensors: power and energy sensors that are not yet assigned to another consumer. */
@@ -302,6 +313,9 @@ export const consumerFields = (exclude: string[] = []): Field[] => [
     check: "energy",
   },
   { path: "name", selector: text, label: "field_name_optional" },
+  { path: "switch_entity", selector: { entity: { domain: ["switch", "input_boolean", "light", "fan"] } }, label: "field_switch_entity" },
+  { path: "confirm_switch", selector: { boolean: {} }, label: "field_confirm_switch", default: false, when: (c: any) => !!c?.switch_entity },
+  ...actionFields,
 ];
 
 export const CONSUMER: Field[] = consumerFields();
@@ -356,6 +370,8 @@ export function coveredPaths(): string[] {
 
 /** Flattens a config object into leaf paths, arrays written as "[]". */
 export function configPaths(value: unknown, path = ""): string[] {
+  // an action is edited as a whole by the action selector
+  if (ACTION_PATHS.some((a) => path === a || path.endsWith(`.${a}`))) return [path];
   if (Array.isArray(value)) return [...new Set(value.flatMap((v) => configPaths(v, `${path}[]`)))];
   if (typeof value === "object" && value !== null) {
     return Object.entries(value).flatMap(([k, v]) => configPaths(v, path ? `${path}.${k}` : k));

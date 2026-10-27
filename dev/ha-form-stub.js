@@ -256,6 +256,15 @@ export class HaFormStub extends LitElement {
       return html`<div class="row"><span>${label}</span>
         <button class="toggle ${value ? "on" : ""}" aria-label=${label} aria-pressed=${value ? "true" : "false"} @click=${() => this._set(item.name, !value)}></button></div>`;
     }
+    if (sel.ui_action) {
+      // the real selector of Home Assistant has more fields (path, service, data, confirmation); the stand-in only chooses the action
+      const kinds = ["more-info", "toggle", "navigate", "url", "perform-action", "none"];
+      return html`<div class="field"><label>${label}</label>
+        <select aria-label=${label} @change=${(e) => this._set(item.name, e.target.value ? { ...(value ?? {}), action: e.target.value } : undefined)}>
+          <option value="" ?selected=${!value?.action}>–</option>
+          ${kinds.map((k) => html`<option value=${k} ?selected=${value?.action === k}>${k}</option>`)}
+        </select></div>`;
+    }
     if (sel.select) return this._select(item, value);
     if (sel.entity) return this._entity(item, value);
     if (sel.number) {

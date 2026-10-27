@@ -490,6 +490,43 @@ export const cardStyles = css`
     top: 50%;
     transform: translateY(-50%);
   }
+  /* the toggle of a consumer with a switch (switch_entity): one more column at the end of the list */
+  .list.switches {
+    grid-template-columns: minmax(0, max-content) minmax(48px, 1fr) max-content 40px;
+  }
+  .list.switches.second {
+    grid-template-columns: minmax(0, max-content) minmax(48px, 1fr) max-content max-content 40px;
+  }
+  .switch {
+    background: color-mix(in srgb, var(--_muted) 45%, transparent);
+    border-radius: 999px;
+    box-sizing: border-box;
+    cursor: pointer;
+    height: 18px;
+    justify-self: end;
+    position: relative;
+    width: 34px;
+  }
+  .switch i {
+    background: var(--_text);
+    border-radius: 50%;
+    height: 14px;
+    left: 2px;
+    position: absolute;
+    top: 2px;
+    transition: left 0.15s;
+    width: 14px;
+  }
+  .switch.on {
+    background: var(--_accent);
+  }
+  .switch.on i {
+    left: 18px;
+  }
+  .switch.off {
+    cursor: default;
+    opacity: 0.4;
+  }
   .list.second {
     grid-template-columns: minmax(0, max-content) minmax(48px, 1fr) max-content max-content;
   }
@@ -577,6 +614,12 @@ export const cardStyles = css`
     }
     .list.second {
       grid-template-columns: minmax(0, 1fr) max-content max-content;
+    }
+    .list.switches {
+      grid-template-columns: minmax(0, 1fr) max-content 40px;
+    }
+    .list.switches.second {
+      grid-template-columns: minmax(0, 1fr) max-content max-content 40px;
     }
     .bar,
     .spacer {

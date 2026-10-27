@@ -378,6 +378,109 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .standby")).toHaveCount(0);
   });
 
+  test.describe("actions and switches", () => {
+    type Win = { __calls: Array<{ domain: string; service: string; data?: { entity_id?: string }; target?: unknown }>; __info?: string[] };
+    const calls = (page: Page) => page.evaluate(() => (window as unknown as Win).__calls);
+    const opened = (page: Page) => page.evaluate(() => (window as unknown as Win).__info ?? []);
+    const start = async (page: Page) => {
+      await page.goto("/dev/index.html?scenario=actions");
+      await expect(page.locator("detailed-energy-card .path")).not.toHaveText("");
+      await page.evaluate(() => {
+        const w = window as unknown as Win;
+        document.addEventListener("hass-more-info", (e) => (w.__info ??= []).push((e as CustomEvent).detail.entityId));
+      });
+    };
+
+    test("a tap does what the element's tap action says, and the default stays for the others", async ({ page }) => {
+      await start(page);
+      await node(page, "PV").click();
+      await expect.poll(() => page.evaluate(() => location.pathname)).toBe("/dev-target");
+      expect(await opened(page)).toEqual([]);
+      // the battery has no action: its click still opens the dialog
+      await node(page, "Batterie").click();
+      expect(await opened(page)).toEqual(["sensor.akku"]);
+    });
+
+    test("holding runs the hold action and not the tap", async ({ page }) => {
+      await start(page);
+      const box = (await node(page, "PV").boundingBox())!;
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(650);
+      await page.mouse.up();
+      expect(await opened(page)).toEqual(["sensor.soc"]);
+      expect(await page.evaluate(() => location.pathname)).not.toBe("/dev-target");
+      // a short press afterwards is a tap again
+      await page.mouse.down();
+      await page.mouse.up();
+      await expect.poll(() => page.evaluate(() => location.pathname)).toBe("/dev-target");
+    });
+
+    test("a double tap runs its action; a single tap waits for it and then does the default", async ({ page }) => {
+      await start(page);
+      await node(page, "OG").dblclick();
+      await expect.poll(() => calls(page)).toEqual([{ domain: "script", service: "turn_on", target: { entity_id: "script.demo" } }]);
+      // two clicks are a double tap, not two taps: OG is not selected by them
+      await expect(page.locator("detailed-energy-card .path")).not.toHaveText("Zuhause › OG");
+      await node(page, "OG").click();
+      await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause › OG");
+      expect((await calls(page)).length).toBe(1);
+    });
+
+    test("a consumer with a switch has a toggle that turns it on and off without opening the dialog", async ({ page }) => {
+      await start(page);
+      const toggle = page.locator('detailed-energy-card .detail .row .switch[aria-label="Kaffeemaschine"]');
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      expect(await calls(page)).toEqual([{ domain: "homeassistant", service: "turn_on", data: { entity_id: "switch.kaffee" } }]);
+      expect(await opened(page)).toEqual([]);
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      expect((await calls(page)).map((x) => x.service)).toEqual(["turn_on", "turn_off"]);
+      // a row without a switch leaves its cell empty and opens the dialog as before
+      await page.locator("detailed-energy-card .detail .row", { hasText: "Backofen" }).click();
+      expect(await opened(page)).toEqual(["sensor.backofen"]);
+    });
+
+    test("confirm_switch asks before the switch is turned off, not before it is turned on", async ({ page }) => {
+      await start(page);
+      await node(page, "OG").click();
+      await node(page, "Bad").click();
+      const toggle = page.locator('detailed-energy-card .detail .row .switch[aria-label="Heizung"]');
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      const questions: string[] = [];
+      let answer = false;
+      page.on("dialog", (d) => {
+        questions.push(d.message());
+        return answer ? d.accept() : d.dismiss();
+      });
+      await toggle.click();
+      expect(questions).toEqual(["Diesen Verbraucher ausschalten?"]);
+      expect(await calls(page)).toEqual([]);
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      answer = true;
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      expect((await calls(page)).map((x) => x.service)).toEqual(["turn_off"]);
+      // turning it on needs no question
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      expect(questions).toHaveLength(2);
+    });
+
+    test("a configuration with a faulty action is refused with the field named", async ({ page }) => {
+      await start(page);
+      await page.evaluate(() =>
+        (document.querySelector("detailed-energy-card") as unknown as { setConfig(c: object): void }).setConfig({
+          type: "x",
+          sources: [{ entity: "sensor.pv", tap_action: { action: "navigate" } }],
+        }),
+      );
+      await expect(page.locator("detailed-energy-card .error")).toContainText("sources[0].tap_action.navigation_path");
+    });
+  });
+
   test("a consumer with only an energy counter is greyed out in the mode Now and counts in the energy mode", async ({ page }) => {
     await fixClock(page);
     await open(page, "energy");

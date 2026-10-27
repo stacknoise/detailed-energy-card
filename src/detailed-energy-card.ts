@@ -3,6 +3,7 @@ import { state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
 import { collectEnergyIds, collectEntityIds, hasEnergy, hasPrice, validateConfig, type EnergyCardConfig } from "./model/config";
+import { runAction, type ActionConfig, type ActionDeps, type NodeActions } from "./model/actions";
 import { periodLabel } from "./model/browse";
 import { BASE_LOAD_NIGHTS, STANDBY_HOURS, baseLoad, homePowerIds, homePowerRows, runsContinuously } from "./model/standby";
 import { computeCosts, type CostResult } from "./model/costs";
@@ -18,7 +19,8 @@ import "./editor/card-editor";
 import "./heatmap-card";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
-import { MAX_LEVEL, TreeView, type ResolvedSelection, type TreeContext } from "./view/tree";
+import { Gesture } from "./view/gesture";
+import { MAX_LEVEL, TreeView, type ActionBinding, type ResolvedSelection, type TreeContext } from "./view/tree";
 import { SankeyView, type SankeyContext } from "./view/sankey";
 import { buildSankey, type SankeyGraphNode } from "./model/sankey";
 import { renderTimeline, type TimelineContext, type TimelineKpi, type TimelineStack } from "./view/timeline";
@@ -41,6 +43,7 @@ interface Hass {
   areas?: Record<string, AreaEntry | undefined>;
   floors?: Record<string, FloorEntry | undefined>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
+  callService?(domain: string, service: string, data?: Record<string, unknown>, target?: Record<string, unknown>): Promise<unknown>;
   states: Record<string, StateLike | undefined>;
 }
 
@@ -103,6 +106,7 @@ export class DetailedEnergyCard extends LitElement {
       this._entityIds = collectEntityIds(this._config);
       this._thresholds = resolveThresholds(this._config.colors?.thresholds, this._config.colors?.level_thresholds);
       this._resolved = undefined;
+      this._gestures.clear();
       this._sel = this._loadSelection();
       this._energyStore.clear();
       this._offset = 0;
@@ -834,6 +838,60 @@ export class DetailedEnergyCard extends LitElement {
     return this._config?.options?.focus_selected === true;
   }
 
+  // ---------- actions ----------
+
+  /** One gesture per element, so that a hold or a double tap survives the re-renders in between. */
+  private _gestures = new Map<string, Gesture>();
+
+  private _actionDeps(): ActionDeps {
+    return {
+      callService: (domain, service, data, target) => this._hass?.callService?.(domain, service, data, target),
+      moreInfo: (id) => this._moreInfo(id),
+      navigate: (path) => {
+        history.pushState(null, "", path);
+        window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+      },
+      open: (url) => void window.open(url, "_blank", "noreferrer"),
+      confirm: (text) => window.confirm(text),
+      confirmText: this._t("confirm_action"),
+    };
+  }
+
+  /**
+   * What an element does on tap, hold and double tap: the actions of its configuration (the Home Assistant standard),
+   * and for a tap without an action `fallback`, the click it always had (select a floor or room, open more-info).
+   */
+  private _bind(key: string, actions: NodeActions | undefined, fallback: () => void): ActionBinding {
+    let gesture = this._gestures.get(key);
+    if (!gesture) this._gestures.set(key, (gesture = new Gesture()));
+    const real = (a: ActionConfig | undefined) => !!a && a.action !== "none";
+    const run = (a: ActionConfig | undefined) => void runAction(a, actions?.entity, this._actionDeps());
+    gesture.update({
+      hold: real(actions?.hold),
+      double: real(actions?.double),
+      onTap: () => (actions?.tap ? run(actions.tap) : fallback()),
+      onHold: () => run(actions?.hold),
+      onDouble: () => run(actions?.double),
+    });
+    const g = gesture;
+    return {
+      click: () => g.click(),
+      down: () => g.down(),
+      up: () => g.up(),
+      // a long press on a touch screen opens the context menu: not when the press is a hold action
+      contextmenu: (e) => {
+        if (real(actions?.hold)) e.preventDefault();
+      },
+    };
+  }
+
+  /** Turns the switch of a consumer on or off; before turning it off the card asks when `confirm_switch` is set. */
+  private _toggleSwitch(entity: string, confirm: boolean): void {
+    const on = this._hass?.states[entity]?.state === "on";
+    if (on && confirm && !window.confirm(this._t("confirm_switch_off"))) return;
+    void this._hass?.callService?.("homeassistant", on ? "turn_off" : "turn_on", { entity_id: entity });
+  }
+
   private _moreInfo(entityId: string): void {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
@@ -859,6 +917,7 @@ export class DetailedEnergyCard extends LitElement {
       t: (k) => this._t(k),
       select: (s) => this._select(s),
       moreInfo: (id) => this._moreInfo(id),
+      bind: (key, actions, fallback) => this._bind(key, actions, fallback),
     };
   }
 
@@ -969,6 +1028,20 @@ export class DetailedEnergyCard extends LitElement {
     return html`<div class="badge costs" title=${tips.join("\n") || nothing}>${text}</div>`;
   }
 
+  /** The toggle at the end of a consumer's row; the click does not open the dialog of the row. */
+  private _renderSwitch(entity: string | undefined, confirm: boolean): TemplateResult {
+    if (!entity) return html`<span></span>`;
+    const state = this._hass?.states[entity]?.state;
+    const usable = state === "on" || state === "off";
+    const flip = (e: Event) => {
+      e.stopPropagation();
+      if (usable) this._toggleSwitch(entity, confirm);
+    };
+    return html`<span class="switch ${state === "on" ? "on" : ""} ${usable ? "" : "off"}" role="switch" aria-checked=${state === "on"} aria-disabled=${!usable}
+      aria-label=${this._hass?.states[entity]?.attributes.friendly_name ?? entity} title=${entity} tabindex="0"
+      @click=${flip} @pointerdown=${(e: Event) => e.stopPropagation()} @keydown=${(e: KeyboardEvent) => (e.key === " " || e.key === "Enter" ? (e.preventDefault(), flip(e)) : undefined)}><i></i></span>`;
+  }
+
   /** The "Unassigned" row of the list, or the warning that the children measure more than the meter. */
   private _renderRemainder(r: Remainder | undefined, second: boolean): TemplateResult | typeof nothing {
     if (!r || this._config?.options?.show_unassigned === false) return nothing;
@@ -997,6 +1070,7 @@ export class DetailedEnergyCard extends LitElement {
     const second = this._secondKind() !== undefined;
     const standby = this._standby();
     const standbyWatts = this._config?.options?.standby_watts ?? 0;
+    const switches = sorted.some((x) => !!x.switchEntity);
     return html`
       <div class="detail">
         <div class="detail-head">
@@ -1007,19 +1081,22 @@ export class DetailedEnergyCard extends LitElement {
         ${sorted.length === 0 && !(room.consumers.length === 0 && room.meter?.metered)
           ? html`<div class="empty">${this._t(room.consumers.length === 0 ? "no_consumers" : "no_active_consumers")}</div>`
           : nothing}
-        <div class="list ${second ? "second" : ""}">
+        <div class="list ${second ? "second" : ""} ${switches ? "switches" : ""}">
         ${sorted.map((c) => {
           const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
           const list = elementThresholds(c.thresholds, thresholds.consumer);
           const barColor = this._mode === "energy" ? undefined : thresholdColor(list, c.watts);
           const level = barColor ? Math.min(thresholdLevel(list, c.watts), MAX_LEVEL) : 0;
           const barWidth = barColor ? thresholdWidth(list, c.watts) : undefined;
+          const b = this._bind(nodeKey.consumer(c.entity), c.actions, () => this._moreInfo(c.entity));
           return html`
-            <button class="row ${c.valid || c.noPower ? "" : "warn"} ${c.noPower || (c.valid && isIdle(c.watts)) ? "idle" : ""}" @click=${() => this._moreInfo(c.entity)}>
+            <button class="row ${c.valid || c.noPower ? "" : "warn"} ${c.noPower || (c.valid && isIdle(c.watts)) ? "idle" : ""}"
+              @click=${() => b.click()} @pointerdown=${() => b.down()} @pointerup=${() => b.up()} @pointerleave=${() => b.up()} @pointercancel=${() => b.up()} @contextmenu=${(e: Event) => b.contextmenu(e)}>
               <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}<small>${c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small></span>
               <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
               ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}
+              ${switches ? this._renderSwitch(c.switchEntity, c.confirmSwitch === true) : nothing}
             </button>
           `;
         })}

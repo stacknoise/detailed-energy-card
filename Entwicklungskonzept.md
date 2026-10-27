@@ -79,6 +79,9 @@ floors:                    # optional – weglassen = Räume direkt am Zuhause
             name: Backofen      # optional, sonst friendly_name
             energy_entity: sensor.backofen_energie   # optional, Energie-Modus
           - entity: sensor.kuehlschrank_power
+            switch_entity: switch.kuehlschrank   # optional: Kippschalter am Zeilenende der Liste (switch, input_boolean, light, fan)
+            confirm_switch: false                # true: vor dem Ausschalten nachfragen
+          # Quellen, Etagen, Räume und Verbraucher: tap_action, hold_action, double_tap_action (HA-Standard, Abschnitt 7)
 rooms: []                  # alternativ zu floors (Wohnung ohne Etagen)
 colors:                    # optional – leer = HA-Theme
   preset: theme            # theme | nocturne | custom
@@ -261,6 +264,8 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 | Klick auf Raum | Die Liste zeigt die Verbraucher des Raums, absteigend nach Leistung. |
 | Klick auf Verbraucher | Öffnet den HA-More-Info-Dialog (`hass-more-info`). |
 | Klick auf Quelle | Öffnet ebenfalls den More-Info-Dialog. |
+| `tap_action`, `hold_action`, `double_tap_action` | An Quellen, Etagen, Räumen und Verbrauchern (Baum und Liste, nicht im Sankey): Aktionen des HA-Standards `more-info`, `toggle`, `navigate`, `url`, `perform-action` / `call-service`, `none`, mit `confirmation`. Ohne `tap_action` bleibt der Klick wie in den Zeilen darüber; `hold_action` und `double_tap_action` sind standardmäßig leer. Halten = 500 ms, Doppeltipp = zweiter Klick innerhalb von 250 ms (mit Doppeltipp-Aktion wartet der einfache Tipp so lange). `entity` der Aktion, sonst der Sensor des Elements (Verbraucher mit Schalter: der Schalter). |
+| Kippschalter am Zeilenende eines Verbrauchers (`switch_entity`) | `homeassistant.turn_on` / `turn_off`, ohne den More-Info-Dialog der Zeile zu öffnen; mit `confirm_switch` fragt die Karte vor dem Ausschalten (Dialog des Browsers). Nicht verfügbar → ausgegraut. |
 | Pfeile ‹ › (Energiemodus, neben den Zeiträumen) | Blättern um einen Zeitraum zurück bzw. vor; › endet beim laufenden Zeitraum. Der Kopf nennt den Zeitraum („Gestern“, „Mo 19.10.“, „KW 43“, „September“). Nicht gemerkt; Wechsel von Zeitraum oder Modus setzt zurück. |
 | Ansichts-Schalter (Icons rechts neben *Jetzt \| Heute \| Woche \| Monat*) | Wechselt zwischen Baum, Sankey und Verlauf, nur mit `options.views` (mindestens zwei). |
 | Sankey: Klick auf eine Etage | Zeigt nur die Räume dieser Etage; ein zweiter Klick zeigt die Räume aller Etagen. Pfad und Verbraucherliste folgen wie im Baum. |
@@ -303,6 +308,7 @@ src/
     stub-config.ts            // Startkonfiguration für den Karten-Picker
     energy.ts                 // Zeiträume (periodRange mit offset), Statistik-Abfrage als Stunden-/Tageszeilen (loadEnergySeries), Summen
     browse.ts                 // Beschriftung des geblätterten Zeitraums (periodLabel, isoWeek)
+    actions.ts                // Aktionen: Typen, Prüfung (actionError), Ausführung (runAction mit eingereichten Abhängigkeiten)
     timeline.ts               // Balken (Stunden/Tage), Werte je Etage/Raum/Verbraucher (treeSeries), Vergleich mit der Vorperiode
     heatmap.ts                // Config der Heatmap-Karte, Raster (heatmapGrid), Spitzen-/teuerste Stunde
     standby.ts                // Grundlast (baseLoad, homePowerRows) und Dauerlast (runsContinuously)
@@ -312,6 +318,7 @@ src/
   view/
     layout.ts                 // Geometrie: Positionen, Kurven, Linienstärke, Animationsdauer
     focus.ts                  // Zielpositionen und Gleiten bei focus_selected
+    gesture.ts                // Gesture: Tipp, Halten (500 ms) und Doppeltipp (250 ms) eines Elements
     tree.ts                   // TreeView: das Baum-Diagramm (Quellen, Haus, Etagen, Räume, Linien) samt Gleiten
     views.ts                  // Ansichten (tree, sankey, timeline), welche angeboten werden, gemerkter Modus/Zeitraum/Ansicht
     timeline.ts               // renderTimeline: gestapelte Balken, Vorperiode gestrichelt, Kennzahlen, Legende
@@ -328,6 +335,13 @@ src/
 
 - Die Card zeichnet ihr Diagramm über eine Ansicht: den Baum (`TreeView` in `view/tree.ts`), das Sankey-Diagramm (`SankeyView` in `view/sankey.ts`, Graph aus `model/sankey.ts`) oder den Verlauf (`renderTimeline` in `view/timeline.ts`, Daten aus `model/timeline.ts`). Die Card behält Konfiguration, Modus, Auswahl, Energie-Store, Kopfzeile und Verbraucherliste und gibt der Ansicht pro Frame einen `TreeContext` bzw. `SankeyContext`. `prepare()` läuft in `willUpdate()`, `render()` liest nur.
 - Der Ansichts-Schalter (Icon-Gruppe rechts neben *Jetzt | Heute | Woche | Monat*) erscheint erst, wenn mindestens zwei Ansichten angeboten werden; mit nur dem Baum bleibt die Card unverändert. Die gewählte Ansicht wird zusammen mit Modus und Zeitraum gemerkt (`remember_selection`, Schlüssel `…:mode`). Angeboten werden `options.views` (feste Reihenfolge), ohne diese Option nur `options.view`; der Verlauf nur mit Energiesensor, sonst bleibt der Baum; das Sankey-Diagramm braucht keinen (es zeigt im Modus *Jetzt* die Leistung).
+
+**Aktionen und Schalter**
+
+- Das Konzept sah das Event `hass-action` vor; es gibt im Home-Assistant-Frontend keines (`handle-action.ts` führt die Aktionen selbst aus). Die Karte führt sie deshalb selbst aus (`model/actions.ts`, `runAction`): `more-info` über `hass-more-info`, `toggle` und `perform-action` über `hass.callService`, `navigate` über `history.pushState` und das Fenster-Event `location-changed`, `url` nur für http(s) und Pfade (nie `javascript:`), `confirmation` über `window.confirm`. Abweichung, beschlossen am 2026-10-27.
+- `Gesture` (`view/gesture.ts`) unterscheidet Tipp, Halten und Doppeltipp je Element; die Karte hält eine Gesture je Schlüssel (`nodeKey`), die Optionen werden bei jedem Rendern ersetzt. Ohne Halten- und Doppeltipp-Aktion läuft der Tipp sofort.
+- Die Aktionen stehen im Modell (`NodeActions` an Quelle, Etage, Raum, Verbraucher), der Baum und die Liste binden sie über `TreeContext.bind`. Der Schalter eines Verbrauchers liegt als `<span role="switch">` in der Zeile (ein Knopf im Knopf wäre ungültig), die Spalte kommt nur, wenn ein Verbraucher der Liste einen Schalter hat. Der Zustand des Schalters gehört zu den beobachteten Entitäten der Karte (`collectEntityIds`).
+- Editor: die drei Aktionen mit dem Selektor `ui_action` von Home Assistant (der Dev-Editor zeichnet nur die Auswahl der Aktion), `switch_entity` mit Auswahl der Domains, `confirm_switch` sichtbar mit Schalter.
 
 **Blättern**
 

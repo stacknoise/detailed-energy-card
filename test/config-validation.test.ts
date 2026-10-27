@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, validateConfig } from "../src/model/config";
+import { ConfigError, collectEntityIds, validateConfig } from "../src/model/config";
 import { formatPower } from "../src/model/units";
 
 const base = { type: "custom:detailed-energy-card" };
@@ -45,6 +45,38 @@ describe("validateConfig: options (U-1)", () => {
     rejects({ options: { animation: "no" } }, /options\.animation must be true or false/);
     rejects({ sources: [{ entity: "sensor.pv", invert: 1 }] }, /sources\[0\]\.invert/);
     expect(() => validateConfig({ ...base, options: { unit: "kW", animation: false, wrap_rooms: true } })).not.toThrow();
+  });
+});
+
+describe("validateConfig: actions and switches", () => {
+  const room = (consumer: Record<string, unknown>) => ({ rooms: [{ area_id: "a", consumers: [{ entity: "sensor.x", ...consumer }] }] });
+
+  it("accepts the three actions on a source, a floor, a room and a consumer", () => {
+    const act = { tap_action: { action: "more-info" }, hold_action: { action: "toggle" }, double_tap_action: { action: "none" } };
+    const cfg = {
+      ...base,
+      sources: [{ entity: "sensor.pv", ...act }],
+      floors: [{ floor_id: "eg", ...act, rooms: [{ area_id: "k", ...act, consumers: [{ entity: "sensor.x", ...act }] }] }],
+    };
+    expect(() => validateConfig(cfg)).not.toThrow();
+  });
+
+  it("names the element and the field of a faulty action", () => {
+    rejects({ sources: [{ entity: "sensor.pv", hold_action: { action: "explode" } }] }, /^sources\[0\]\.hold_action\.action: "explode"/);
+    rejects({ floors: [{ floor_id: "eg", tap_action: { action: "navigate" } }] }, /^floors\[0\]\.tap_action\.navigation_path/);
+    rejects({ floors: [{ floor_id: "eg", rooms: [{ area_id: "a", double_tap_action: "toggle" }] }] }, /^floors\[0\]\.rooms\[0\]\.double_tap_action must be a mapping/);
+    rejects(room({ tap_action: { action: "url", url_path: "javascript:alert(1)" } }), /rooms\[0\]\.consumers\[0\]\.tap_action\.url_path/);
+  });
+
+  it("accepts a switch of the allowed domains and a confirmation, and refuses anything else", () => {
+    for (const id of ["switch.heizung", "input_boolean.x", "light.a", "fan.b"]) expect(() => validateConfig({ ...base, ...room({ switch_entity: id, confirm_switch: true }) })).not.toThrow();
+    rejects(room({ switch_entity: "sensor.power" }), /rooms\[0\]\.consumers\[0\]\.switch_entity: "sensor\.power" is not a switch/);
+    rejects(room({ switch_entity: "switch.a", confirm_switch: "yes" }), /confirm_switch must be true or false/);
+  });
+
+  it("watches the switch as an entity of the card, so that its state renders the card", () => {
+    const cfg = validateConfig({ ...base, ...room({ switch_entity: "switch.heizung" }) });
+    expect(collectEntityIds(cfg)).toContain("switch.heizung");
   });
 });
 

@@ -1,5 +1,6 @@
 import { html, nothing, svg, type TemplateResult } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
+import type { NodeActions } from "../model/actions";
 import type { EnergyCardConfig } from "../model/config";
 import { nodeKey, type EnergyModel, type MeterInfo, type RoomNode, type SourceNode } from "../model/compute";
 import type { Selection } from "../model/selection";
@@ -55,6 +56,14 @@ export interface ResolvedSelection {
 }
 
 /** What the tree view needs from the card for one frame. */
+/** What a node listens to: a click, and for a hold action the press and its end. */
+export interface ActionBinding {
+  click(): void;
+  down(): void;
+  up(): void;
+  contextmenu(e: Event): void;
+}
+
 export interface TreeContext {
   config: EnergyCardConfig;
   model: EnergyModel;
@@ -76,7 +85,12 @@ export interface TreeContext {
   t(key: Key): string;
   select(sel: Selection): void;
   moreInfo(entityId: string): void;
+  /** the handlers of an element: its configured actions, else `fallback` for a tap (the click it always had) */
+  bind(key: string, actions: NodeActions | undefined, fallback: () => void): ActionBinding;
 }
+
+/** Event bindings of a node (the template attributes are written out where the node is drawn). */
+const press = (b: ActionBinding) => ({ click: () => b.click(), down: () => b.down(), up: () => b.up(), menu: (e: Event) => b.contextmenu(e) });
 
 /**
  * The tree diagram: sources, home, floors and rooms joined by lines. Keeps what the slide of
@@ -197,7 +211,7 @@ export class TreeView {
           ${this._renderLines(c, layout, floorViews, roomViews, allRooms, allFloors)}
           ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
-          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors, f.meter))}
+          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors, f.meter, f.actions))}
           ${roomViews.map((v) => this._renderRoom(c, v.room, v.p, layout.roomColW, !v.leaving && v.room.id === sel.rooms[sel.room ?? -1]?.id, allRooms, v.leaving))}
         </div>
       </div>
@@ -268,12 +282,18 @@ export class TreeView {
           : s.type === "solar" && s.share > 0
             ? ` · ${Math.round(s.share * 100)} %`
             : "";
+    const b = press(c.bind(nodeKey.source(s.entity), s.actions, () => c.moreInfo(s.entity)));
     return html`
       <button
         class="node ${s.valid ? "" : "warn"}"
         style=${styleMap({ left: `${x}px`, top: "0px", "--node-color": s.color ?? "" })}
         title=${s.valid ? s.name : `${s.name}: ${c.t(s.noEnergy ? "no_energy" : "unavailable")}`}
-        @click=${() => c.moreInfo(s.entity)}
+        @click=${b.click}
+        @pointerdown=${b.down}
+        @pointerup=${b.up}
+        @pointerleave=${b.up}
+        @pointercancel=${b.up}
+        @contextmenu=${b.menu}
       >
         <span class="circle source"><ha-icon icon=${s.icon ?? SOURCE_ICONS[s.type]}></ha-icon></span>
         <span class="label">${s.name}${suffix}</span>
@@ -307,7 +327,8 @@ export class TreeView {
     `;
   }
 
-  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo): TemplateResult {
+  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo, actions?: NodeActions): TemplateResult {
+    const b = press(c.bind(nodeKey.floor(id), actions, () => c.select(selected && !c.focus ? { floor: null } : { floor: id })));
     return html`
       <button
         class="node ${isIdle(watts) ? "idle" : ""} ${p.o < 0.5 ? "ghost" : ""}"
@@ -316,7 +337,12 @@ export class TreeView {
         aria-hidden=${p.o < 0.5 ? "true" : nothing}
         tabindex=${p.o < 0.5 ? "-1" : nothing}
         title=${name}
-        @click=${() => c.select(selected && !c.focus ? { floor: null } : { floor: id })}
+        @click=${b.click}
+        @pointerdown=${b.down}
+        @pointerup=${b.up}
+        @pointerleave=${b.up}
+        @pointercancel=${b.up}
+        @contextmenu=${b.menu}
       >
         <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
       </button>
@@ -324,6 +350,7 @@ export class TreeView {
   }
 
   private _renderRoom(c: TreeContext, r: RoomNode, p: Pos, colW: number, selected: boolean, allRooms = false, leaving = false): TemplateResult {
+    const b = press(c.bind(nodeKey.room(r.id), r.actions, () => c.select({ ...c.stored, room: selected && !c.focus ? null : r.id })));
     return html`
       <button
         class="node ${isIdle(r.watts) ? "idle" : ""} ${colW < TIGHT_COL_W ? "tight" : ""} ${p.o < 0.5 || leaving ? "ghost" : ""}"
@@ -332,7 +359,12 @@ export class TreeView {
         aria-hidden=${p.o < 0.5 || leaving ? "true" : nothing}
         tabindex=${p.o < 0.5 || leaving ? "-1" : nothing}
         title=${r.name}
-        @click=${() => c.select({ ...c.stored, room: selected && !c.focus ? null : r.id })}
+        @click=${b.click}
+        @pointerdown=${b.down}
+        @pointerup=${b.up}
+        @pointerleave=${b.up}
+        @pointercancel=${b.up}
+        @contextmenu=${b.menu}
       >
         <span class="circle room ${selected || allRooms ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon>${meterMark(c, r.meter, "consumers")}</span>
         <span class="label">${r.name}</span>
