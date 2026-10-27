@@ -3,6 +3,7 @@ import { state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
 import { collectEnergyIds, collectEntityIds, hasEnergy, hasPrice, validateConfig, type EnergyCardConfig } from "./model/config";
+import { periodLabel } from "./model/browse";
 import { computeCosts, type CostResult } from "./model/costs";
 import { energyReader, firstWeekdayIndex, loadStatSeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
@@ -51,6 +52,8 @@ export class DetailedEnergyCard extends LitElement {
   /** "power": the power now; "energy": the energy of a period (needs energy sensors) */
   @state() private _mode: "power" | "energy" = "power";
   @state() private _period: EnergyPeriod = "today";
+  /** periods back from the running one (0, -1 = the one before, ...); only in the energy mode, not remembered */
+  @state() private _offset = 0;
   /** the view chosen in the view switch */
   @state() private _view: ViewId = "tree";
   /** energy of the shown period, loaded from the statistics and refreshed while the card is visible */
@@ -100,6 +103,7 @@ export class DetailedEnergyCard extends LitElement {
       this._resolved = undefined;
       this._sel = this._loadSelection();
       this._energyStore.clear();
+      this._offset = 0;
       this._loadMode();
       this._ensureEnergy();
     } catch (e) {
@@ -314,7 +318,23 @@ export class DetailedEnergyCard extends LitElement {
     this._period = period;
     this._saveShown();
     if (!changed) return;
+    // another period or the mode Now starts at the running period again
+    this._offset = 0;
     // the store drops the numbers of the period that was shown and loads the new one
+    this._ensureEnergy();
+    this._recompute();
+  }
+
+  /** The offset that counts: browsing only exists in the energy mode. */
+  private get _off(): number {
+    return this._mode === "energy" ? this._offset : 0;
+  }
+
+  /** Browses the shown period back (-1) or forward (+1), never beyond the running one. */
+  private _browse(step: number): void {
+    const next = Math.min(0, this._offset + step);
+    if (next === this._offset) return;
+    this._offset = next;
     this._ensureEnergy();
     this._recompute();
   }
@@ -322,7 +342,7 @@ export class DetailedEnergyCard extends LitElement {
   /** The energy the card shows now: the sensors and the period of the energy mode; undefined in the power mode. */
   private _energyQuery(): EnergyQuery | undefined {
     if (this._mode !== "energy" || !this._config) return undefined;
-    return { ids: collectEnergyIds(this._config), period: this._period };
+    return { ids: collectEnergyIds(this._config), period: this._period, offset: this._off || undefined };
   }
 
   /** The energy of today, the second value of the power mode. */
@@ -393,11 +413,12 @@ export class DetailedEnergyCard extends LitElement {
     if (!this._costsOn) return [];
     const cfg = this._config!;
     const period = this._costPeriod;
-    const out: EnergyQuery[] = [{ ids: collectEnergyIds(cfg), period, stat: "hour", incremental: true }];
+    const offset = this._off || undefined;
+    const out: EnergyQuery[] = [{ ids: collectEnergyIds(cfg), period, offset, stat: "hour", incremental: true }];
     const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity].filter((e): e is string => !!e);
-    if (prices.length) out.push({ ids: prices, period, stat: "hour", kind: "mean", incremental: true });
+    if (prices.length) out.push({ ids: prices, period, offset, stat: "hour", kind: "mean", incremental: true });
     const ha = Object.values(this._haCostIds()).filter((e): e is string => !!e);
-    if (ha.length) out.push({ ids: ha, period, kind: "change" });
+    if (ha.length) out.push({ ids: ha, period, offset, kind: "change" });
     return out;
   }
 
@@ -412,13 +433,13 @@ export class DetailedEnergyCard extends LitElement {
     const haQ = queries.find((q) => q.kind === "change");
     const priceRows = priceQ ? this._energyStore.series(priceQ) : undefined;
     const now = new Date();
-    const b = periodBounds(this._costPeriod, now, this._timeZone, this._firstWeekday);
+    const b = periodBounds(this._costPeriod, now, this._timeZone, this._firstWeekday, this._off);
     const result = computeCosts({
       cfg,
       rows,
       starts: bucketStarts(b.start, b.end, "hour", this._timeZone),
       end: b.end.getTime(),
-      until: now.getTime(),
+      until: this._off < 0 ? b.end.getTime() : now.getTime(),
       price: o.price !== undefined ? { fixed: o.price } : { rows: o.price_entity ? priceRows?.get(o.price_entity) : undefined },
       feedInPrice:
         o.feed_in_price !== undefined
@@ -542,11 +563,13 @@ export class DetailedEnergyCard extends LitElement {
   private _timelineQueries(): EnergyQuery[] {
     const ids = collectEnergyIds(this._config!);
     const period = this._timelinePeriod;
+    const o = this._off;
     const out: EnergyQuery[] = [
-      { ids, period },
-      { ids, period, offset: -1 },
+      { ids, period, offset: o || undefined },
+      { ids, period, offset: o - 1 },
     ];
-    if (period !== "today") out.push({ ids, period: "today", offset: -comparisonDayBack(period, new Date(), this._timeZone) });
+    // a period that is over is compared as a whole, only the running one needs the hours of the day
+    if (period !== "today" && o === 0) out.push({ ids, period: "today", offset: -comparisonDayBack(period, new Date(), this._timeZone) });
     return out;
   }
 
@@ -565,8 +588,9 @@ export class DetailedEnergyCard extends LitElement {
     const period = this._timelinePeriod;
     const unit = bucketUnitFor(period);
     const [q, qPrev, qDay] = this._timelineQueries();
-    const cur = periodBounds(period, now, tz, fw);
-    const prev = periodBounds(period, now, tz, fw, -1);
+    const o = this._off;
+    const cur = periodBounds(period, now, tz, fw, o);
+    const prev = periodBounds(period, now, tz, fw, o - 1);
     const starts = bucketStarts(cur.start, cur.end, unit, tz);
     const prevStarts = bucketStarts(prev.start, prev.end, unit, tz);
     const series = this._series(q, starts, cur.end.getTime());
@@ -614,7 +638,8 @@ export class DetailedEnergyCard extends LitElement {
 
     const kpis: TimelineKpi[] = [];
     const values = shown(series);
-    const nowMs = now.getTime();
+    // a period that is over counts up to its end
+    const nowMs = o < 0 ? cur.end.getTime() : now.getTime();
     const fullHour = two(localTime(new Date(nowMs - (nowMs - cur.start.getTime()) % 3_600_000), tz).hour);
     if (values) {
       const dayRows = qDay ? this._energyStore.series(qDay) : undefined;
@@ -625,6 +650,7 @@ export class DetailedEnergyCard extends LitElement {
       const cmp = compareWithPrevious({
         unit,
         now: nowMs,
+        whole: o < 0,
         starts,
         values,
         prevStarts,
@@ -632,19 +658,20 @@ export class DetailedEnergyCard extends LitElement {
         dayStarts,
         dayValues: shown(daySeries),
       });
-      const totalLabel = period === "today" ? this._t("tl_until").replace("{0}", fullHour) : this._t(period === "week" ? "tl_week" : "tl_month");
+      const before = this._t(period === "today" ? "tl_before_today" : period === "week" ? "tl_before_week" : "tl_before_month");
+      const totalLabel = o < 0 ? this._t("tl_total") : period === "today" ? this._t("tl_until").replace("{0}", fullHour) : this._t(period === "week" ? "tl_week" : "tl_month");
       kpis.push({ value: this._fmtAs("energy", cmp.current), label: totalLabel });
-      if (prevValues && cmp.change !== null && (period === "today" || dayRows)) {
+      if (prevValues && cmp.change !== null && (period === "today" || o < 0 || dayRows)) {
         const pct = Math.round(cmp.change * 100);
-        const vs = period === "today" ? this._t("tl_vs_day").replace("{0}", fullHour) : this._t(period === "week" ? "tl_vs_week" : "tl_vs_month");
+        const vs = o < 0 ? this._t("tl_vs").replace("{0}", before) : period === "today" ? this._t("tl_vs_day").replace("{0}", fullHour) : this._t(period === "week" ? "tl_vs_week" : "tl_vs_month");
         kpis.push({ value: `${pct > 0 ? "+" : pct < 0 ? "−" : "±"}${Math.abs(pct)} %`, label: vs, tone: pct > 0 ? "up" : pct < 0 ? "down" : undefined });
       }
       const peak = peakIndex(values);
       if (peak >= 0) kpis.push({ value: this._fmtAs("energy", values[peak]), label: this._t("tl_peak").replace("{0}", barTime(peak)) });
     }
 
-    const prevKey = period === "today" ? "tl_prev_today" : period === "week" ? "tl_prev_week" : "tl_prev_month";
-    const nowIndex = starts.findIndex((t, i) => nowMs >= t && nowMs < (starts[i + 1] ?? cur.end.getTime()));
+    const prevKey = o < 0 ? (period === "today" ? "tl_before_today" : period === "week" ? "tl_before_week" : "tl_before_month") : period === "today" ? "tl_prev_today" : period === "week" ? "tl_prev_week" : "tl_prev_month";
+    const nowIndex = o < 0 ? -1 : starts.findIndex((t, i) => nowMs >= t && nowMs < (starts[i + 1] ?? cur.end.getTime()));
     const axisNumber = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
     return {
       width: this._width || 320,
@@ -693,10 +720,24 @@ export class DetailedEnergyCard extends LitElement {
         ${items.map(
           (i) => html`<button class=${i.on ? "on" : ""} aria-pressed=${i.on} @click=${() => this._setView(i.mode, i.period)}>${i.label}</button>`,
         )}
+        ${this._mode === "energy" ? this._renderBrowse() : nothing}
         ${status === "loading" ? html`<span class="status">${this._t("energy_loading")}</span>` : nothing}
         ${status === "error" ? html`<span class="status warn">${this._t("energy_error")}</span>` : nothing}
       </div>
     `;
+  }
+
+  /** Arrows to browse back through the periods and the name of the period shown when it is not the running one. */
+  private _renderBrowse(): TemplateResult {
+    const label = periodLabel(this._period, this._offset, new Date(), this._timeZone, this._firstWeekday, this._hass?.locale?.language ?? this._hass?.language, {
+      yesterday: this._t("yesterday"),
+      week: (n) => this._t("week_n").replace("{0}", String(n)),
+    });
+    return html`<span class="browse">
+      <button class="arrow" aria-label=${this._t("browse_prev")} title=${this._t("browse_prev")} @click=${() => this._browse(-1)}>‹</button>
+      ${label ? html`<span class="browse-label">${label}</span>` : nothing}
+      <button class="arrow" aria-label=${this._t("browse_next")} title=${this._t("browse_next")} ?disabled=${this._offset >= 0} @click=${() => this._browse(1)}>›</button>
+    </span>`;
   }
 
   /** Mode switch and, with two views or more, the view switch to its right. */

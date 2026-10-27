@@ -145,3 +145,11 @@ describe("comparison with the previous period", () => {
     expect(peakIndex([0, 0])).toBe(-1);
   });
 });
+
+describe("comparison of a period that is over", () => {
+  it("compares the whole period with the whole previous one, whatever the time is", () => {
+    const starts = [0, 1, 2].map((i) => i * 86_400_000);
+    const r = compareWithPrevious({ unit: "day", now: 3 * 86_400_000, starts, values: [10, 20, 30], prevStarts: starts, prevValues: [10, 10, 10, 10], whole: true });
+    expect(r).toEqual({ current: 60, previous: 40, change: 0.5 });
+  });
+});
