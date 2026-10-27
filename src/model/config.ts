@@ -20,7 +20,8 @@ export interface SourceConfig {
 }
 
 export interface ConsumerConfig {
-  entity: string;
+  /** power sensor (W); optional when `energy_entity` is set: the consumer then only shows in the energy mode */
+  entity?: string;
   name?: string;
   /** energy counter (kWh) for the energy mode */
   energy_entity?: string;
@@ -176,7 +177,14 @@ function checkRoom(room: unknown, where: string): void {
   if (room.entity) checkEntity(room.entity, `${where}.entity`);
   if (room.energy_entity) checkEntity(room.energy_entity, `${where}.energy_entity`);
   list(room.consumers, `${where}.consumers`).forEach((c, i) => {
-    checkEntity(isObj(c) ? c.entity : undefined, `${where}.consumers[${i}]`);
+    // a consumer needs a power sensor, an energy counter, or both
+    if (isObj(c) && (c.entity === undefined || c.entity === null || c.entity === "") && c.energy_entity) {
+      /* only an energy counter: fine */
+    } else if (isObj(c) && !c.entity && !c.energy_entity) {
+      throw new ConfigError(`${where}.consumers[${i}]: entity or energy_entity is required`);
+    } else {
+      checkEntity(isObj(c) ? c.entity : undefined, `${where}.consumers[${i}]`);
+    }
     if (isObj(c) && c.energy_entity) checkEntity(c.energy_entity, `${where}.consumers[${i}].energy_entity`);
     if (isObj(c)) checkThresholds(c.thresholds, `${where}.consumers[${i}].thresholds`);
   });
@@ -304,7 +312,7 @@ function checkUniqueConsumers(cfg: EnergyCardConfig): void {
       meters(r, `${prefix}[${i}]`);
       (r.consumers ?? []).forEach((c, j) => {
         const where = `${prefix}[${i}].consumers[${j}]`;
-        claim(c.entity, where);
+        if (c.entity) claim(c.entity, where);
         if (c.energy_entity) claim(c.energy_entity, `${where}.energy_entity`);
       });
     });
@@ -382,7 +390,7 @@ export function collectEntityIds(cfg: EnergyCardConfig): string[] {
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   for (const r of rooms) {
     if (r.entity) ids.add(r.entity);
-    for (const c of r.consumers ?? []) ids.add(c.entity);
+    for (const c of r.consumers ?? []) if (c.entity) ids.add(c.entity);
   }
   return [...ids];
 }

@@ -227,4 +227,15 @@ test.describe("editor screenshots", () => {
     await page.waitForTimeout(700); // the other floors and rooms have faded out
     await shot(page, "editor-structure");
   });
+
+  // the wizard "import from the Energy dashboard": the structure step (the overlay covers the viewport, not the dialog)
+  test("editor-import", async ({ page }) => {
+    await open(page);
+    await editor(page).locator("button.import").click();
+    const wizard = editor(page).locator("detailed-energy-import-wizard");
+    await wizard.getByRole("button", { name: "Weiter" }).click();
+    await expect(wizard.locator(".steps .on")).toHaveText("2 Struktur");
+    await page.waitForTimeout(300);
+    await wizard.locator(".panel").screenshot({ path: "docs/screenshots/editor-import.png" });
+  });
 });

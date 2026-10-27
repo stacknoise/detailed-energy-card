@@ -408,6 +408,7 @@
         0.35 + Math.exp(-((h - 7) ** 2) / 2) * 0.9 + Math.exp(-((h - 12.5) ** 2) / 1.5) * 2.2 + Math.exp(-((h - 18.5) ** 2) / 3) * 1.6;
       // kWh of "today"; longer periods are a multiple of it
       const energyToday = {
+        "sensor.e_nur_zaehler": 1.2,
         "sensor.e_pv": 12.4, "sensor.e_akku": 2.0, "sensor.e_netz": 5.1, "sensor.e_total": 19.5,
         "sensor.e_backofen": 4.2, "sensor.e_spuel": 2.6, "sensor.e_kuehl": 1.9, "sensor.e_wz": 3.1,
         "sensor.e_flur": 0, "sensor.e_og": 4.9, "sensor.e_keller": 2.1,
@@ -470,11 +471,52 @@
       } else {
         el.setConfig({ type: "custom:detailed-energy-card", ...scenarios[name] });
       }
+      // What the wizard "import from the Energy dashboard" reads: the registries as objects, the devices of the
+      // consumers and the answer of energy/get_prefs (?prefs=empty: the dashboard was never set up, ?prefs=error)
+      const byId = (list, key) => Object.fromEntries(list.map((x) => [x[key], x]));
+      const consumerArea = { backofen: "kueche", spuel: "kueche", kuehl: "kueche", wz: "wohnzimmer", flur: "flur", og: "bad", keller: "werkstatt" };
+      const registryEntities = {};
+      for (const [id, area] of Object.entries(consumerArea)) {
+        registryEntities[`sensor.e_${id}`] = { device_id: `d_${id}` };
+        registryEntities[`sensor.${id}`] = { device_id: `d_${id}` };
+      }
+      for (const id of ["pv", "netz", "akku"]) {
+        registryEntities[`sensor.e_${id}`] = { device_id: `d_${id}` };
+        registryEntities[`sensor.${id}`] = { device_id: `d_${id}` };
+      }
+      const registryDevices = Object.fromEntries(Object.entries(consumerArea).map(([id, area]) => [`d_${id}`, { area_id: area }]));
+      const energyPrefs = {
+        energy_sources: [
+          { type: "grid", stat_energy_from: "sensor.e_netz", stat_energy_to: "sensor.e_netz_einspeisung", stat_rate: "sensor.netz", cost_adjustment_day: 0 },
+          { type: "solar", stat_energy_from: "sensor.e_pv" },
+          { type: "battery", stat_energy_from: "sensor.e_akku", stat_energy_to: "sensor.e_akku_geladen", stat_soc: "sensor.soc" },
+        ],
+        device_consumption: [
+          { stat_consumption: "sensor.e_backofen", name: "Backofen" },
+          { stat_consumption: "sensor.e_spuel" },
+          { stat_consumption: "sensor.e_kuehl" },
+          { stat_consumption: "sensor.e_wz" },
+          { stat_consumption: "sensor.e_flur" },
+          { stat_consumption: "sensor.e_og" },
+          { stat_consumption: "sensor.e_keller" },
+          { stat_consumption: "sensor.e_nur_zaehler" },
+          { stat_consumption: "tibber:consumption_home" },
+        ],
+      };
       const hass = {
         language: params.get("lang") ?? "de", // ?lang=en previews the English texts
         config: { location_name: "Zuhause" },
         states,
+        areas: byId(registries.areas, "area_id"),
+        floors: byId(registries.floors.map((f, i) => ({ ...f, level: i })), "floor_id"),
+        entities: registryEntities,
+        devices: registryDevices,
         callWS: async (m) => {
+          if (m.type === "energy/get_prefs") {
+            if (params.get("prefs") === "empty") throw { code: "not_found", message: "No prefs." };
+            if (params.get("prefs") === "error") throw new Error("boom");
+            return energyPrefs;
+          }
           if (m.type === "recorder/statistics_during_period") {
             if (params.get("energyError")) throw new Error("no statistics");
             const start = Date.parse(m.start_time);

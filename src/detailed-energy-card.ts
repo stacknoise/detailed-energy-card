@@ -502,7 +502,7 @@ export class DetailedEnergyCard extends LitElement {
   private _consumerIds(): string[] {
     const cfg = this._config;
     const rooms = [...(cfg?.rooms ?? []), ...(cfg?.floors ?? []).flatMap((f) => f.rooms ?? [])];
-    return [...new Set(rooms.flatMap((r) => (r.consumers ?? []).map((c) => c.entity)))];
+    return [...new Set(rooms.flatMap((r) => (r.consumers ?? []).flatMap((c) => (c.entity ? [c.entity] : []))))];
   }
 
   /** The base load in watts, undefined while it is not known (not asked for, no statistics yet, no night in them). */
@@ -1015,8 +1015,8 @@ export class DetailedEnergyCard extends LitElement {
           const level = barColor ? Math.min(thresholdLevel(list, c.watts), MAX_LEVEL) : 0;
           const barWidth = barColor ? thresholdWidth(list, c.watts) : undefined;
           return html`
-            <button class="row ${c.valid ? "" : "warn"} ${c.valid && isIdle(c.watts) ? "idle" : ""}" @click=${() => this._moreInfo(c.entity)}>
-              <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}<small>${c.noEnergy ? this._t("no_energy") : c.entity}</small></span>
+            <button class="row ${c.valid || c.noPower ? "" : "warn"} ${c.noPower || (c.valid && isIdle(c.watts)) ? "idle" : ""}" @click=${() => this._moreInfo(c.entity)}>
+              <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}<small>${c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small></span>
               <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
               ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}

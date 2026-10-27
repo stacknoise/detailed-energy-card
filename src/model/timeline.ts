@@ -77,7 +77,7 @@ export function treeSeries(cfg: EnergyCardConfig, rows: Map<string, EnergyRow[]>
     let sum: number[] | undefined;
     for (const c of r.consumers ?? []) {
       const v = of(c.energy_entity);
-      out.consumers.set(c.entity, v);
+      out.consumers.set((c.entity ?? c.energy_entity)!, v);
       sum = add(sum, v);
     }
     const v = of(r.energy_entity) ?? sum;

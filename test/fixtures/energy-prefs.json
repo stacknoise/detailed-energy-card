@@ -1,0 +1,19 @@
+{
+  "_note": "Written by hand after the TypedDicts of homeassistant/components/energy/data.py (2025/2026), not copied from a running Home Assistant: replace it with a real answer of energy/get_prefs when there is one.",
+  "energy_sources": [
+    { "type": "grid", "stat_energy_from": "sensor.grid_import", "stat_energy_to": "sensor.grid_export", "stat_cost": null, "entity_energy_price": "sensor.price", "number_energy_price": null, "stat_compensation": null, "entity_energy_price_export": null, "number_energy_price_export": 0.08, "cost_adjustment_day": 0, "stat_rate": "sensor.grid_power" },
+    { "type": "solar", "stat_energy_from": "sensor.pv_energy", "config_entry_solar_forecast": null },
+    { "type": "battery", "stat_energy_from": "sensor.bat_discharged", "stat_energy_to": "sensor.bat_charged", "stat_soc": "sensor.bat_soc" },
+    { "type": "gas", "stat_energy_from": "sensor.gas", "stat_cost": null, "entity_energy_price": null, "number_energy_price": null }
+  ],
+  "device_consumption": [
+    { "stat_consumption": "sensor.oven_energy" },
+    { "stat_consumption": "sensor.fridge_energy", "name": "Kühlschrank" },
+    { "stat_consumption": "sensor.tv_energy", "stat_rate": "sensor.tv_power" },
+    { "stat_consumption": "sensor.heatpump_energy" },
+    { "stat_consumption": "sensor.heatpump_boiler_energy", "included_in_stat": "sensor.heatpump_energy" },
+    { "stat_consumption": "sensor.shed_energy" },
+    { "stat_consumption": "tibber:consumption_home" },
+    { "stat_consumption": "sensor.office_energy", "included_in_stat": "sensor.tv_energy" }
+  ]
+}
