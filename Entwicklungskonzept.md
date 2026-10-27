@@ -513,6 +513,7 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 | **HACS-Standard** | Aufnahme in den HACS-Standard-Store (`hacs/default`) mit Version 1.1.0: Installation direkt über die HACS-Suche, kein benutzerdefiniertes Repository mehr nötig |
 | **1.1.1** | Doku: Installation über den HACS-Standard-Store statt Custom Repository, damit HACS die neue README anzeigt. Details in [CHANGELOG.md](CHANGELOG.md) |
 | **1.1.2** | Hinweis im Editor, solange kein Energiesensor eingetragen ist (Schalter *Jetzt \| Heute \| Woche \| Monat*), Konsolenzeile mit Name, Version und Repo-Link, Abschnitt „Credits“ im README. Pakete P0 und P1 des Ausbaukonzepts. Details in [CHANGELOG.md](CHANGELOG.md) |
+| **1.2.0** | Ausbau nach dem Konzept (Pakete P3 bis P16): Ansichten Baum, Sankey-Diagramm und Verlauf (`options.view` / `views`), Zähler für Etagen und Räume mit Warnung und „Nicht erfasst“ je Auswahl, Zweitwert (`secondary_value`), Einspeisung und Batterie-Laden mit Badge Eigenverbrauch, Kosten (`price` / `price_entity`), Zeitraum blättern, Grundlast und Standby-Hinweis, zweite Karte `detailed-energy-heatmap-card`, Verbraucher nur mit Energiezähler, Assistent „Aus Energie-Dashboard übernehmen“, Aktionen und Schalter (`tap_action` …, `switch_entity`) und kompakte Ansicht (`options.compact`). Details in [CHANGELOG.md](CHANGELOG.md) |
 
 ---
 
