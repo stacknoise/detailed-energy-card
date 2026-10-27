@@ -40,6 +40,8 @@ export interface CollectedDevice {
 export interface Collected {
   sources: CollectedSource[];
   devices: CollectedDevice[];
+  /** entries the dashboard lists as a source (grid, solar, battery) that are devices too: they are shown as devices only */
+  foldedSources: number;
   /** the Energy dashboard has nothing set up yet */
   empty: boolean;
 }
@@ -77,6 +79,9 @@ export function areaOf(hass: ImportHass, entityId: string): string | undefined {
 
 const isEntity = (hass: ImportHass, id: string | undefined): boolean => !!id && !!hass.states[id];
 
+/** The power sensor of an entry: `stat_rate`, or the one inside `power_config` (newer Home Assistant writes both). */
+const rateOf = (raw: Obj): string | undefined => str(raw.stat_rate) ?? (isObj(raw.power_config) ? str(raw.power_config.stat_rate) : undefined);
+
 function pickPower(hass: ImportHass, counter: string | undefined, rate: string | undefined): { power?: string; choices: string[] } {
   if (rate && isEntity(hass, rate)) return { power: rate, choices: [] };
   const found = counter ? devicePower(hass, counter) : [];
@@ -103,7 +108,7 @@ export function collectPrefs(prefs: unknown, hass: ImportHass): Collected {
       const energy = legacy ? str(from[0]?.stat_energy_from) : str(raw.stat_energy_from);
       const energyReturn = legacy ? str(to[0]?.stat_energy_to) : str(raw.stat_energy_to);
       if (!energy && !energyReturn) continue;
-      const { power, choices } = pickPower(hass, energy ?? energyReturn, str(raw.stat_rate));
+      const { power, choices } = pickPower(hass, energy ?? energyReturn, rateOf(raw));
       sources.push({
         type: "grid",
         name: str(raw.name),
@@ -116,13 +121,13 @@ export function collectPrefs(prefs: unknown, hass: ImportHass): Collected {
     } else if (type === "solar") {
       const energy = str(raw.stat_energy_from);
       if (!energy) continue;
-      const { power, choices } = pickPower(hass, energy, str(raw.stat_rate));
+      const { power, choices } = pickPower(hass, energy, rateOf(raw));
       sources.push({ type: "solar", name: str(raw.name), energy, power, powerChoices: choices, usable: isEntity(hass, energy) });
     } else if (type === "battery") {
       const energy = str(raw.stat_energy_from);
       const energyReturn = str(raw.stat_energy_to);
       if (!energy && !energyReturn) continue;
-      const { power, choices } = pickPower(hass, energy ?? energyReturn, str(raw.stat_rate));
+      const { power, choices } = pickPower(hass, energy ?? energyReturn, rateOf(raw));
       const soc = str(raw.stat_soc);
       sources.push({
         type: "battery",
@@ -141,7 +146,7 @@ export function collectPrefs(prefs: unknown, hass: ImportHass): Collected {
     if (!isObj(raw)) continue;
     const stat = str(raw.stat_consumption);
     if (!stat) continue;
-    const { power, choices } = pickPower(hass, stat, str(raw.stat_rate));
+    const { power, choices } = pickPower(hass, stat, rateOf(raw));
     const friendly = hass.states[stat]?.attributes?.friendly_name;
     devices.push({
       stat,
@@ -153,5 +158,9 @@ export function collectPrefs(prefs: unknown, hass: ImportHass): Collected {
       usable: isEntity(hass, stat),
     });
   }
-  return { sources, devices, empty: sources.length === 0 && devices.length === 0 };
+  // Some dashboards list every plug twice: as a grid source (to give it a price) and as a device. A counter that is a
+  // device is a device: as a source it would take the counter away from it, and the card would show 30 sources.
+  const deviceStats = new Set(devices.map((d) => d.stat));
+  const real = sources.filter((s) => ![s.energy, s.energyReturn].some((id) => id && deviceStats.has(id)));
+  return { sources: real, devices, foldedSources: sources.length - real.length, empty: real.length === 0 && devices.length === 0 };
 }

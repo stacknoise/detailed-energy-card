@@ -1,0 +1,821 @@
+{
+  "_note": "Real answer of energy/get_prefs of the maintainer (Home Assistant 2026.x), shortened to the structure: the names of the Zigbee radio addresses in the sensor ids are replaced (funk_NN). Every plug is listed as a grid source and as a device.",
+  "energy_sources": [
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_ke_luftentfeuchter_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "Luftentfeuchter",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_ke_luftentfeuchter_power"
+      },
+      "stat_rate": "sensor.steckdose_ke_luftentfeuchter_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_ke_rasenmaher_roboter_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "Rasenmäher Roboter",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_ke_rasenmaher_roboter_power"
+      },
+      "stat_rate": "sensor.steckdose_ke_rasenmaher_roboter_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_ke_kuhltruhe_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "Kühltruhe",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_ke_kuhltruhe_power"
+      },
+      "stat_rate": "sensor.steckdose_ke_kuhltruhe_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_ke_waschmaschine_trockner_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "Waschmaschine/Trockner",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_ke_waschmaschine_trockner_power"
+      },
+      "stat_rate": "sensor.steckdose_ke_waschmaschine_trockner_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_ke_warmwasserspeicher_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "Warmwasserspeicher",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_ke_warmwasserspeicher_power"
+      },
+      "stat_rate": "sensor.steckdose_ke_warmwasserspeicher_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_01_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "KU AP3",
+      "power_config": {
+        "stat_rate": "sensor.funk_01_power"
+      },
+      "stat_rate": "sensor.funk_01_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_ku_ap2_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "KU AP2",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_ku_ap2_power"
+      },
+      "stat_rate": "sensor.steckdose_ku_ap2_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_02_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "KU AP1",
+      "power_config": {
+        "stat_rate": "sensor.funk_02_power"
+      },
+      "stat_rate": "sensor.funk_02_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_ke_arbeitsplatz_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "Arbeitsplatz",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_ke_arbeitsplatz_power"
+      },
+      "stat_rate": "sensor.steckdose_ke_arbeitsplatz_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_03_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "Küche Ecke",
+      "power_config": {
+        "stat_rate": "sensor.funk_03_power"
+      },
+      "stat_rate": "sensor.funk_03_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_sz1_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "SZ1",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_sz1_power"
+      },
+      "stat_rate": "sensor.steckdose_sz1_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_04_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "SZ2",
+      "power_config": {
+        "stat_rate": "sensor.funk_04_power"
+      },
+      "stat_rate": "sensor.funk_04_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_05_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "FA1",
+      "power_config": {
+        "stat_rate": "sensor.funk_05_power"
+      },
+      "stat_rate": "sensor.funk_05_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_fa2_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": " FA2",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_fa2_power"
+      },
+      "stat_rate": "sensor.steckdose_fa2_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_06_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "FA3",
+      "power_config": {
+        "stat_rate": "sensor.funk_06_power"
+      },
+      "stat_rate": "sensor.funk_06_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_07_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "FA4",
+      "power_config": {
+        "stat_rate": "sensor.funk_07_power"
+      },
+      "stat_rate": "sensor.funk_07_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_08_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "WZ1",
+      "power_config": {
+        "stat_rate": "sensor.funk_08_power"
+      },
+      "stat_rate": "sensor.funk_08_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_09_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "WZ2",
+      "power_config": {
+        "stat_rate": "sensor.funk_09_power"
+      },
+      "stat_rate": "sensor.funk_09_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_10_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "WZ3",
+      "power_config": {
+        "stat_rate": "sensor.funk_10_power"
+      },
+      "stat_rate": "sensor.funk_10_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_11_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "WZ5",
+      "power_config": {
+        "stat_rate": "sensor.funk_11_power"
+      },
+      "stat_rate": "sensor.funk_11_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_12_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "WZ6",
+      "power_config": {
+        "stat_rate": "sensor.funk_12_power"
+      },
+      "stat_rate": "sensor.funk_12_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_13_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "WZ4",
+      "power_config": {
+        "stat_rate": "sensor.funk_13_power"
+      },
+      "stat_rate": "sensor.funk_13_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_14_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "BD1",
+      "power_config": {
+        "stat_rate": "sensor.funk_14_power"
+      },
+      "stat_rate": "sensor.funk_14_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_15_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "BD2",
+      "power_config": {
+        "stat_rate": "sensor.funk_15_power"
+      },
+      "stat_rate": "sensor.funk_15_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_16_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "FE1",
+      "power_config": {
+        "stat_rate": "sensor.funk_16_power"
+      },
+      "stat_rate": "sensor.funk_16_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_17_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "FE2",
+      "power_config": {
+        "stat_rate": "sensor.funk_17_power"
+      },
+      "stat_rate": "sensor.funk_17_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_fe3_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "FE3",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_fe3_power"
+      },
+      "stat_rate": "sensor.steckdose_fe3_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_fe4_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "FE4",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_fe4_power"
+      },
+      "stat_rate": "sensor.steckdose_fe4_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_18_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "LZ2",
+      "power_config": {
+        "stat_rate": "sensor.funk_18_power"
+      },
+      "stat_rate": "sensor.funk_18_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_19_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "LZ3",
+      "power_config": {
+        "stat_rate": "sensor.funk_19_power"
+      },
+      "stat_rate": "sensor.funk_19_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_lz1_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "LZ1",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_lz1_power"
+      },
+      "stat_rate": "sensor.steckdose_lz1_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.steckdose_sz3_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "SZ3",
+      "power_config": {
+        "stat_rate": "sensor.steckdose_sz3_power"
+      },
+      "stat_rate": "sensor.steckdose_sz3_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_20_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "SZ4",
+      "power_config": {
+        "stat_rate": "sensor.funk_20_power"
+      },
+      "stat_rate": "sensor.funk_20_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_21_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "SZ5",
+      "power_config": {
+        "stat_rate": "sensor.funk_21_power"
+      },
+      "stat_rate": "sensor.funk_21_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_22_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "VZ BD",
+      "power_config": {
+        "stat_rate": "sensor.funk_22_power"
+      },
+      "stat_rate": "sensor.funk_22_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_23_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "VZ Eingang",
+      "power_config": {
+        "stat_rate": "sensor.funk_23_power"
+      },
+      "stat_rate": "sensor.funk_23_power"
+    },
+    {
+      "type": "grid",
+      "stat_energy_from": "sensor.funk_24_energy",
+      "stat_energy_to": null,
+      "stat_cost": null,
+      "stat_compensation": null,
+      "entity_energy_price": "sensor.epex_spot_data_total_price",
+      "number_energy_price": null,
+      "entity_energy_price_export": null,
+      "number_energy_price_export": null,
+      "cost_adjustment_day": 0,
+      "name": "VZ WZ",
+      "power_config": {
+        "stat_rate": "sensor.funk_24_power"
+      },
+      "stat_rate": "sensor.funk_24_power"
+    }
+  ],
+  "device_consumption": [
+    {
+      "stat_consumption": "sensor.steckdose_ke_luftentfeuchter_energy",
+      "stat_rate": "sensor.steckdose_ke_luftentfeuchter_power",
+      "name": "Luftentfeuchter"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_ke_rasenmaher_roboter_energy",
+      "stat_rate": "sensor.steckdose_ke_rasenmaher_roboter_power",
+      "name": "Rasenmähder Roboter"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_ke_kuhltruhe_energy",
+      "stat_rate": "sensor.steckdose_ke_kuhltruhe_power",
+      "name": "Kühltruhe"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_ke_waschmaschine_trockner_energy",
+      "stat_rate": "sensor.steckdose_ke_waschmaschine_trockner_power",
+      "name": "Waschmaschine/Trockner"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_ke_warmwasserspeicher_energy",
+      "stat_rate": "sensor.steckdose_ke_warmwasserspeicher_power",
+      "name": "Warmwasserspeicher"
+    },
+    {
+      "stat_consumption": "sensor.funk_01_energy",
+      "stat_rate": "sensor.funk_01_power",
+      "name": "Küche AP3"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_ku_ap2_energy",
+      "name": "Küche AP2"
+    },
+    {
+      "stat_consumption": "sensor.funk_02_energy",
+      "stat_rate": "sensor.funk_02_power",
+      "name": "Küche AP1"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_ke_arbeitsplatz_energy",
+      "stat_rate": "sensor.steckdose_ke_arbeitsplatz_power",
+      "name": "Arbeitsplatz"
+    },
+    {
+      "stat_consumption": "sensor.funk_03_energy",
+      "stat_rate": "sensor.funk_03_power",
+      "name": "Küche Ecke"
+    },
+    {
+      "stat_consumption": "sensor.funk_04_energy",
+      "stat_rate": "sensor.funk_04_power",
+      "name": "Schlafzimmer 2"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_sz1_energy",
+      "stat_rate": "sensor.steckdose_sz1_power",
+      "name": "Schlafzimmer 1"
+    },
+    {
+      "stat_consumption": "sensor.funk_05_energy",
+      "stat_rate": "sensor.funk_05_power",
+      "name": "FA1"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_fa2_energy",
+      "stat_rate": "sensor.steckdose_fa2_power",
+      "name": "FA2"
+    },
+    {
+      "stat_consumption": "sensor.funk_06_energy",
+      "stat_rate": "sensor.funk_06_power",
+      "name": "FA3"
+    },
+    {
+      "stat_consumption": "sensor.funk_07_energy",
+      "stat_rate": "sensor.funk_07_power",
+      "name": "FA4"
+    },
+    {
+      "stat_consumption": "sensor.funk_08_energy",
+      "stat_rate": "sensor.funk_08_power",
+      "name": "WZ1"
+    },
+    {
+      "stat_consumption": "sensor.funk_09_energy",
+      "stat_rate": "sensor.funk_09_power",
+      "name": "WZ2"
+    },
+    {
+      "stat_consumption": "sensor.funk_13_energy",
+      "stat_rate": "sensor.funk_13_power",
+      "name": "WZ4"
+    },
+    {
+      "stat_consumption": "sensor.funk_11_energy",
+      "stat_rate": "sensor.funk_11_power",
+      "name": "WZ5"
+    },
+    {
+      "stat_consumption": "sensor.funk_12_energy",
+      "stat_rate": "sensor.funk_12_power",
+      "name": "WZ6"
+    },
+    {
+      "stat_consumption": "sensor.funk_10_energy",
+      "stat_rate": "sensor.funk_10_power",
+      "name": "WZ3"
+    },
+    {
+      "stat_consumption": "sensor.funk_14_energy",
+      "stat_rate": "sensor.funk_14_power",
+      "name": "BD1"
+    },
+    {
+      "stat_consumption": "sensor.funk_15_energy",
+      "stat_rate": "sensor.funk_15_power",
+      "name": "BD2"
+    },
+    {
+      "stat_consumption": "sensor.funk_16_energy",
+      "stat_rate": "sensor.funk_16_power",
+      "name": "FE1"
+    },
+    {
+      "stat_consumption": "sensor.funk_17_energy",
+      "stat_rate": "sensor.funk_17_power",
+      "name": "FE2"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_fe3_energy",
+      "stat_rate": "sensor.steckdose_fe3_power",
+      "name": "FE3"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_fe4_energy",
+      "stat_rate": "sensor.steckdose_fe4_power",
+      "name": "FE4"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_lz1_energy",
+      "stat_rate": "sensor.steckdose_lz1_power",
+      "name": "LZ1"
+    },
+    {
+      "stat_consumption": "sensor.funk_18_energy",
+      "stat_rate": "sensor.funk_18_power",
+      "name": "LZ2"
+    },
+    {
+      "stat_consumption": "sensor.funk_19_energy",
+      "stat_rate": "sensor.funk_19_power",
+      "name": "LZ3"
+    },
+    {
+      "stat_consumption": "sensor.steckdose_sz3_energy",
+      "stat_rate": "sensor.steckdose_sz3_power",
+      "name": "Schlafzimmer 3"
+    },
+    {
+      "stat_consumption": "sensor.funk_20_energy",
+      "stat_rate": "sensor.funk_20_power",
+      "name": "Schlafzimmer 4"
+    },
+    {
+      "stat_consumption": "sensor.funk_21_energy",
+      "stat_rate": "sensor.funk_21_power",
+      "name": "Schlafzimmer 5"
+    },
+    {
+      "stat_consumption": "sensor.funk_22_energy",
+      "stat_rate": "sensor.funk_22_power",
+      "name": "VZ BD"
+    },
+    {
+      "stat_consumption": "sensor.funk_23_energy",
+      "stat_rate": "sensor.funk_23_power",
+      "name": "VZ Eingang"
+    },
+    {
+      "stat_consumption": "sensor.funk_24_energy",
+      "stat_rate": "sensor.funk_24_power",
+      "name": "VZ WZ"
+    }
+  ],
+  "device_consumption_water": []
+}
