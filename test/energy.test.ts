@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeModel } from "../src/model/compute";
 import { collectEnergyIds, hasEnergy, validateConfig, type EnergyCardConfig } from "../src/model/config";
-import { energyReader, firstWeekdayIndex, loadEnergy, localMidnight, offeredPeriods, periodStart, sumChanges } from "../src/model/energy";
+import { energyReader, firstWeekdayIndex, loadEnergy, loadEnergySeries, localMidnight, offeredPeriods, periodRange, periodStart, statPeriodFor, sumChanges, sumSeries } from "../src/model/energy";
 import { formatEnergy } from "../src/model/units";
 
 const BERLIN = "Europe/Berlin";
@@ -172,5 +172,77 @@ describe("formatEnergy", () => {
   it("shows 0 kWh below 0.01 kWh", () => {
     expect(formatEnergy(0, 1)).toBe("0 kWh");
     expect(formatEnergy(9, 1)).toBe("0 kWh");
+  });
+});
+
+describe("periodRange", () => {
+  // Tuesday 2026-10-13, 14:00 in Berlin
+  const now = new Date("2026-10-13T12:00:00Z");
+  const iso = (r: { start: Date; end: Date }) => [r.start.toISOString(), r.end.toISOString()];
+
+  it("runs from the start of the period until now for offset 0", () => {
+    expect(iso(periodRange("today", now, BERLIN))).toEqual(["2026-10-12T22:00:00.000Z", now.toISOString()]);
+    expect(periodRange("week", now, BERLIN, 1).start.toISOString()).toBe(periodStart("week", now, BERLIN, 1).toISOString());
+  });
+  it("covers the whole earlier period for a negative offset", () => {
+    expect(iso(periodRange("today", now, BERLIN, 1, -1))).toEqual(["2026-10-11T22:00:00.000Z", "2026-10-12T22:00:00.000Z"]);
+    expect(iso(periodRange("week", now, BERLIN, 1, -1))).toEqual(["2026-10-04T22:00:00.000Z", "2026-10-11T22:00:00.000Z"]);
+    expect(iso(periodRange("week", now, BERLIN, 0, -1))).toEqual(["2026-10-03T22:00:00.000Z", "2026-10-10T22:00:00.000Z"]);
+    expect(iso(periodRange("month", now, BERLIN, 1, -1))).toEqual(["2026-08-31T22:00:00.000Z", "2026-09-30T22:00:00.000Z"]);
+    expect(iso(periodRange("month", now, BERLIN, 1, -2))).toEqual(["2026-07-31T22:00:00.000Z", "2026-08-31T22:00:00.000Z"]);
+  });
+  it("crosses the turn of the year", () => {
+    const jan = new Date("2027-01-01T10:00:00Z");
+    expect(iso(periodRange("today", jan, BERLIN, 1, -1))).toEqual(["2026-12-30T23:00:00.000Z", "2026-12-31T23:00:00.000Z"]);
+    expect(iso(periodRange("month", jan, BERLIN, 1, -1))).toEqual(["2026-11-30T23:00:00.000Z", "2026-12-31T23:00:00.000Z"]);
+  });
+  it("gives the days of a daylight saving change their real length", () => {
+    // 2026-03-29 has 23 hours in Berlin, 2026-10-25 has 25
+    const spring = periodRange("today", new Date("2026-03-30T10:00:00Z"), BERLIN, 1, -1);
+    expect(iso(spring)).toEqual(["2026-03-28T23:00:00.000Z", "2026-03-29T22:00:00.000Z"]);
+    expect((spring.end.getTime() - spring.start.getTime()) / 3_600_000).toBe(23);
+    const autumn = periodRange("today", new Date("2026-10-26T10:00:00Z"), BERLIN, 1, -1);
+    expect(iso(autumn)).toEqual(["2026-10-24T22:00:00.000Z", "2026-10-25T23:00:00.000Z"]);
+    expect((autumn.end.getTime() - autumn.start.getTime()) / 3_600_000).toBe(25);
+    // the week of the spring change starts at +01:00 and ends at +02:00
+    expect(iso(periodRange("week", new Date("2026-04-01T10:00:00Z"), BERLIN, 1, -1))).toEqual(["2026-03-22T23:00:00.000Z", "2026-03-29T22:00:00.000Z"]);
+  });
+});
+
+describe("loading energy rows", () => {
+  it("returns the rows of every sensor with their start in watt hours", async () => {
+    const calls: Record<string, unknown>[] = [];
+    const hass = {
+      callWS: async <T,>(msg: Record<string, unknown>) => {
+        calls.push(msg);
+        return {
+          "sensor.a": [
+            { start: 1_760_306_400_000, change: 0.5 },
+            { start: "2026-10-13T00:00:00+02:00", change: 0.25 },
+            { start: 1_760_313_600_000, change: null },
+          ],
+        } as T;
+      },
+    };
+    const start = new Date("2026-10-12T22:00:00Z");
+    const end = new Date("2026-10-13T12:00:00Z");
+    const out = await loadEnergySeries(hass, ["sensor.a", "sensor.b"], start, end, "hour");
+    expect(out.get("sensor.a")).toEqual([
+      { start: 1_760_306_400_000, wh: 500 },
+      { start: Date.parse("2026-10-13T00:00:00+02:00"), wh: 250 },
+      { start: 1_760_313_600_000, wh: 0 },
+    ]);
+    expect(out.has("sensor.b")).toBe(false);
+    expect(calls[0]).toMatchObject({ start_time: start.toISOString(), end_time: end.toISOString(), period: "hour", types: ["change"], units: { energy: "kWh" } });
+    expect(sumSeries(out).get("sensor.a")).toBe(750);
+  });
+  it("asks nothing without sensors", async () => {
+    const hass = { callWS: async () => { throw new Error("must not be called"); } };
+    expect((await loadEnergySeries(hass, [], new Date(0), new Date(1), "day")).size).toBe(0);
+  });
+  it("uses hours within a day and days for a week or a month", () => {
+    expect(statPeriodFor("today")).toBe("hour");
+    expect(statPeriodFor("week")).toBe("day");
+    expect(statPeriodFor("month")).toBe("day");
   });
 });

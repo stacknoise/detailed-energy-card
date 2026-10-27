@@ -85,6 +85,37 @@ export const cardStyles = css`
     border-color: var(--_accent);
     color: var(--_text);
   }
+  /* mode switch and view switch side by side (the view switch only exists with two views or more) */
+  .switches {
+    align-items: flex-start;
+    display: flex;
+    gap: 8px;
+    margin: 0 0 8px;
+  }
+  .switches .modes {
+    margin: 0;
+  }
+  .views {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .views button {
+    align-items: center;
+    background: none;
+    border: 1px solid var(--_line);
+    border-radius: 8px;
+    color: var(--_muted);
+    cursor: pointer;
+    display: inline-flex;
+    padding: 3px 8px;
+    --mdc-icon-size: 18px;
+  }
+  .views button.on {
+    background: color-mix(in srgb, var(--_accent) 25%, transparent);
+    border-color: var(--_accent);
+    color: var(--_text);
+  }
   .modes .status {
     color: var(--_muted);
     font-size: 0.8em;
