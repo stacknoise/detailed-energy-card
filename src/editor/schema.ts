@@ -23,7 +23,29 @@ export interface Field {
   check?: "power" | "battery" | "energy" | "price";
   /** the value is a list (the config path is written with "[]" in coveredPaths) */
   multi?: boolean;
+  /** help text under the field, for paths that exist in several places (else see HELP) */
+  help?: EditorKey;
 }
+
+/** Help texts under the fields whose path is the same nowhere else; shown by ha-form under the field. */
+export const HELP: Record<string, EditorKey> = {
+  "options.storage_id": "help_storage_id",
+  "options.mode": "help_mode",
+  "options.view": "help_view",
+  "options.views": "help_views",
+  "options.secondary_value": "help_secondary_value",
+  "options.price": "help_price",
+  "options.price_entity": "help_price_entity",
+  "options.feed_in_price": "help_feed_in_price",
+  "options.feed_in_price_entity": "help_feed_in_price",
+  "options.show_base_load": "help_show_base_load",
+  "options.standby_watts": "help_standby_watts",
+  "options.compact": "help_compact",
+  switch_entity: "help_switch_entity",
+  tap_action: "help_tap_action",
+  hold_action: "help_hold_action",
+  double_tap_action: "help_double_tap_action",
+};
 
 const power = { entity: { domain: "sensor", device_class: "power" } };
 const energy = { entity: { domain: "sensor", device_class: "energy" } };
@@ -198,11 +220,11 @@ export const ENERGY_MODE: Field[] = [
 
 /** Fields of the heatmap card (`custom:detailed-energy-heatmap-card`): its own editor, the same field machinery. */
 export const HEATMAP: Field[] = [
-  { path: "entity", selector: energy, label: "field_heat_entity", required: true, check: "energy" },
+  { path: "entity", selector: energy, label: "field_heat_entity", required: true, check: "energy", help: "help_heat_entity" },
   { path: "days", selector: { number: { min: 7, max: 28, step: 1, mode: "box", unit_of_measurement: "d" } }, label: "field_days", default: 7 },
   { path: "title", selector: text, label: "field_title" },
-  { path: "price", selector: { number: { min: 0, step: 0.001, mode: "box", unit_of_measurement: "/kWh" } }, label: "field_price", when: (cfg: any) => !cfg?.price_entity },
-  { path: "price_entity", selector: { entity: { domain: "sensor" } }, label: "field_price_entity", check: "price", when: (cfg: any) => cfg?.price === undefined },
+  { path: "price", selector: { number: { min: 0, step: 0.001, mode: "box", unit_of_measurement: "/kWh" } }, label: "field_price", help: "help_price", when: (cfg: any) => !cfg?.price_entity },
+  { path: "price_entity", selector: { entity: { domain: "sensor" } }, label: "field_price_entity", check: "price", help: "help_price_entity", when: (cfg: any) => cfg?.price === undefined },
   { path: "currency", selector: { text: {} }, label: "field_currency", when: (cfg: any) => cfg?.price !== undefined || !!cfg?.price_entity },
 ];
 
@@ -279,7 +301,7 @@ const dropdown = (choices: Choice[]) => ({ select: { mode: "dropdown", options: 
 
 /** Own meters of a floor or a room (optional): sensors not yet assigned elsewhere. */
 const meterFields = (exclude: string[]): Field[] => [
-  { path: "entity", selector: { entity: { ...power.entity, exclude_entities: exclude } }, label: "field_meter_power", check: "power" },
+  { path: "entity", selector: { entity: { ...power.entity, exclude_entities: exclude } }, label: "field_meter_power", check: "power", help: "help_meter" },
   { path: "energy_entity", selector: { entity: { ...energy.entity, exclude_entities: exclude } }, label: "field_meter_energy", check: "energy" },
 ];
 
@@ -306,12 +328,14 @@ export const consumerFields = (exclude: string[] = []): Field[] => [
     selector: { entity: { domain: "sensor", device_class: "power", exclude_entities: exclude } },
     label: "field_sensor_optional",
     check: "power",
+    help: "help_consumer_power",
   },
   {
     path: "energy_entity",
     selector: { entity: { ...energy.entity, exclude_entities: exclude } },
     label: "field_energy_entity",
     check: "energy",
+    help: "help_consumer_energy",
   },
   { path: "name", selector: text, label: "field_name_optional" },
   { path: "switch_entity", selector: { entity: { domain: ["switch", "input_boolean", "light", "fan"] } }, label: "field_switch_entity" },
@@ -333,6 +357,13 @@ function withOptions(f: Field, tr: Tr): Record<string, unknown> {
   if (!f.options) return f.selector;
   const select = f.selector.select as Record<string, unknown>;
   return { ...f.selector, select: { ...select, options: f.options.map((o) => ({ ...o, label: tr(o.label) })) } };
+}
+
+/** The help text of a field for ha-form's computeHelper, undefined for fields without one. */
+export function helperFor(fields: Field[], name: string, tr: Tr): string | undefined {
+  const field = fields.find((f) => f.path === name);
+  const key = field?.help ?? (field ? HELP[field.path] : undefined);
+  return key ? tr(key) : undefined;
 }
 
 /** Translates a field-path -> label lookup for ha-form's computeLabel. */

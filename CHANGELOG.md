@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Editor: many fields have a help text under them (the start view and the views, the second value, prices, base load, standby, the own meter of a floor or room, the sensors of a consumer, switch and actions, the heatmap card). The field *Selection ID (optional)* is now called *Name of the remembered selection* and says when it is needed (only for several cards with the same floors and rooms). The long labels of *Compact view*, *Show base load*, *Always-on from* and the switch of a consumer are short now, the help text carries the explanation.
+
+### Docs
+
+- README: a section *Options* before the example with tables of all options (card, `options`, sources, floors and rooms, consumers, actions, heatmap card).
+
 ## 1.2.0
 
 The release of the expansion concept: three views (tree, Sankey diagram, timeline), meters of floors and rooms, a second value under every node, feed-in and battery charging, costs, base load, a heatmap card, browsing the periods, actions and switches, a compact view and a wizard that takes the structure from the Energy dashboard. Every new option is optional: existing configurations run unchanged. The remembered selection stays as it is.

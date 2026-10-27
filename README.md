@@ -81,6 +81,99 @@ Click the button above to open the card in HACS on your Home Assistant instance,
 3. Reload the browser. HACS registers the resource `/hacsfiles/detailed-energy-card/detailed-energy-card.js` automatically.
 4. Add the card to a dashboard: **Add card → Detailed Energy Card**, or use `type: custom:detailed-energy-card` in YAML.
 
+## Options
+
+All options are optional unless marked *required*. Everything can be set in the visual editor (a help text under many fields explains them); the tables are for YAML and for looking things up. The details of every option are in the sections below the example.
+
+### Card
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `type` | – | *Required.* `custom:detailed-energy-card` |
+| `title` | none | Heading of the card. |
+| `home.total_entity` | none | Power sensor of the whole home. Gives the self-sufficiency and "Unassigned". |
+| `home.total_energy_entity` | none | Energy counter (kWh) of the whole home, for the energy mode. |
+| `sources` | none | List of power sources, see *Sources*. |
+| `floors` | none | List of floors with their rooms, see *Floors and rooms*. Use `floors` **or** `rooms`. |
+| `rooms` | none | List of rooms without floors. |
+| `colors` | theme | Colors and thresholds, see *Colors and thresholds*. |
+
+### `options`
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `unit` | `W` | Unit of the power: `W`, `kW` or `auto`. |
+| `decimals` | 2 (energy: 1) | Decimals of kW and kWh values, 0 to 20. |
+| `animation` | `true` | Moving dashes on the lines (not in the energy mode). |
+| `show_consumers` | `true` | Show the list of consumers under the diagram. |
+| `only_active_consumers` | `false` | List only consumers that draw 1 W or more. |
+| `show_unassigned` | `true` | Show "Unassigned" (what the consumers do not explain). |
+| `show_self_consumption` | `true` | Badge *Self-consumption* when it can be computed. |
+| `remember_selection` | `true` | Remember the selected floor, room, mode, period and view in the browser. |
+| `storage_id` | none | Own name for the remembered selection. Only needed for several cards with the same floors and rooms. |
+| `wrap_rooms` | `false` | Wrap more than 6 rooms into two rows instead of scrolling. |
+| `focus_selected` | `false` | The selected floor or room slides to the middle, the others fade out. |
+| `compact` | `false` | Compact view: only sources, home and floors in small circles, no list. |
+| `view` | `tree` | View at start: `tree`, `sankey` or `timeline` (the timeline needs energy sensors). |
+| `views` | only `view` | Views the switch offers, for example `[tree, sankey, timeline]`. A switch appears from two. |
+| `mode` | `power` | Start mode: `power` (now) or `energy` (needs an energy sensor). |
+| `energy_periods` | all | Periods of the switch: `today`, `week`, `month`. |
+| `secondary_value` | `none` | Small second value under every node: `none`, `auto`, `today`, `power`, `cost`. |
+| `price` / `price_entity` | none | Price per kWh, fixed or from a sensor (dynamic tariff). Switches the costs on. Use one of them. |
+| `feed_in_price` / `feed_in_price_entity` | none | Compensation per kWh fed in. Use one of them. |
+| `currency` | of Home Assistant | Three-letter currency code, for example `EUR`. |
+| `show_base_load` | `false` | Badge *Base load*: the lowest hourly mean of the home between 1 and 5 o'clock in the last 7 nights. |
+| `standby_watts` | none | Consumers that never fell below this power in the last 24 hours get a symbol. |
+
+### Sources (`sources[]`)
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `entity` | – | *Required.* Power sensor (W, kW or MW). |
+| `type` | `generic` | `solar`, `battery`, `grid` or `generic`. |
+| `name`, `icon`, `color` | by type | Own name, icon and color. |
+| `energy_entity` | none | Energy counter (kWh) for the energy mode. |
+| `energy_entity_return` | none | Counter of the other direction (grid feed-in, battery charged); not for `solar`. |
+| `soc_entity` | none | State of charge of a battery, in %. |
+| `invert` | `false` | Turn the sign of the sensor around. |
+| `thresholds`, `tap_action`, `hold_action`, `double_tap_action` | none | Own thresholds and actions of this source. |
+
+### Floors and rooms (`floors[]`, `rooms[]`)
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `floor_id` | – | *Required for a floor.* A floor of Home Assistant; name and icon come from there. |
+| `area_id` | – | *Required for a room.* An area of Home Assistant. |
+| `rooms` | none | The rooms of a floor. |
+| `entity` | none | Own power meter of the floor or room. Without it the node shows the sum of its children. |
+| `energy_entity` | none | Own energy counter (kWh) of the floor or room. |
+| `color`, `thresholds`, `tap_action`, `hold_action`, `double_tap_action` | none | Own color, thresholds and actions. |
+| `consumers` | none | The consumers of a room, see below. |
+
+### Consumers (`consumers[]`)
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `entity` | – | Power sensor. A consumer needs `entity` **or** `energy_entity`, or both. |
+| `energy_entity` | none | Energy counter (kWh). Without `entity` the consumer only shows in the energy mode. |
+| `name` | friendly name | Own name. |
+| `switch_entity` | none | A `switch`, `input_boolean`, `light` or `fan`: the list shows a toggle at the end of the row. |
+| `confirm_switch` | `false` | Ask before the switch is turned off. |
+| `thresholds`, `tap_action`, `hold_action`, `double_tap_action` | none | Own thresholds and actions. |
+
+### Actions (`tap_action`, `hold_action`, `double_tap_action`)
+
+Home Assistant standard: `action` is `more-info`, `toggle`, `navigate` (`navigation_path`), `url` (`url_path`), `perform-action` (`perform_action`, `data`, `target`), `call-service` or `none`; `entity` names the entity it acts on; `confirmation: true` asks first. Without a `tap_action` a click selects a floor or room, a source or consumer opens its dialog.
+
+### Heatmap card (`custom:detailed-energy-heatmap-card`)
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `entity` | – | *Required.* Energy counter (kWh) of the home. |
+| `days` | 7 | Number of days, 7 to 28. |
+| `title` | none | Heading. |
+| `price` / `price_entity`, `currency` | none | Price for the most expensive hour (else the peak hour is shown). |
+
 ## Example
 
 ```yaml

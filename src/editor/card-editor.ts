@@ -29,6 +29,7 @@ import {
   HOME,
   SOURCE,
   floorFields,
+  helperFor,
   labelFor,
   roomFields,
   toSchema,
@@ -454,6 +455,7 @@ export class DetailedEnergyCardEditor extends LitElement {
         .schema=${toSchema(plain, obj, this._tr)}
         .error=${fieldErrors(obj, plain, states, getPath, this._tr)}
         .computeLabel=${(s: { name: string }) => labelFor(fields, s.name, this._tr)}
+        .computeHelper=${(s: { name: string }) => helperFor(fields, s.name, this._tr)}
         @value-changed=${(ev: CustomEvent) => this._onForm(ptr, fields, ev)}
       ></ha-form>
       ${colors.map((f) => this._colorRow(ptr, f, getPath(obj, f.path)))}`;
