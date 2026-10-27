@@ -3,6 +3,8 @@ export const HOME_H = 66;
 /** Height of a floor pill including its border and glow. */
 export const FLOOR_H = 48;
 export const ROOM_H = 96;
+/** Extra height of a source, floor or room that shows a second value (options.secondary_value). */
+export const SECONDARY_H = 20;
 export const ROOM_COL_W = 64;
 /** Wrapping into two rows is only offered for more rooms than this ... */
 export const MAX_ROOMS_PER_ROW = 6;
@@ -17,6 +19,8 @@ export interface LayoutInput {
   rooms: number;
   /** wrap many rooms into two rows instead of scrolling */
   wrap?: boolean;
+  /** the nodes show a second value: sources, floors and rooms get one line more */
+  secondary?: boolean;
 }
 
 export interface Layout {
@@ -34,6 +38,9 @@ export interface Layout {
   /** y position of each room (two rows when wrapped) */
   roomYs: number[];
   roomRows: number;
+  /** height of the source nodes and of the floor pills: lines start at their bottom */
+  sourceH: number;
+  floorH: number;
 }
 
 /** Evenly distributes n nodes over width: x = W * (i + 0.5) / n. */
@@ -63,13 +70,17 @@ export function computeLayout(i: LayoutInput): Layout {
   const wrapped = !!i.wrap && i.rooms > MAX_ROOMS_PER_ROW && i.rooms * ROOM_FIT_W > i.width;
   const perRow = wrapped ? wrapColumns(i.rooms) : i.rooms;
   const width = Math.max(i.width, perRow * ROOM_COL_W);
-  const yHome = i.sources > 0 ? 124 : 0;
+  const extra = i.secondary ? SECONDARY_H : 0;
+  const sourceH = SOURCE_H + extra;
+  const floorH = FLOOR_H + extra;
+  const roomH = ROOM_H + extra;
+  const yHome = i.sources > 0 ? 124 + extra : 0;
   // Without a room row the floors sit closer to the home, and nothing is cut off below them.
   const yFloor = yHome + (i.floors > 0 && i.rooms === 0 ? 88 : 102);
-  const yRoom = i.floors > 0 ? yFloor + 74 : yHome + 102;
+  const yRoom = i.floors > 0 ? yFloor + 74 + extra : yHome + 102;
   const rooms = roomPositions(i.rooms, width, wrapped);
   const roomRows = wrapped ? 2 : 1;
-  const bottom = i.rooms > 0 ? yRoom + ROOM_H * roomRows : i.floors > 0 ? yFloor + FLOOR_H : yHome + HOME_H;
+  const bottom = i.rooms > 0 ? yRoom + roomH * roomRows : i.floors > 0 ? yFloor + floorH : yHome + HOME_H;
   return {
     width,
     height: bottom,
@@ -81,8 +92,10 @@ export function computeLayout(i: LayoutInput): Layout {
     floorXs: distribute(i.floors, width),
     roomXs: rooms.xs,
     roomColW: perRow > 0 ? width / perRow : width,
-    roomYs: rooms.row.map((r) => yRoom + r * ROOM_H),
+    roomYs: rooms.row.map((r) => yRoom + r * roomH),
     roomRows,
+    sourceH,
+    floorH,
   };
 }
 

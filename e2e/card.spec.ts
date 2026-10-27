@@ -242,6 +242,38 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .detail .row.excess")).toContainText("Verbraucher messen 0,25 kW mehr als der Zähler");
   });
 
+  test("the second value shows the energy of today in the power mode and the power now in the energy mode", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "secondary");
+    const second = (title: string) => node(page, title).locator(".second");
+    await expect(mode(page, "Jetzt")).toHaveAttribute("aria-pressed", "true");
+    // power mode: the energy of today below the power
+    await expect(value(page, "PV")).toHaveText("3,42 kW");
+    await expect(second("PV")).toHaveText("heute 12,4 kWh");
+    await expect(second("EG")).toHaveText("heute 11,8 kWh");
+    await expect(second("Küche")).toHaveText("heute 8,7 kWh");
+    await expect(page.locator("detailed-energy-card .home-second")).toHaveText("heute 19,5 kWh");
+    await node(page, "Küche").click();
+    const row = (text: string) => page.locator("detailed-energy-card .detail .row", { hasText: text });
+    await expect(row("Backofen").locator(".val2")).toHaveText("heute 4,2 kWh");
+    // no energy sensor: the line stays empty instead of 0 kWh
+    await expect(row("Kaffeemaschine").locator(".val2")).toHaveText("");
+    // energy mode: the other way round, with the decimals of the options
+    await mode(page, "Heute").click();
+    await expect(value(page, "PV")).toHaveText("12,4 kWh");
+    await expect(second("PV")).toHaveText("jetzt 3,42 kW");
+    await expect(row("Backofen").locator(".val2")).toHaveText("jetzt 0,82 kW");
+    await expect(row("Kaffeemaschine").locator(".val2")).toHaveText("jetzt 0 W");
+  });
+
+  test("without the option there is no second line", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "energy");
+    await expect(value(page, "PV")).toHaveText("12,4 kWh");
+    await expect(page.locator("detailed-energy-card .second")).toHaveCount(0);
+    await expect(page.locator("detailed-energy-card .list.second")).toHaveCount(0);
+  });
+
   test("a card without energy sensors has no switch", async ({ page }) => {
     await open(page, "floors");
     await expect(page.locator("detailed-energy-card .modes")).toHaveCount(0);

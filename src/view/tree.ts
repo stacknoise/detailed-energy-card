@@ -1,12 +1,12 @@
 import { html, nothing, svg, type TemplateResult } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
 import type { EnergyCardConfig } from "../model/config";
-import type { EnergyModel, MeterInfo, RoomNode, SourceNode } from "../model/compute";
+import { nodeKey, type EnergyModel, type MeterInfo, type RoomNode, type SourceNode } from "../model/compute";
 import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
 import type { Key } from "../localize";
 import { Tween, focusTargets, type Pos } from "./focus";
-import { computeLayout, curve, roomPath, flowDuration, strokeWidth, FLOOR_H, HOME_H, SOURCE_H, type Layout } from "./layout";
+import { computeLayout, curve, roomPath, flowDuration, strokeWidth, HOME_H, type Layout } from "./layout";
 
 /** More ranges than this do not get any thicker. */
 export const MAX_LEVEL = 3;
@@ -41,6 +41,12 @@ function meterMark(c: TreeContext, m: MeterInfo | undefined, children: "consumer
   return html`<ha-icon class="meter" icon=${"mdi:meter-electric-outline"} title=${c.t("meter")}></ha-icon>`;
 }
 
+/** The second line under a node, or nothing (a node without a second value keeps the line empty). */
+function secondLine(c: TreeContext, key: string): TemplateResult | typeof nothing {
+  if (!c.secondary) return nothing;
+  return html`<span class="second">${c.second(key) ?? ""}</span>`;
+}
+
 /** The selection applied to the model: the selected floor (index), the room row it shows and the selected room in it. */
 export interface ResolvedSelection {
   floor?: number;
@@ -61,6 +67,10 @@ export interface TreeContext {
   thresholds: Record<ThresholdLevel, ThresholdConfig[]>;
   home: string;
   fmt(watts: number): string;
+  /** the nodes show a second value (options.secondary_value): one line more */
+  secondary: boolean;
+  /** the second line of a node by nodeKey, undefined when it has none */
+  second(key: string): string | undefined;
   t(key: Key): string;
   select(sel: Selection): void;
   moreInfo(entityId: string): void;
@@ -120,6 +130,7 @@ export class TreeView {
       floors: model.floors.length,
       rooms: sel.rooms.length,
       wrap: c.config.options?.wrap_rooms === true,
+      secondary: c.secondary,
     });
     // Positions of the floors and rooms. With options.focus_selected the selected element of a level
     // slides to the middle under its parent and the rest of that level fades out behind it.
@@ -147,7 +158,7 @@ export class TreeView {
     const { layout, tg, targets, selKey } = this._geometry(c);
     if (c.focus && this._lastSelKey !== undefined && selKey !== this._lastSelKey) {
       const parent = sel.floor !== undefined ? tg.floors[sel.floor] : { x: layout.homeX, y: layout.yHome, o: 1 };
-      this._startTween(targets, { x: parent.x, y: parent.y + FLOOR_H / 2, o: 0 });
+      this._startTween(targets, { x: parent.x, y: parent.y + layout.floorH / 2, o: 0 });
     }
     this._lastSelKey = selKey;
     const now = performance.now();
@@ -216,7 +227,7 @@ export class TreeView {
     };
     const parts: TemplateResult[] = [];
     model.sources.forEach((s, i) => {
-      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], SOURCE_H, l.homeX, l.yHome), s.watts, Math.abs(s.watts) >= 1, s.reverse));
+      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), s.watts, Math.abs(s.watts) >= 1, s.reverse));
     });
     const homeBottom = l.yHome + HOME_H;
     let roomFromX = l.homeX;
@@ -226,7 +237,7 @@ export class TreeView {
       parts.push(line("floor", f.thresholds, curve(l.homeX, homeBottom, p.x, p.y), f.watts, allFloors || i === floorIdx, false, p.o));
       if (i === floorIdx) {
         roomFromX = p.x;
-        roomFromY = p.y + FLOOR_H;
+        roomFromY = p.y + l.floorH;
       }
     });
     roomViews
@@ -260,6 +271,7 @@ export class TreeView {
         <span class="circle source"><ha-icon icon=${s.icon ?? SOURCE_ICONS[s.type]}></ha-icon></span>
         <span class="label">${s.name}${suffix}</span>
         <span class="value">${c.fmt(s.watts)}</span>
+        ${secondLine(c, nodeKey.source(s.entity))}
       </button>
     `;
   }
@@ -278,6 +290,7 @@ export class TreeView {
           <ha-icon icon="mdi:home"></ha-icon>
           <span>${c.fmt(c.model.homeWatts)}</span>
         </span>
+        ${c.secondary && c.second(nodeKey.home) ? html`<span class="second home-second">${c.second(nodeKey.home)}</span>` : nothing}
       </button>
     `;
   }
@@ -293,7 +306,7 @@ export class TreeView {
         title=${name}
         @click=${() => c.select(selected && !c.focus ? { floor: null } : { floor: id })}
       >
-        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}</span>
+        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second">${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }
@@ -312,6 +325,7 @@ export class TreeView {
         <span class="circle room ${selected || allRooms ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon>${meterMark(c, r.meter, "consumers")}</span>
         <span class="label">${r.name}</span>
         <span class="value">${c.fmt(r.watts)}</span>
+        ${secondLine(c, nodeKey.room(r.id))}
       </button>
     `;
   }

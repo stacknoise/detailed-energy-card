@@ -5,7 +5,7 @@ import { cardStyles, colorVars } from "./styles/theme";
 import { collectEnergyIds, collectEntityIds, hasEnergy, validateConfig, type EnergyCardConfig } from "./model/config";
 import { energyReader, firstWeekdayIndex, loadEnergySeries, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
-import { computeModel, listRemainder, listedConsumers, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
+import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
@@ -54,6 +54,8 @@ export class DetailedEnergyCard extends LitElement {
   private _hass?: Hass;
   private _entityIds: string[] = [];
   private _model?: EnergyModel;
+  /** second values of the nodes (options.secondary_value), by nodeKey; empty while they are not known */
+  private _second = new Map<string, number>();
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
@@ -181,6 +183,15 @@ export class DetailedEnergyCard extends LitElement {
     } else {
       this._model = computeModel(cfg, powerReader(states), socReader(states), names);
     }
+    // the second value: the energy of today in the power mode (once it is loaded), the power now in the energy mode
+    const kind = this._secondKind();
+    const today = kind === "today" ? this._energyStore.values(this._todayQuery()) : undefined;
+    this._second =
+      kind === "power"
+        ? nodeValues(computeModel(cfg, powerReader(states), socReader(states), names))
+        : today
+          ? nodeValues(computeModel(cfg, energyReader(today), socReader(states), names, true))
+          : new Map();
   }
 
   private get _storageKey(): string {
@@ -293,11 +304,37 @@ export class DetailedEnergyCard extends LitElement {
     return { ids: collectEnergyIds(this._config), period: this._period };
   }
 
+  /** The energy of today, the second value of the power mode. */
+  private _todayQuery(): EnergyQuery {
+    return { ids: collectEnergyIds(this._config!), period: "today" };
+  }
+
+  /**
+   * Which second value the nodes show now (options.secondary_value): the energy of today in the power mode
+   * (only with energy sensors), the power now in the energy mode; undefined for none.
+   */
+  private _secondKind(): "today" | "power" | undefined {
+    const cfg = this._config;
+    const sv = cfg?.options?.secondary_value ?? "none";
+    if (!cfg) return undefined;
+    if (this._mode === "power") return (sv === "auto" || sv === "today") && hasEnergy(cfg) ? "today" : undefined;
+    return sv === "auto" || sv === "power" ? "power" : undefined;
+  }
+
+  /** The second line of a node or a consumer, or undefined when it has no second value. */
+  private _secondLabel(key: string): string | undefined {
+    const v = this._second.get(key);
+    if (v === undefined) return undefined;
+    const kind = this._secondKind();
+    return this._t(kind === "today" ? "second_today" : "second_power").replace("{0}", this._fmtAs(kind === "today" ? "energy" : "power", v));
+  }
+
   /** Tells the store what the card shows; it loads what it does not have yet. */
   private _ensureEnergy(): void {
     if (!this._config || !this._hass) return;
     const query = this._energyQuery();
-    this._energyStore.want(query ? [query] : []);
+    // in the power mode the energy of today is loaded for the second value, in the same rhythm
+    this._energyStore.want(query ? [query] : this._secondKind() === "today" ? [this._todayQuery()] : []);
   }
 
   private _loadEnergy(q: EnergyQuery) {
@@ -360,9 +397,15 @@ export class DetailedEnergyCard extends LitElement {
   }
 
   private _fmt(watts: number): string {
+    return this._fmtAs(this._mode, watts);
+  }
+
+  /** Watts as power, or watt hours as energy, with the decimals and the unit of the options. */
+  private _fmtAs(kind: "power" | "energy", value: number): string {
     const o = this._config?.options;
-    if (this._mode === "energy") return formatEnergy(watts, o?.decimals ?? 1, this._hass?.locale?.language ?? this._hass?.language);
-    return formatPower(watts, o?.unit ?? "W", o?.decimals ?? 2, this._hass?.locale?.language ?? this._hass?.language);
+    const lang = this._hass?.locale?.language ?? this._hass?.language;
+    if (kind === "energy") return formatEnergy(value, o?.decimals ?? 1, lang);
+    return formatPower(value, o?.unit ?? "W", o?.decimals ?? 2, lang);
   }
 
   private _thresholds = resolveThresholds(undefined, undefined);
@@ -390,6 +433,8 @@ export class DetailedEnergyCard extends LitElement {
       thresholds: this._thresholds,
       home,
       fmt: (w) => this._fmt(w),
+      secondary: this._secondKind() !== undefined,
+      second: (key) => this._secondLabel(key),
       t: (k) => this._t(k),
       select: (s) => this._select(s),
       moreInfo: (id) => this._moreInfo(id),
@@ -463,19 +508,19 @@ export class DetailedEnergyCard extends LitElement {
   }
 
   /** The "Unassigned" row of the list, or the warning that the children measure more than the meter. */
-  private _renderRemainder(r: Remainder | undefined): TemplateResult | typeof nothing {
+  private _renderRemainder(r: Remainder | undefined, second: boolean): TemplateResult | typeof nothing {
     if (!r || this._config?.options?.show_unassigned === false) return nothing;
     if (r.excess !== undefined) {
       const text = this._t(r.scope === "floor" ? "excess_rooms" : "excess_consumers").replace("{0}", this._fmt(r.excess));
       return html`<div class="row excess" style="cursor:default">
-        <span class="name"><ha-icon icon=${"mdi:alert-outline"}></ha-icon> ${text}</span><span class="spacer"></span><span class="val"></span>
+        <span class="name"><ha-icon icon=${"mdi:alert-outline"}></ha-icon> ${text}</span><span class="spacer"></span><span class="val"></span>${second ? html`<span></span>` : nothing}
       </div>`;
     }
     if (r.value < 1) return nothing;
     const name = r.scope === "home" ? this._t("unassigned") : this._t("unassigned_in").replace("{0}", r.name ?? "");
     return html`<div class="row" style="cursor:default">
       <span class="name">${name}</span><span class="spacer"></span>
-      <span class="val">${this._fmt(r.value)}</span>
+      <span class="val">${this._fmt(r.value)}</span>${second ? html`<span></span>` : nothing}
     </div>`;
   }
 
@@ -487,6 +532,7 @@ export class DetailedEnergyCard extends LitElement {
     const sorted = [...listedConsumers(room.consumers, onlyActive)].sort((a, b) => b.watts - a.watts);
     const max = Math.max(1, ...sorted.map((c) => c.watts));
     const thresholds = this._thresholds;
+    const second = this._secondKind() !== undefined;
     return html`
       <div class="detail">
         <div class="detail-head">
@@ -497,7 +543,7 @@ export class DetailedEnergyCard extends LitElement {
         ${sorted.length === 0 && !(room.consumers.length === 0 && room.meter?.metered)
           ? html`<div class="empty">${this._t(room.consumers.length === 0 ? "no_consumers" : "no_active_consumers")}</div>`
           : nothing}
-        <div class="list">
+        <div class="list ${second ? "second" : ""}">
         ${sorted.map((c) => {
           const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
           const list = elementThresholds(c.thresholds, thresholds.consumer);
@@ -509,10 +555,11 @@ export class DetailedEnergyCard extends LitElement {
               <span class="name">${name}<small>${c.noEnergy ? this._t("no_energy") : c.entity}</small></span>
               <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
+              ${second ? html`<span class="val2">${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}
             </button>
           `;
         })}
-        ${this._renderRemainder(remainder)}
+        ${this._renderRemainder(remainder, second)}
         </div>
       </div>
     `;

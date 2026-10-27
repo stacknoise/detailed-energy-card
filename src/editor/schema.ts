@@ -120,6 +120,19 @@ export const ENERGY_MODE: Field[] = [
     multi: true,
     when: hasEnergySensor,
   },
+  {
+    path: "options.secondary_value",
+    selector: { select: { mode: "dropdown" } },
+    options: [
+      { value: "none", label: "second_none" },
+      { value: "auto", label: "second_auto" },
+      { value: "today", label: "second_today" },
+      { value: "power", label: "second_power" },
+    ],
+    label: "field_secondary_value",
+    default: "none",
+    when: hasEnergySensor,
+  },
 ];
 
 export const COLORS: Field[] = [

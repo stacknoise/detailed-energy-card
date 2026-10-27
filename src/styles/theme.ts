@@ -310,6 +310,38 @@ export const cardStyles = css`
     font-weight: 600;
     white-space: nowrap;
   }
+  /* second value under a node (options.secondary_value); an empty line keeps the nodes of a level aligned */
+  .second {
+    color: var(--_muted);
+    font-size: 0.75em;
+    line-height: 12px;
+    min-height: 12px;
+    white-space: nowrap;
+  }
+  .pill .second {
+    display: block;
+    font-weight: 400;
+    margin-top: 2px;
+    text-align: center;
+  }
+  /* the home has no room below its circle: its second value sits to the right of it */
+  .home-second {
+    font-weight: 400;
+    left: calc(100% + 8px);
+    position: absolute;
+    text-align: left;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .list.second {
+    grid-template-columns: minmax(0, max-content) minmax(48px, 1fr) max-content max-content;
+  }
+  .row .val2 {
+    color: var(--_muted);
+    font-size: 0.8em;
+    text-align: right;
+    white-space: nowrap;
+  }
   .warn {
     opacity: 0.5;
   }
@@ -385,6 +417,9 @@ export const cardStyles = css`
   @container detail (max-width: 320px) {
     .list {
       grid-template-columns: minmax(0, 1fr) max-content;
+    }
+    .list.second {
+      grid-template-columns: minmax(0, 1fr) max-content max-content;
     }
     .bar,
     .spacer {

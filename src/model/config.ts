@@ -91,7 +91,15 @@ export interface OptionsConfig {
   mode?: "power" | "energy";
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
+  /**
+   * a second, smaller value under every node and in the consumer list (default none): "today" shows the
+   * energy of today in the power mode, "power" the power now in the energy mode, "auto" both
+   */
+  secondary_value?: SecondaryValue;
 }
+
+export const SECONDARY_VALUES = ["none", "auto", "today", "power"] as const;
+export type SecondaryValue = (typeof SECONDARY_VALUES)[number];
 
 export interface EnergyCardConfig {
   type: string;
@@ -171,6 +179,9 @@ function checkOptions(options: unknown): void {
   }
   if (options.mode !== undefined && !MODES.includes(options.mode as string)) {
     throw new ConfigError(`options.mode: "${String(options.mode)}" must be one of ${MODES.join(", ")}`);
+  }
+  if (options.secondary_value !== undefined && !(SECONDARY_VALUES as readonly unknown[]).includes(options.secondary_value)) {
+    throw new ConfigError(`options.secondary_value: "${String(options.secondary_value)}" must be one of ${SECONDARY_VALUES.join(", ")}`);
   }
   list(options.energy_periods, "options.energy_periods").forEach((p, i) => {
     if (!(ENERGY_PERIODS as readonly unknown[]).includes(p)) {
