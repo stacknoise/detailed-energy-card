@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENERGY_REFRESH_MS, EnergyStore, queryKey, type EnergyQuery, type StoreClock } from "../src/model/energy-store";
+import { ENERGY_REFRESH_MS, EnergyStore, latestRow, mergeRows, queryKey, type EnergyQuery, type StoreClock } from "../src/model/energy-store";
 import type { EnergyRow } from "../src/model/energy";
 
 /** A clock whose time and timers only move when the test says so. */
@@ -29,10 +29,10 @@ function fakeClock() {
 
 /** A loader whose answers the test hands out one by one. */
 function fakeLoader() {
-  const calls: Array<{ q: EnergyQuery; resolve: (v: Map<string, EnergyRow[]>) => void; reject: (e: Error) => void }> = [];
-  const load = (q: EnergyQuery) =>
-    new Promise<Map<string, EnergyRow[]>>((resolve, reject) => {
-      calls.push({ q, resolve, reject });
+  const calls: Array<{ q: EnergyQuery; since?: number; resolve: (v: Map<string, EnergyRow[]>, since?: number) => void; reject: (e: Error) => void }> = [];
+  const load = (q: EnergyQuery, since?: number) =>
+    new Promise<{ series: Map<string, EnergyRow[]>; since?: number }>((resolve, reject) => {
+      calls.push({ q, since, resolve: (series, from) => resolve({ series, since: from }), reject });
     });
   return { load, calls };
 }
@@ -52,8 +52,10 @@ function setup(visible = true) {
 }
 
 describe("energy store", () => {
-  it("keys a query by period, offset and sensors, in any order", () => {
-    expect(queryKey({ ids: ["b", "a"], period: "today" })).toBe(queryKey({ ids: ["a", "b"], period: "today", offset: 0 }));
+  it("keys a query by period, offset, rows, kind and sensors, in any order", () => {
+    expect(queryKey({ ids: ["b", "a"], period: "today" })).toBe(queryKey({ ids: ["a", "b"], period: "today", offset: 0, stat: "hour", kind: "energy" }));
+    expect(queryKey(WEEK)).not.toBe(queryKey({ ...WEEK, stat: "hour" }));
+    expect(queryKey(TODAY)).not.toBe(queryKey({ ...TODAY, kind: "mean" }));
     expect(queryKey(TODAY)).not.toBe(queryKey(WEEK));
     expect(queryKey(TODAY)).not.toBe(queryKey({ ...TODAY, offset: -1 }));
   });
@@ -185,5 +187,43 @@ describe("energy store", () => {
     await settle();
     expect(store.values(yesterday)?.get("sensor.a")).toBe(5);
     expect(store.status(TODAY)).toBe("loading");
+  });
+
+  it("loads an incremental query only from its latest row on and keeps the older rows", async () => {
+    const { store, loader, time } = setup();
+    const q: EnergyQuery = { ...WEEK, stat: "hour", incremental: true };
+    store.want([q]);
+    expect(loader.calls[0].since).toBeUndefined();
+    loader.calls[0].resolve(new Map([["sensor.a", rows(10, 20, 30)]]));
+    await settle();
+    time.advance(ENERGY_REFRESH_MS);
+    // the latest row starts at 2 h: it is loaded again, together with what came after it
+    expect(loader.calls[1].since).toBe(2 * 3_600_000);
+    loader.calls[1].resolve(new Map([["sensor.a", [{ start: 2 * 3_600_000, wh: 35 }, { start: 3 * 3_600_000, wh: 5 }]]]), 2 * 3_600_000);
+    await settle();
+    expect(store.series(q)?.get("sensor.a")?.map((r) => r.wh)).toEqual([10, 20, 35, 5]);
+    expect(store.values(q)?.get("sensor.a")).toBe(70);
+  });
+
+  it("replaces the rows when the loader answers without since (a new period)", async () => {
+    const { store, loader, time } = setup();
+    const q: EnergyQuery = { ...TODAY, incremental: true };
+    store.want([q]);
+    loader.calls[0].resolve(new Map([["sensor.a", rows(10, 20)]]));
+    await settle();
+    time.advance(ENERGY_REFRESH_MS);
+    loader.calls[1].resolve(new Map([["sensor.a", rows(1)]]));
+    await settle();
+    expect(store.values(q)?.get("sensor.a")).toBe(1);
+  });
+
+  it("merges rows and finds the latest one", () => {
+    const old = new Map([["a", rows(1, 2, 3)], ["b", rows(4)]]);
+    expect(latestRow(old)).toBe(2 * 3_600_000);
+    expect(latestRow(new Map())).toBeUndefined();
+    const merged = mergeRows(old, new Map([["a", [{ start: 2 * 3_600_000, wh: 9 }]], ["c", rows(7)]]), 2 * 3_600_000);
+    expect(merged.get("a")?.map((r) => r.wh)).toEqual([1, 2, 9]);
+    expect(merged.get("b")?.map((r) => r.wh)).toEqual([4]);
+    expect(merged.get("c")?.map((r) => r.wh)).toEqual([7]);
   });
 });

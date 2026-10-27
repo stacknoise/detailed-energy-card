@@ -23,6 +23,7 @@ import {
   PALETTE,
   consumerFields,
   ENERGY_MODE,
+  costsNeedGridCounter,
   hasEnergySensor,
   GENERAL,
   HOME,
@@ -802,7 +803,7 @@ export class DetailedEnergyCardEditor extends LitElement {
     );
     const conflict = sumConflict(this._config, (this.hass?.states ?? {}) as Record<string, StateLike | undefined>);
     return html`
-      <section><h3>${this._tr("section_general")}</h3>${this._form([], GENERAL)}${this._form([], ENERGY_MODE)}${hasEnergySensor(this._config) ? nothing : html`<div class="hint energy-hint">${this._tr("energy_mode_hint")}</div>`}</section>
+      <section><h3>${this._tr("section_general")}</h3>${this._form([], GENERAL)}${this._form([], ENERGY_MODE)}${hasEnergySensor(this._config) ? nothing : html`<div class="hint energy-hint">${this._tr("energy_mode_hint")}</div>`}${costsNeedGridCounter(this._config) ? html`<div class="warn costs-hint">⚠ ${this._tr("costs_need_grid")}</div>` : nothing}</section>
       <section><h3>${this._tr("section_colors")}</h3>${this._form([], COLORS)}${this._renderThresholds()}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
       <section><h3>${this._tr("section_home")}</h3>${this._form([], HOME)}</section>
       ${this._renderSources()} ${this._renderStructure()}

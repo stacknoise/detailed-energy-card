@@ -1,19 +1,49 @@
-import { sumSeries, type EnergyPeriod, type EnergyRow } from "./energy";
+import { statPeriodFor, sumSeries, type EnergyPeriod, type EnergyRow, type StatPeriod } from "./energy";
 
 /** How often the energy of a period is asked for again. */
 export const ENERGY_REFRESH_MS = 5 * 60_000;
 
 export type EnergyStatus = "idle" | "loading" | "ok" | "error";
 
-/** What to load: the energy sensors and the period, `offset` periods away from the running one (0). */
+/** What to load: the sensors and the period, `offset` periods away from the running one (0). */
 export interface EnergyQuery {
   ids: string[];
   period: EnergyPeriod;
   offset?: number;
+  /** rows per hour or per day; default hours for "today", days for a week or a month */
+  stat?: StatPeriod;
+  /**
+   * "energy" (default): the change of energy counters in watt hours; "mean": the hourly mean of a measurement
+   * such as a price; "change": the change of another total such as a cost, in its own unit. Rows of "mean"
+   * and "change" keep their value in `wh` as it is.
+   */
+  kind?: "energy" | "mean" | "change";
+  /** a refresh only loads the rows from the latest one on and keeps the older ones (long hourly queries) */
+  incremental?: boolean;
 }
 
-/** Loads the rows of a query; the store calls it with the query and nothing else, the caller knows `hass`. */
-export type EnergyLoader = (query: EnergyQuery) => Promise<Map<string, EnergyRow[]>>;
+/**
+ * Loads the rows of a query; the caller knows `hass`. With `since` (a refresh of an incremental query) it may
+ * load from that moment on only and returns it as `since`; without `since` in the answer the rows replace
+ * the old ones (for example when a new day has started).
+ */
+export type EnergyLoader = (query: EnergyQuery, since?: number) => Promise<{ series: Map<string, EnergyRow[]>; since?: number }>;
+
+/** Start of the latest row of all sensors, undefined without rows. */
+export function latestRow(series: Map<string, EnergyRow[]>): number | undefined {
+  let latest: number | undefined;
+  for (const rows of series.values()) for (const r of rows) if (latest === undefined || r.start > latest) latest = r.start;
+  return latest;
+}
+
+/** Old rows before `since` and the new ones from `since` on. */
+export function mergeRows(old: Map<string, EnergyRow[]>, fresh: Map<string, EnergyRow[]>, since: number): Map<string, EnergyRow[]> {
+  const out = new Map<string, EnergyRow[]>();
+  for (const id of new Set([...old.keys(), ...fresh.keys()])) {
+    out.set(id, [...(old.get(id) ?? []).filter((r) => r.start < since), ...(fresh.get(id) ?? [])]);
+  }
+  return out;
+}
 
 interface Entry {
   status: EnergyStatus;
@@ -38,8 +68,9 @@ const browserClock: StoreClock = {
   clearTimeout: (id) => window.clearTimeout(id),
 };
 
-/** Key of a query: the same sensors and period share one entry, whatever order the ids come in. */
-export const queryKey = (q: EnergyQuery): string => `${q.period}|${q.offset ?? 0}|${[...q.ids].sort().join(",")}`;
+/** Key of a query: the same sensors, period, rows and kind share one entry, whatever order the ids come in. */
+export const queryKey = (q: EnergyQuery): string =>
+  `${q.period}|${q.offset ?? 0}|${q.stat ?? statPeriodFor(q.period)}|${q.kind ?? "energy"}|${[...q.ids].sort().join(",")}`;
 
 /**
  * Energy values of the queries the card currently shows. Every query is loaded once, kept for
@@ -148,8 +179,11 @@ export class EnergyStore {
       this._changed();
     }
     try {
-      const series = await this._load(q);
+      // a long hourly query only loads what is new since its latest row (that row again, it may have grown)
+      const since = q.incremental && entry.series ? latestRow(entry.series) : undefined;
+      const answer = await this._load(q, since);
       if (this._entries.get(key) !== entry || entry.token !== token) return;
+      const series = answer.since !== undefined && entry.series ? mergeRows(entry.series, answer.series, answer.since) : answer.series;
       entry.series = series;
       entry.sums = sumSeries(series);
       entry.at = this._clock.now();

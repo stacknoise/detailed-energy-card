@@ -13,6 +13,7 @@
 - Second badge *Self-consumption* next to the self-sufficiency: (solar − feed-in) / solar, shown only when it can be computed (in the power mode from the grid export, in the energy mode from the feed-in counter). `options.show_self_consumption: false` (editor: *Show self-consumption*) hides it. On narrow cards the badges wrap.
 
 - Timeline view: stacked bars per hour of today or per day of the week or month, the previous period dashed, numbers above (used so far, change against the previous period up to the same time, largest bar). The stack follows the selection (floors, rooms, consumers); the legend goes one level down, the path in the head back up. New options `options.view` (`tree` | `timeline`) and `options.views` with fields under *General*; with two views a switch appears next to *Now | Today | Week | Month*. The timeline needs energy sensors.
+- Costs: `options.price` (fixed per kWh) or `options.price_entity` (dynamic tariff, hourly means from the statistics), `options.feed_in_price` / `options.feed_in_price_entity`, `options.currency`, with fields under *General*. Only energy from the grid costs money: every hour has a grid share (grid import over the consumption of the home), solar and battery cost nothing. A badge "Kosten 3,84 € · Vergütung 1,20 €" shows the shown period (in the mode *Now* today); it takes the amount of the cost statistics of the Energy dashboard (`<grid counter>_cost`, `_compensation`) when Home Assistant keeps them, and says in its tooltip what the battery charged from the grid and when a price was missing for more than 3 hours (≈). New `options.secondary_value: cost` shows the costs of every node, with energy and the part from the grid in the tooltip. The costs need an energy counter on the grid; the editor checks that a price sensor is recorded as statistics.
 
 ### Changed
 
@@ -21,11 +22,12 @@
 
 ### Docs
 
-- README: meters of floors and rooms, the second value, feed-in and self-consumption, new screenshots `card-meters`, `card-secondary`, `card-feedin` and `card-timeline`, all dev scenarios listed. The card screenshots in the power mode show the new badge. The screenshots with a room list no longer show the remainder of the home.
+- README: meters of floors and rooms, the second value, feed-in and self-consumption, new screenshots `card-meters`, `card-secondary`, `card-feedin`, `card-timeline` and `card-costs`, all dev scenarios listed. The card screenshots in the power mode show the new badge. The screenshots with a room list no longer show the remainder of the home.
 
 ### Internal
 
 - Groundwork for more views (package P3 of the expansion concept), no visible change: the tree diagram is drawn by its own `TreeView` (`src/view/tree.ts`); the energy statistics are loaded as hourly or daily rows (`loadEnergySeries`) for any period, earlier ones included (`periodRange` with an offset); loading, keeping and refreshing them moved into an `EnergyStore` (`src/model/energy-store.ts`) that can hold several queries side by side; a view switch next to *Now | Today | Week | Month* appears once a second view exists, and the chosen view is remembered with mode and period.
+- The energy store loads hourly rows for whole weeks and months incrementally: a refresh only asks for the rows from the latest one on and keeps the older ones. Queries can read the mean of a measurement (prices) and the change of other totals (costs).
 
 ## 1.1.2
 

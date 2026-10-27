@@ -184,5 +184,6 @@ export function reorder<T>(list: T[], from: number, to: number): T[] {
  * hints of the fields (device class, unit) depend on the state of both.
  */
 export function observedEntityIds(cfg: EnergyCardConfig): string[] {
-  return [...new Set([...collectEntityIds(cfg), ...collectEnergyIds(cfg)])];
+  const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity].filter((e): e is string => !!e);
+  return [...new Set([...collectEntityIds(cfg), ...collectEnergyIds(cfg), ...prices])];
 }

@@ -69,6 +69,16 @@ const shots: Array<{ scenario: string; file: string; clock?: string; before?: (p
       await expect(page.locator("detailed-energy-card .chart rect.part").first()).toBeVisible();
     },
   },
+  {
+    scenario: "costs",
+    file: "card-costs",
+    // costs from a dynamic price: the badge and the costs of every node; a fixed clock gives the same amounts
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .badge.costs")).toBeVisible();
+      await page.locator("detailed-energy-card button.node[title=Küche]").click();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",

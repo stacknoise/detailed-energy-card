@@ -20,7 +20,7 @@ export interface Field {
   /** rendered as color picker + hex field instead of a selector */
   kind?: "color";
   /** sensor kind validated against the live HA state */
-  check?: "power" | "battery" | "energy";
+  check?: "power" | "battery" | "energy" | "price";
   /** the value is a list (the config path is written with "[]" in coveredPaths) */
   multi?: boolean;
 }
@@ -152,12 +152,51 @@ export const ENERGY_MODE: Field[] = [
       { value: "auto", label: "second_auto" },
       { value: "today", label: "second_today" },
       { value: "power", label: "second_power" },
+      { value: "cost", label: "second_cost" },
     ],
     label: "field_secondary_value",
     default: "none",
     when: hasEnergySensor,
   },
+  // costs: a fixed price or a price sensor, the same for the compensation of the feed-in
+  {
+    path: "options.price",
+    selector: { number: { min: 0, step: 0.001, mode: "box", unit_of_measurement: "/kWh" } },
+    label: "field_price",
+    when: (cfg: any) => hasEnergySensor(cfg) && !cfg?.options?.price_entity,
+  },
+  {
+    path: "options.price_entity",
+    selector: { entity: { domain: "sensor" } },
+    label: "field_price_entity",
+    check: "price",
+    when: (cfg: any) => hasEnergySensor(cfg) && cfg?.options?.price === undefined,
+  },
+  {
+    path: "options.feed_in_price",
+    selector: { number: { min: 0, step: 0.001, mode: "box", unit_of_measurement: "/kWh" } },
+    label: "field_feed_in_price",
+    when: (cfg: any) => hasEnergySensor(cfg) && !cfg?.options?.feed_in_price_entity,
+  },
+  {
+    path: "options.feed_in_price_entity",
+    selector: { entity: { domain: "sensor" } },
+    label: "field_feed_in_price_entity",
+    check: "price",
+    when: (cfg: any) => hasEnergySensor(cfg) && cfg?.options?.feed_in_price === undefined,
+  },
+  {
+    path: "options.currency",
+    selector: { text: {} },
+    label: "field_currency",
+    when: (cfg: any) => hasEnergySensor(cfg) && (cfg?.options?.price !== undefined || !!cfg?.options?.price_entity),
+  },
 ];
+
+/** The costs need an energy counter on the grid: without one the editor says so. */
+export const costsNeedGridCounter = (cfg: any): boolean =>
+  (cfg?.options?.price !== undefined || !!cfg?.options?.price_entity) &&
+  !(cfg?.sources ?? []).some((s: any) => s?.type === "grid" && s?.energy_entity);
 
 export const COLORS: Field[] = [
   { path: "colors.preset", selector: opts(["theme", "nocturne", "custom"]), label: "field_color_preset", default: "theme" },

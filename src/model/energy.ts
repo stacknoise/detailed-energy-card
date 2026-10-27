@@ -115,7 +115,7 @@ interface WsHass {
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
 }
 
-type StatRow = { start?: number | string; change?: number | null };
+type StatRow = { start?: number | string; change?: number | null; mean?: number | null };
 
 /** Length of one statistics row: hours within a day, days for a week or a month. */
 export type StatPeriod = "hour" | "day";
@@ -141,16 +141,22 @@ export function sumChanges(result: Record<string, StatRow[] | undefined>): Map<s
 const rowStart = (start: number | string | undefined): number =>
   typeof start === "number" ? start : typeof start === "string" ? Date.parse(start) : NaN;
 
+/** What a statistics query reads: energy in watt hours, the mean of a measurement (a price), or the change of another total (a cost). */
+export type StatKind = "energy" | "mean" | "change";
+
 /**
- * The hourly or daily rows of every sensor between `start` and `end`, in watt hours. Sensors without
- * statistics (no state class, or not recorded) are missing from the result.
+ * The hourly or daily rows of every sensor between `start` and `end`: energy in watt hours, or for "mean" and
+ * "change" the value as Home Assistant sends it (kept in the field `wh`). A "mean" row without a value (the
+ * sensor was unavailable) is left out. Sensors without statistics (no state class, or not recorded) are
+ * missing from the result.
  */
-export async function loadEnergySeries(
+export async function loadStatSeries(
   hass: WsHass,
   ids: string[],
   start: Date,
   end: Date,
   period: StatPeriod,
+  kind: StatKind = "energy",
 ): Promise<Map<string, EnergyRow[]>> {
   if (!ids.length) return new Map();
   const result = await hass.callWS<Record<string, StatRow[] | undefined>>({
@@ -160,20 +166,26 @@ export async function loadEnergySeries(
     statistic_ids: ids,
     // buckets align with the day in the time zone of Home Assistant; hours are only needed within one day
     period,
-    types: ["change"],
+    types: [kind === "mean" ? "mean" : "change"],
     // converts every energy statistic to kWh, whatever unit the sensor reports
-    units: { energy: "kWh" },
+    ...(kind === "energy" ? { units: { energy: "kWh" } } : {}),
   });
+  const ok = (v: number | null | undefined): v is number => typeof v === "number" && Number.isFinite(v);
   const series = new Map<string, EnergyRow[]>();
   for (const [id, rows] of Object.entries(result ?? {})) {
     if (!Array.isArray(rows)) continue;
-    series.set(
-      id,
-      rows.map((r) => ({ start: rowStart(r.start), wh: typeof r.change === "number" && Number.isFinite(r.change) ? r.change * 1000 : 0 })),
-    );
+    if (kind === "mean") {
+      series.set(id, rows.filter((r) => ok(r.mean)).map((r) => ({ start: rowStart(r.start), wh: r.mean as number })));
+      continue;
+    }
+    series.set(id, rows.map((r) => ({ start: rowStart(r.start), wh: ok(r.change) ? r.change * (kind === "energy" ? 1000 : 1) : 0 })));
   }
   return series;
 }
+
+/** The hourly or daily rows of energy counters between `start` and `end`, in watt hours. */
+export const loadEnergySeries = (hass: WsHass, ids: string[], start: Date, end: Date, period: StatPeriod): Promise<Map<string, EnergyRow[]>> =>
+  loadStatSeries(hass, ids, start, end, period);
 
 /** Sum of the rows of every sensor, in watt hours. */
 export const sumSeries = (series: Map<string, EnergyRow[]>): Map<string, number> =>
