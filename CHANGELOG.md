@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Docs
+
+- README, section *Options*: the first column of every table shows the text of the field in the editor, in English and in German, next to the YAML key.
+
 ## 1.2.1
 
 ### Changed
