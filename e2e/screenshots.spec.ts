@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // Renders the images used in README.md. Run: npm run screenshots
-const shots: Array<{ scenario: string; file: string; clock?: string; before?: (page: import("@playwright/test").Page) => Promise<void> }> = [
+const shots: Array<{ scenario: string; file: string; /** card width in px (the dev page `?width=`) */ width?: number; clock?: string; before?: (page: import("@playwright/test").Page) => Promise<void> }> = [
   {
     scenario: "floors",
     file: "card-with-floors",
@@ -90,6 +90,15 @@ const shots: Array<{ scenario: string; file: string; clock?: string; before?: (p
     },
   },
   {
+    scenario: "compact",
+    file: "card-compact",
+    width: 360,
+    // sources, home and floors in small circles: the card at the width of a phone
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .graph.compact")).toBeVisible();
+    },
+  },
+  {
     scenario: "sankey",
     file: "card-sankey",
     // sources, floors and rooms with feed-in and charging below; the kitchen is selected, the hours do not matter
@@ -144,11 +153,11 @@ const CARD_IMAGE_HEIGHT = 890;
 const IMAGE_MARGIN = 12;
 const natural = new Set(["card-hero"]);
 
-for (const { scenario, file, clock, before } of shots) {
+for (const { scenario, file, clock, width, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {
     if (clock) await fixClock(page, clock);
     await page.setViewportSize({ width: 512, height: CARD_IMAGE_HEIGHT + 100 });
-    await page.goto(`/dev/index.html?scenario=${scenario}`);
+    await page.goto(`/dev/index.html?scenario=${scenario}${width ? `&width=${width}` : ""}`);
     await expect(page.locator("detailed-energy-card .path")).toContainText("Zuhause");
     await expect(page.locator("detailed-energy-card .path")).not.toContainText("eg");
     await before?.(page);

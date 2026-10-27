@@ -481,6 +481,70 @@ test.describe("energy mode", () => {
     });
   });
 
+  test.describe("compact view", () => {
+    test("shows sources, home and floors only: no room row, no list, no view switch", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=compact&width=360");
+      await expect(page.locator("detailed-energy-card .graph.compact")).toBeVisible();
+      for (const t of ["PV", "Batterie", "Netz", "EG", "OG", "Keller"]) await expect(node(page, t)).toBeVisible();
+      await expect(node(page, "Küche")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .detail")).toHaveCount(0);
+      // three views are offered, but the compact card has no switch and draws the tree
+      await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
+      // the circles are 40 px
+      const size = await page.locator("detailed-energy-card .circle.source").first().evaluate((el) => el.getBoundingClientRect().width);
+      expect(Math.round(size)).toBe(40);
+      // the mode switch stays
+      await expect(page.locator("detailed-energy-card .modes")).toBeVisible();
+    });
+
+    test("is lower than the normal card, and a click opens the dialog instead of selecting", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=energy&width=360");
+      await expect(node(page, "EG")).toBeVisible();
+      const normal = (await page.locator("detailed-energy-card .graph").boundingBox())!.height;
+      await page.goto("/dev/index.html?scenario=compact&width=360");
+      await expect(node(page, "EG")).toBeVisible();
+      const compact = (await page.locator("detailed-energy-card .graph").boundingBox())!.height;
+      expect(compact).toBeLessThan(normal);
+      await page.evaluate(() => {
+        (window as unknown as { __info: string[] }).__info = [];
+        document.addEventListener("hass-more-info", (e) => (window as unknown as { __info: string[] }).__info.push((e as CustomEvent).detail.entityId));
+      });
+      await node(page, "PV").click();
+      await node(page, "EG").click();
+      // a floor without a meter of its own has no dialog; the selection does not change either
+      expect(await page.evaluate(() => (window as unknown as { __info: string[] }).__info)).toEqual(["sensor.pv"]);
+      await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause");
+    });
+
+    test("a floor with a meter opens the dialog of the meter", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=meters&width=360");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, compact: true } });
+        (window as unknown as { __info: string[] }).__info = [];
+        document.addEventListener("hass-more-info", (e) => (window as unknown as { __info: string[] }).__info.push((e as CustomEvent).detail.entityId));
+      });
+      await node(page, "EG").click();
+      expect(await page.evaluate(() => (window as unknown as { __info: string[] }).__info)).toEqual(["sensor.uv_eg"]);
+    });
+
+    test("without floors the rooms are the row, and the card reports less rows", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=flat&width=360");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void; getCardSize(): number; getGridOptions(): { min_columns: number } };
+        const normal = { size: el.getCardSize(), cols: el.getGridOptions().min_columns };
+        el.setConfig({ ...el._config, options: { ...el._config.options, compact: true } });
+        (window as unknown as { __size: unknown }).__size = { normal, compact: { size: el.getCardSize(), cols: el.getGridOptions().min_columns } };
+      });
+      await expect(page.locator("detailed-energy-card .graph.compact")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .detail")).toHaveCount(0);
+      expect(await page.locator("detailed-energy-card button.node").count()).toBeGreaterThan(3);
+      const sizes = await page.evaluate(() => (window as unknown as { __size: { normal: { size: number; cols: number }; compact: { size: number; cols: number } } }).__size);
+      expect(sizes.compact.size).toBeLessThan(sizes.normal.size);
+      expect(sizes.compact.cols).toBeLessThan(sizes.normal.cols);
+    });
+  });
+
   test("a consumer with only an energy counter is greyed out in the mode Now and counts in the energy mode", async ({ page }) => {
     await fixClock(page);
     await open(page, "energy");

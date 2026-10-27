@@ -16,6 +16,7 @@ const de = {
   source_default_name: "Quelle",
   // general fields
   field_title: "Titel",
+  field_compact: "Kompakte Ansicht (nur Quellen, Haus und Etagen, kleinere Kreise, keine Liste)",
   field_tap_action: "Aktion bei Tipp (Standard: Auswahl bzw. Details)",
   field_hold_action: "Aktion bei langem Drücken",
   field_double_tap_action: "Aktion bei Doppeltipp",
@@ -205,6 +206,7 @@ const en: typeof de = {
   source_default_name: "Source",
   // general fields
   field_title: "Title",
+  field_compact: "Compact view (only sources, home and floors, smaller circles, no list)",
   field_tap_action: "Tap action (default: select, or details)",
   field_hold_action: "Hold action",
   field_double_tap_action: "Double tap action",

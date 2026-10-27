@@ -136,12 +136,17 @@ export class DetailedEnergyCard extends LitElement {
     this._ensureEnergy();
   }
 
+  /** options.compact: only the diagram, in smaller circles */
+  private get _compact(): boolean {
+    return this._config?.options?.compact === true;
+  }
+
   getCardSize(): number {
-    return 8;
+    return this._compact ? 4 : 8;
   }
 
   getGridOptions() {
-    return { columns: 12, rows: "auto", min_columns: 6 };
+    return this._compact ? { columns: 12, rows: "auto", min_columns: 4 } : { columns: 12, rows: "auto", min_columns: 6 };
   }
 
   connectedCallback(): void {
@@ -248,6 +253,8 @@ export class DetailedEnergyCard extends LitElement {
 
   /** Applies the stored selection: the largest floor by default (all floors with focus_selected), all of its rooms unless one is chosen. */
   private _resolve(model: EnergyModel): ResolvedSelection {
+    // the compact view has no selection: all floors, no room row (without floors the rooms are the row)
+    if (this._compact) return { floor: undefined, rooms: model.floors.length ? [] : model.rooms, room: undefined };
     const largest = <T extends { watts: number }>(list: T[]) =>
       list.reduce((best, x, i) => (x.watts > list[best].watts ? i : best), 0);
     let floor: number | undefined;
@@ -550,7 +557,7 @@ export class DetailedEnergyCard extends LitElement {
   // ---------- sankey ----------
 
   private get _showsSankey(): boolean {
-    return this._view === "sankey" && this._views.includes("sankey");
+    return !this._compact && this._view === "sankey" && this._views.includes("sankey");
   }
 
   /** The diagram of this frame: the selection decides which rooms and consumers are drawn. */
@@ -604,7 +611,7 @@ export class DetailedEnergyCard extends LitElement {
 
   /** The timeline is chosen and offered (it needs an energy sensor). */
   private get _showsTimeline(): boolean {
-    return this._view === "timeline" && this._views.includes("timeline");
+    return !this._compact && this._view === "timeline" && this._views.includes("timeline");
   }
 
   /** The period of the timeline: the one of the energy mode, "today" in the power mode (the timeline has no live value). */
@@ -797,7 +804,7 @@ export class DetailedEnergyCard extends LitElement {
   private _renderSwitches(cfg: EnergyCardConfig): TemplateResult | typeof nothing {
     const modes = this._renderModeSwitch(cfg);
     const views = this._views;
-    if (views.length < 2) return modes;
+    if (views.length < 2 || this._compact) return modes;
     return html`
       <div class="switches">
         ${modes}
@@ -907,7 +914,8 @@ export class DetailedEnergyCard extends LitElement {
       stored: this._sel,
       width: this._width,
       energy: this._mode === "energy",
-      focus: this._focus,
+      focus: this._focus && !this._compact,
+      compact: this._compact,
       thresholds: this._thresholds,
       home,
       fmt: (w) => this._fmt(w),
@@ -988,7 +996,7 @@ export class DetailedEnergyCard extends LitElement {
           : this._showsSankey
             ? this._sankey.render()
             : this._tree.render(this._treeContext(cfg, model, sel, home))}
-        ${this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
+        ${this._compact || this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
       </ha-card>
     `;
   }

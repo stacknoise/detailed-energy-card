@@ -114,6 +114,7 @@ options:
   secondary_value: none       # none | auto | today | power: kleiner Zweitwert unter jedem Wert (Abschnitt 6)
   view: tree                  # tree | sankey | timeline: Startansicht des Diagramms (Verlauf braucht einen Energiesensor)
   views: [tree, sankey, timeline]  # optional, Ansichten im Schalter; ohne nur `view` und kein Schalter; muss `view` enthalten
+  compact: false              # true: kompakte Ansicht (Abschnitt 6): nur Quellen, Haus und Etagen, keine Liste
   show_base_load: false       # true: Badge „Grundlast“ im Kopf (braucht die Statistik des Leistungssensors, Abschnitt 5)
   standby_watts: 5            # optional: Verbraucher, die 24 h lang nie darunter fielen, bekommen das Symbol „läuft dauerhaft“
   price: 0.32                 # optional, fester Strompreis pro kWh (schaltet die Kosten ein; braucht einen Energiezähler am Netz)
@@ -335,6 +336,13 @@ src/
 
 - Die Card zeichnet ihr Diagramm über eine Ansicht: den Baum (`TreeView` in `view/tree.ts`), das Sankey-Diagramm (`SankeyView` in `view/sankey.ts`, Graph aus `model/sankey.ts`) oder den Verlauf (`renderTimeline` in `view/timeline.ts`, Daten aus `model/timeline.ts`). Die Card behält Konfiguration, Modus, Auswahl, Energie-Store, Kopfzeile und Verbraucherliste und gibt der Ansicht pro Frame einen `TreeContext` bzw. `SankeyContext`. `prepare()` läuft in `willUpdate()`, `render()` liest nur.
 - Der Ansichts-Schalter (Icon-Gruppe rechts neben *Jetzt | Heute | Woche | Monat*) erscheint erst, wenn mindestens zwei Ansichten angeboten werden; mit nur dem Baum bleibt die Card unverändert. Die gewählte Ansicht wird zusammen mit Modus und Zeitraum gemerkt (`remember_selection`, Schlüssel `…:mode`). Angeboten werden `options.views` (feste Reihenfolge), ohne diese Option nur `options.view`; der Verlauf nur mit Energiesensor, sonst bleibt der Baum; das Sankey-Diagramm braucht keinen (es zeigt im Modus *Jetzt* die Leistung).
+
+**Kompakte Ansicht (`options.compact`)**
+
+- Zeichnet nur Quellen, Haus und Etagen (ohne Etagen die Räume); Kreise 40 statt 56 px (`.compact`: 38 px plus Rand, Haus 48 px), Etagen-Pillen mit dem Wert unter dem Namen, Zeilenhöhen aus `COMPACT` in `view/layout.ts` (`computeLayout({ compact })`, neues Feld `homeH`). Zweitwert und Rücklaufzeile funktionieren weiter (je eine Zeile mehr).
+- Keine Verbraucherliste, kein Ansichts-Schalter (die Karte zeichnet den Baum, auch wenn `view` / `views` etwas anderes sagen), keine Auswahl (`_resolve` liefert alle Etagen und keine Raumzeile, `focus_selected` wird ignoriert); der Zeitraum-Schalter und die Badges bleiben.
+- Klick auf einen Knoten öffnet den More-Info-Dialog seines Sensors: Quelle den Leistungssensor, Etage und Raum den eigenen Zähler (`meterEntity`, Leistung vor Energie), ohne Zähler passiert nichts; das Haus ist nicht klickbar. Eigene Aktionen (P15) ersetzen den Tipp wie sonst.
+- `getCardSize()` 4 statt 8, `getGridOptions()` mit `min_columns: 4` statt 6.
 
 **Aktionen und Schalter**
 
