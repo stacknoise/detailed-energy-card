@@ -66,8 +66,12 @@ sources:
 floors:                    # optional – weglassen = Räume direkt am Zuhause
   - floor_id: erdgeschoss   # Etage aus Home Assistant (Floor-Registry)
     color: ""              # optional, auch je Raum möglich
+    entity: sensor.uv_eg_power          # optional, eigener Leistungszähler der Etage (z. B. Unterverteilung)
+    energy_entity: sensor.uv_eg_energie # optional, eigener Energiezähler der Etage (kWh)
     rooms:
       - area_id: kueche      # Bereich aus Home Assistant (Area-Registry)
+        entity: sensor.kueche_power          # optional, eigener Leistungszähler des Raums
+        energy_entity: sensor.kueche_energie # optional, eigener Energiezähler des Raums
         consumers:
           - entity: sensor.backofen_power
             name: Backofen      # optional, sonst friendly_name
@@ -106,11 +110,12 @@ options:
 **Regeln**
 
 - **Etagen und Räume kommen ausschließlich aus Home Assistant.** Die Config speichert nur `floor_id` und `area_id`. Name und Icon werden zur Laufzeit aus der Floor- bzw. Area-Registry gelesen: bevorzugt aus `hass.areas` und `hass.floors`, wenn beide vorhanden sind (so erscheinen Umbenennungen ohne Reload). Fehlen sie (ältere HA-Frontends), lädt die Card per WebSocket (`config/floor_registry/list`, `config/area_registry/list`); nach einem Fehler wird frühestens nach 30 s erneut versucht. Freie Namen sind nicht möglich; ein Eintrag ohne ID ist ein Validierungsfehler. Ist eine ID in HA nicht mehr vorhanden, zeigt die Card die ID.
-- Ein Verbraucher-Sensor kann nur einem einzigen Verbraucher zugewiesen werden (Validierungsfehler in YAML). Der Editor blendet bereits vergebene Sensoren in der Auswahl aus (`exclude_entities`) und lehnt eine doppelte Eingabe ab.
+- Ein Sensor kann nur einem einzigen Platz zugewiesen werden: einem Verbraucher oder dem Zähler einer Etage bzw. eines Raums (Validierungsfehler in YAML). Der Editor blendet bereits vergebene Sensoren in der Auswahl aus (`exclude_entities`) und lehnt eine doppelte Eingabe ab.
+- Etagen und Räume können einen eigenen Zähler haben (`entity` für die Leistung, `energy_entity` für den Energie-Modus, beide optional). Mit Zähler zeigt der Knoten den gemessenen Wert, sonst die Summe seiner Kinder (Abschnitt 5). Ein Raum mit Zähler darf ganz ohne Verbraucher auskommen.
 - Jede Etage und jeder Bereich kann nur einmal vorkommen. Unter einer Etage sind nur Bereiche wählbar, die in HA dieser Etage zugeordnet sind.
 
 - Es gibt entweder `floors` oder `rooms` auf oberster Ebene. Sind beide gesetzt, gibt es einen Validierungsfehler.
-- Räume sind nie leer: Ein Raum ohne Verbraucher wird mit einem Hinweis angezeigt, aber mit 0 gerechnet.
+- Räume sind nie leer: Ein Raum ohne Verbraucher und ohne Zähler wird mit einem Hinweis angezeigt, aber mit 0 gerechnet.
 - Anzahl von Quellen, Etagen, Räumen und Verbrauchern ist nicht begrenzt.
 - Die gesamte Config wird beim Laden geprüft (`validateConfig`) und meldet Fehler mit Pfad, z. B. `options.decimals`. `options.decimals` ist eine ganze Zahl von 0 bis 20, `options.unit` ist `auto`, `W` oder `kW`, Schalter sind Booleans. Jedes Farbfeld ist genau eine CSS-Farbe (Hex, `rgb()`/`hsl()`, benannte Farbe, `var(--…)` oder `theme`); alles andere ist ein Validierungsfehler, damit keine zusätzlichen CSS-Deklarationen eingeschleust werden können.
 - Schaltet man im Editor Etagen ein, werden Räume ohne Etage ausgeblendet (mit Hinweis); schaltet man Etagen wieder aus, werden sie wiederhergestellt. Der Schalter ist gesperrt, solange die Registry nicht geladen ist.
@@ -124,6 +129,7 @@ Nur **Sensoren** sind zulässig. Die Validierung erfolgt im Editor und zur Laufz
 - Domain `sensor.*`
 - `device_class: power`, Einheit `W`, `kW` oder `MW`
 - `device_class: energy` (`Wh`/`kWh`/`MWh`) als `energy_entity` für den Energie-Modus (Abschnitt 15)
+- Dieselben Regeln gelten für die Zähler von Etagen und Räumen: `entity` ist ein Leistungssensor, `energy_entity` ein Energiezähler.
 
 Nicht passende Entitäten werden im Editor ausgefiltert. Kommen sie per YAML trotzdem in die Konfiguration, zeigt die Card eine Warnung am Knoten statt abzustürzen. Eine unbekannte Einheit (z. B. `kWh`, `V`) wird nie als Watt gezählt, sondern gilt als ungültig; der SoC-Sensor einer Batterie wird getrennt gelesen und muss `%` liefern (Wert auf 0…100 begrenzt).
 
@@ -135,12 +141,23 @@ Alle Werte werden intern in **Watt** umgerechnet.
 
 ```
 Verbraucher  = Sensorwert (W)
-Raum         = Σ Verbraucher
-Etage        = Σ Räume
-Zuhause      = total_entity   falls gesetzt
-             = Σ Räume        sonst
-Nicht erfasst = max(0, total_entity − Σ Räume)
+Raum         = eigener Zähler   falls gesetzt und lesbar
+             = Σ Verbraucher    sonst
+Etage        = eigener Zähler   falls gesetzt und lesbar
+             = Σ Räume          sonst
+Zuhause      = total_entity     falls gesetzt
+             = Σ Etagen bzw. Räume   sonst
+Nicht erfasst (Haus)   = max(0, total_entity − Σ Etagen bzw. Räume)
+Nicht erfasst im Raum  = max(0, Raumzähler − Σ Verbraucher)
+Nicht erfasst der Etage = max(0, Etagenzähler − Σ Räume)
 ```
+
+**Zähler von Etagen und Räumen**
+
+- Im Leistungsmodus gilt `entity`, im Energie-Modus `energy_entity`. Fehlt der Zähler des gezeigten Modus, rechnet der Knoten mit der Summe seiner Kinder.
+- Ist ein Zähler nicht lesbar, zeigt der Knoten die Summe seiner Kinder und ein Warnsymbol („Zähler nicht verfügbar, angezeigt wird die Summe“).
+- Messen die Kinder mehr als der Zähler (mehr als 5 % über dem Zählerwert **und** mindestens 10 W bzw. 50 Wh), bekommt der Knoten ein Warnsymbol, und die Liste zeigt statt „Nicht erfasst“ die Zeile „Verbraucher messen … mehr als der Zähler“ (bei einer Etage „Räume messen …“). „Nicht erfasst“ ist dann 0. Kleinere Abweichungen gelten als Messrauschen.
+- Das Haus zählt die Etagen bzw. Räume mit ihrem gezeigten Wert, also gemessen oder als Summe; nichts wird doppelt gezählt.
 
 **Quellen und Vorzeichen**
 
@@ -181,6 +198,8 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 - **Ohne Verbrauch:** Verbraucher unter 1 W erscheinen ausgegraut in der Liste (gedämpfte Textfarbe und hellerer Balken statt Deckkraft, damit der Text lesbar bleibt), Räume und Etagen ohne Verbrauch abgeblendet im Diagramm.
 - **Schwellwerte:** Ab dem jeweils erreichten `from`-Wert (W) bekommen Linien des gewählten Pfads und die Balken der Liste die zugehörige Farbe; unterhalb des ersten Wertes gilt die normale Farbe. Zusätzlich zeigen höhere Stufen dickere Linien und höhere Balken (+1 px je Stufe), damit die Stufen nicht nur an der Farbe hängen. Setzt eine Stufe `width` (px), ersetzt dieser Wert die berechnete Linienstärke (bei Balken die Höhe). Je Ebene (`source`, `floor`, `room`, `consumer`) sind eigene Listen unter `colors.level_thresholds` möglich; fehlt eine, gilt `colors.thresholds`. Eine Linie gehört zur Ebene ihres Ziels. Quellen, Etagen, Räume und Verbraucher können außerdem eine eigene `thresholds`-Liste haben, die für dieses Element die Liste der Ebene ersetzt (Rangfolge: Element, Ebene, `colors.thresholds`).
 - **Hervorhebung:** Die gewählte Etage und der gewählte Raum bekommen Akzentfarbe und Glow. Die übrigen Linien sind gedämpft.
+- **Eigener Zähler:** Eine Etage oder ein Raum mit eigenem Zähler bekommt ein kleines Zählersymbol (an der Etage nach dem Wert, am Raum oben rechts am Kreis), bei einem nicht lesbaren Zähler oder wenn die Kinder deutlich mehr messen ein Warnsymbol in der Warnfarbe. Der Tooltip des Symbols nennt den Grund.
+- **„Nicht erfasst“ in der Liste:** genau eine Zeile, passend zur Auswahl. Raum gewählt: „Nicht erfasst in <Raum>“, nur mit Raumzähler. Etage mit allen Räumen: „Nicht erfasst in <Etage>“ = Etagenwert minus alle Verbraucher der Etage, nur wenn die Etage oder einer ihrer Räume einen Zähler hat. Zuhause (alle Etagen bzw. alle Räume): „Nicht erfasst“ = Hauswert minus alle Verbraucher. Ohne Zähler erscheint die Zeile nur in der Ansicht des Hauses. Alle Zeilen folgen `options.show_unassigned`.
 - **Auswahl in die Mitte (`options.focus_selected`, Standard aus):** Die Karte startet mit allen Etagen sichtbar und ohne Raumzeile (ohne die Option ist die größte Etage vorgewählt), damit die erste Ebene immer vollständig zu sehen ist. Wählt man eine Etage, gleiten alle Etagen mittig unter das Zuhause, nur die gewählte bleibt sichtbar, die übrigen blenden dahinter aus. Ihre Räume verteilen sich wie bisher, jetzt um die neue Mitte. Bei einem gewählten Raum gilt dasselbe eine Ebene tiefer. Ein Klick auf ein Element zeigt immer dessen Kinder: Das Zuhause zeigt alle Etagen, eine Etage (auch die gewählte) alle ihre Räume. Ausgeblendete Elemente sind nicht anklickbar und nicht per Tastatur erreichbar. Bei reduzierter Bewegung (`prefers-reduced-motion`) wird nur ein- und ausgeblendet, nichts gleitet. Die Bewegung dauert 380 ms.
 - **Viele Räume:** Ab 7 Räumen in einer Ebene wird die Raumzeile horizontal scrollbar, mit fester Spaltenbreite von 64 px. Alternativ lässt sich per Option auf zwei Reihen umbrechen; das geschieht nur bei mehr als 6 Räumen und nur, wenn eine Reihe zu schmal wäre (unter 80 px je Raum). Auf einer breiten Karte bleiben alle Räume in einer Reihe. Namen werden an der Spaltenbreite mit einer Ellipse gekürzt, schmale Spalten (unter 90 px) nutzen eine kleinere Schrift.
 - **Responsive:** Die SVG-Breite folgt der Kartenbreite (`ResizeObserver`). Knoten werden absolut über dem SVG positioniert.
@@ -281,7 +300,7 @@ src/
 | Farben | Voreinstellung (HA-Theme / Nocturne / Eigene), Akzent, Fluss-Linien, inaktive Linien, Verbraucher-Balken, Hintergrund, Text |
 | Zuhause | Gesamt-Sensor (optional). Der Name ist fest (Standortname der Instanz). |
 | Stromquellen | Liste; je Quelle: Sensor, Typ, Name, Icon, Farbe, Invertieren, SoC-Sensor (nur Batterie) |
-| Struktur | Umschalter „Etagen verwenden“; Baum Etage → Raum → Verbraucher; Etagen und Räume nur per Auswahl aus HA, je Knoten zusätzlich Farbe; je Verbraucher: Sensor, Name |
+| Struktur | Umschalter „Etagen verwenden“; Baum Etage → Raum → Verbraucher; Etagen und Räume nur per Auswahl aus HA, je Knoten zusätzlich Leistungssensor und Energiesensor (beide optional, eigener Zähler) und Farbe; je Verbraucher: Sensor, Name |
 
 **Details:**
 
@@ -289,7 +308,7 @@ src/
 - **Struktur:** Baum Zuhause → (Etage) → Raum → Verbraucher.
   - Umschalter „Etagen verwenden“. Beim Ausschalten werden die Räume flach übernommen und die beim Einschalten ausgeblendeten Räume wiederhergestellt, beim Einschalten nach der HA-Etage ihres Bereichs gruppiert. Bereiche ohne Etage werden dabei ausgeblendet; ein Hinweis nennt sie. Der Schalter ist gesperrt, solange Etagen und Bereiche nicht geladen sind.
   - Drag-and-drop zum Sortieren und zum Verschieben von Räumen zwischen Etagen.
-- **Entitätsauswahl:** `ha-entity-picker` mit `include-domains: ["sensor"]` und einem `entity-filter` auf `device_class === "power"`. Bereits vergebene Sensoren werden in der Auswahl ausgeblendet, eine doppelte Zuordnung wird abgelehnt (in YAML ein Validierungsfehler, siehe Abschnitt 3).
+- **Entitätsauswahl:** `ha-entity-picker` mit `include-domains: ["sensor"]` und einem `entity-filter` auf `device_class === "power"`. Bereits vergebene Sensoren (Verbraucher und Zähler von Etagen und Räumen) werden in der Auswahl ausgeblendet, eine doppelte Zuordnung wird abgelehnt (in YAML ein Validierungsfehler, siehe Abschnitt 3).
 - **Validierung live im Editor:** ungültige Sensoren, ungültige Farben, doppelte Zuordnung und Summenkonflikte werden am Feld angezeigt, nicht erst in der Card.
 - **Hinweis Energiemodus:** Ohne Energiesensor zeigt „Allgemein“ einen Hinweis, dass der Schalter *Jetzt | Heute | Woche | Monat* erst mit einem Energiesensor (Zuhause, Quelle oder Verbraucher) erscheint (Details in Abschnitt 15).
 - **Vorschau:** Die Card-Vorschau von HA aktualisiert sich bei jeder Änderung (`config-changed`-Event).
@@ -338,6 +357,8 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 
 - Nur eine Quelle oder gar keine: Die Quellenzeile wird ausgeblendet, das Zuhause rückt nach oben.
 - Summe der Räume ist größer als `total_entity`: „Nicht erfasst“ wird nicht angezeigt, dafür eine Hinweis-Warnung im Editor.
+- Verbraucher messen mehr als der Zähler ihres Raums (bzw. Räume mehr als der Zähler ihrer Etage): Warnsymbol am Knoten und Hinweiszeile in der Liste, ab 5 % und mindestens 10 W / 50 Wh (Abschnitt 5).
+- Zähler einer Etage oder eines Raums nicht lesbar: Der Knoten zeigt die Summe seiner Kinder mit Warnsymbol.
 - Netz speist ein und Batterie lädt gleichzeitig: Pfeile werden umgekehrt, die Werte korrekt gezeigt.
 - Sehr kleine Werte (< 1 W): Anzeige „0 W“, keine Animation.
 - Lange Namen werden mit Ellipsis gekürzt. Der volle Name steht im `title`.
@@ -454,7 +475,7 @@ registerCardOnce(window.customCards, {
 
 Die Karte zeigt neben der Leistung jetzt auch die Energie eines Zeitraums.
 
-- **Konfiguration:** `energy_entity` an Quellen und Verbrauchern (Zähler mit `device_class: energy`, Wh/kWh/MWh), `home.total_energy_entity` für „Nicht erfasst“ und die Autarkie, `options.mode` (`power` | `energy`, Startansicht) und `options.energy_periods` (Liste aus `today`, `week`, `month`, Standard alle).
+- **Konfiguration:** `energy_entity` an Quellen, Etagen, Räumen und Verbrauchern (Zähler mit `device_class: energy`, Wh/kWh/MWh), `home.total_energy_entity` für „Nicht erfasst“ und die Autarkie, `options.mode` (`power` | `energy`, Startansicht) und `options.energy_periods` (Liste aus `today`, `week`, `month`, Standard alle).
 - **Schalter:** *Jetzt | Heute | Woche | Monat* im Kopf der Karte, sichtbar, sobald ein Element einen Energiesensor hat. Modus und Zeitraum werden wie die Auswahl gemerkt (`remember_selection`).
 - **Daten:** WebSocket `recorder/statistics_during_period` mit `types: ["change"]` und `units: { energy: "kWh" }` (Home Assistant rechnet jede Einheit um). Heute wird stündlich, Woche und Monat täglich summiert. Beginn von Tag, Woche und Monat liegt um Mitternacht in der Zeitzone von Home Assistant, die Woche beginnt am ersten Wochentag der Sprache (`locale.first_weekday`). Tage mit Zeitumstellung werden korrekt behandelt. Die Abfrage wiederholt sich alle 5 Minuten, solange die Karte sichtbar ist. Die Statistik kommt als Stunden- bzw. Tageszeilen (`loadEnergySeries`), die Card summiert sie; frühere Zeiträume (gestern, letzte Woche) lassen sich über `periodRange(…, offset)` abfragen. Laden, Merken und Aktualisieren übernimmt der `EnergyStore` (`model/energy-store.ts`), der mehrere Abfragen nebeneinander halten kann.
 - **Zustände:** Beim ersten Laden zählen alle Werte 0 und ein Hinweis „Lade Energiedaten …“ erscheint. Schlägt die Abfrage fehl, zeigt die Karte „Energiedaten nicht verfügbar“. Ein Element ohne `energy_entity` ist ausgegraut („Kein Energiesensor konfiguriert“), ein Sensor ohne Statistik gilt als nicht verfügbar.

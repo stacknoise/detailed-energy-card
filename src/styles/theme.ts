@@ -229,6 +229,33 @@ export const cardStyles = css`
     font-size: 0.85em;
     align-content: center;
   }
+  /* own meter of a room or a floor: a small icon at the circle / after the value; a warning in the warning color */
+  .circle {
+    position: relative;
+  }
+  .meter {
+    --mdc-icon-size: 14px;
+    color: var(--_muted);
+  }
+  .circle .meter {
+    background: var(--ha-card-background, var(--card-background-color, #1c1c1c));
+    border-radius: 50%;
+    position: absolute;
+    right: -6px;
+    top: -4px;
+  }
+  .pill .meter {
+    margin-left: 6px;
+    vertical-align: -2px;
+  }
+  .meter.warn,
+  .row.excess .name {
+    color: var(--warning-color, #ffb74d);
+  }
+  .row.excess ha-icon {
+    --mdc-icon-size: 16px;
+    vertical-align: -3px;
+  }
   .circle.room {
     width: 42px;
     height: 42px;

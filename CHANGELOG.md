@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+- Floors and rooms can have their own meter: `entity` (power) and `energy_entity` (energy), both optional, with fields in the editor. With a meter the node shows the measured value and a small meter icon instead of the sum of its children; a room with a meter needs no consumers. An unreadable meter falls back to the sum and shows a warning.
+- "Unassigned in <room>" and "Unassigned in <floor>": what the consumers of a metered room or floor do not cover.
+- A warning when the consumers of a room (or the rooms of a floor) measure more than its meter: more than 5 % and at least 10 W or 50 Wh. The node gets a warning icon, the list says by how much.
+
+### Changed
+
+- The "Unassigned" row of the list belongs to what the list shows: a selected room shows its own remainder (only with a room meter), a floor with all its rooms its own (only when the floor or one of its rooms has a meter), the home the rest of the home. Before, every list showed the remainder of the whole home, also the list of a single room.
+- The editor hint for the energy switch and the README name floors and rooms as places for an energy sensor too.
+
+### Docs
+
+- README: meters of floors and rooms, new screenshot `card-meters`, all dev scenarios listed. The screenshots with a room list no longer show the remainder of the home.
+
 ### Internal
 
 - Groundwork for more views (package P3 of the expansion concept), no visible change: the tree diagram is drawn by its own `TreeView` (`src/view/tree.ts`); the energy statistics are loaded as hourly or daily rows (`loadEnergySeries`) for any period, earlier ones included (`periodRange` with an offset); loading, keeping and refreshing them moved into an `EnergyStore` (`src/model/energy-store.ts`) that can hold several queries side by side; a view switch next to *Now | Today | Week | Month* appears once a second view exists, and the chosen view is remembered with mode and period.

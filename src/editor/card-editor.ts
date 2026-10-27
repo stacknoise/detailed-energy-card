@@ -373,8 +373,8 @@ export class DetailedEnergyCardEditor extends LitElement {
   private _onForm(ptr: Pointer, fields: Field[], ev: CustomEvent): void {
     ev.stopPropagation();
     const data = ev.detail.value as Record<string, unknown>;
-    // A sensor may belong to one consumer only; the picker hides taken ones, this catches the rest.
-    if (ptr.includes("consumers")) {
+    // A sensor may belong to one slot only (consumer, room or floor meter); the picker hides taken ones, this catches the rest.
+    if (ptr[0] === "floors" || ptr[0] === "rooms") {
       const taken = consumerEntitiesExcept(this._config, ptr);
       if ([data.entity, data.energy_entity].some((e) => typeof e === "string" && e && taken.includes(e))) {
         this._notice = this._tr("warn_sensor_assigned");
@@ -734,7 +734,7 @@ export class DetailedEnergyCardEditor extends LitElement {
         return html`<div class="item ${nested ? "nested" : ""}" @dragover=${(e: DragEvent) => this._onOver(e, listPtr)} @drop=${(e: DragEvent) => this._onDrop(e, listPtr, i)}>
           ${this._itemHead(key, this._areaName(r.area_id), this._tr("count_consumers", r.consumers?.length ?? 0), ptr, i, rooms.length)}
           ${this._open.has(key)
-            ? html`${this._form(ptr, roomFields(this._areaOptions(floorId, r.area_id)))}${this._elementThresholds(ptr, "room")}${this._renderConsumers(ptr)}`
+            ? html`${this._form(ptr, roomFields(this._areaOptions(floorId, r.area_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "room")}${this._renderConsumers(ptr)}`
             : nothing}
         </div>`;
       })}
@@ -774,7 +774,7 @@ export class DetailedEnergyCardEditor extends LitElement {
                 return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, ["floors"])} @drop=${(e: DragEvent) => this._onDrop(e, ["floors"], i)}>
                   ${this._itemHead(key, this._floorName(f.floor_id), this._tr("count_rooms", f.rooms?.length ?? 0), ptr, i, floors.length)}
                   ${this._open.has(key)
-                    ? html`${this._form(ptr, floorFields(this._floorChoices(f.floor_id)))}${this._elementThresholds(ptr, "floor")}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
+                    ? html`${this._form(ptr, floorFields(this._floorChoices(f.floor_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "floor")}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
                     : nothing}
                 </div>`;
               })}

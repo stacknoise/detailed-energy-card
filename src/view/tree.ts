@@ -1,7 +1,7 @@
 import { html, nothing, svg, type TemplateResult } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
 import type { EnergyCardConfig } from "../model/config";
-import type { EnergyModel, RoomNode, SourceNode } from "../model/compute";
+import type { EnergyModel, MeterInfo, RoomNode, SourceNode } from "../model/compute";
 import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
 import type { Key } from "../localize";
@@ -29,6 +29,17 @@ const SOURCE_ICONS: Record<string, string> = {
   grid: "mdi:transmission-tower",
   generic: "mdi:flash",
 };
+
+/** Small mark on a room or a floor with its own meter: a meter icon, or a warning when the meter cannot be read or measures less than the children. */
+function meterMark(c: TreeContext, m: MeterInfo | undefined, children: "consumers" | "rooms"): TemplateResult | typeof nothing {
+  if (!m) return nothing;
+  if (m.invalid) return html`<ha-icon class="meter warn" icon=${"mdi:alert-outline"} title=${c.t("meter_invalid")}></ha-icon>`;
+  if (m.excess !== undefined) {
+    const text = c.t(children === "rooms" ? "excess_rooms" : "excess_consumers").replace("{0}", c.fmt(m.excess));
+    return html`<ha-icon class="meter warn" icon=${"mdi:alert-outline"} title=${text}></ha-icon>`;
+  }
+  return html`<ha-icon class="meter" icon=${"mdi:meter-electric-outline"} title=${c.t("meter")}></ha-icon>`;
+}
 
 /** The selection applied to the model: the selected floor (index), the room row it shows and the selected room in it. */
 export interface ResolvedSelection {
@@ -172,7 +183,7 @@ export class TreeView {
           ${this._renderLines(c, layout, floorViews, roomViews, allRooms, allFloors)}
           ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
-          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors))}
+          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors, f.meter))}
           ${roomViews.map((v) => this._renderRoom(c, v.room, v.p, layout.roomColW, !v.leaving && v.room.id === sel.rooms[sel.room ?? -1]?.id, allRooms, v.leaving))}
         </div>
       </div>
@@ -271,7 +282,7 @@ export class TreeView {
     `;
   }
 
-  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false): TemplateResult {
+  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo): TemplateResult {
     return html`
       <button
         class="node ${isIdle(watts) ? "idle" : ""} ${p.o < 0.5 ? "ghost" : ""}"
@@ -282,7 +293,7 @@ export class TreeView {
         title=${name}
         @click=${() => c.select(selected && !c.focus ? { floor: null } : { floor: id })}
       >
-        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small></span>
+        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}</span>
       </button>
     `;
   }
@@ -298,7 +309,7 @@ export class TreeView {
         title=${r.name}
         @click=${() => c.select({ ...c.stored, room: selected && !c.focus ? null : r.id })}
       >
-        <span class="circle room ${selected || allRooms ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon></span>
+        <span class="circle room ${selected || allRooms ? "selected" : ""}"><ha-icon icon=${r.icon ?? "mdi:door"}></ha-icon>${meterMark(c, r.meter, "consumers")}</span>
         <span class="label">${r.name}</span>
         <span class="value">${c.fmt(r.watts)}</span>
       </button>

@@ -90,7 +90,8 @@ export const hasEnergySensor = (cfg: any): boolean => {
   return (
     !!cfg?.home?.total_energy_entity ||
     (cfg?.sources ?? []).some((s: any) => !!s?.energy_entity) ||
-    rooms.some((r: any) => (r?.consumers ?? []).some((c: any) => !!c?.energy_entity))
+    (cfg?.floors ?? []).some((f: any) => !!f?.energy_entity) ||
+    rooms.some((r: any) => !!r?.energy_entity || (r?.consumers ?? []).some((c: any) => !!c?.energy_entity))
   );
 };
 
@@ -170,15 +171,23 @@ export interface Choice {
 }
 const dropdown = (choices: Choice[]) => ({ select: { mode: "dropdown", options: choices } });
 
+/** Own meters of a floor or a room (optional): sensors not yet assigned elsewhere. */
+const meterFields = (exclude: string[]): Field[] => [
+  { path: "entity", selector: { entity: { ...power.entity, exclude_entities: exclude } }, label: "field_meter_power", check: "power" },
+  { path: "energy_entity", selector: { entity: { ...energy.entity, exclude_entities: exclude } }, label: "field_meter_energy", check: "energy" },
+];
+
 /** Floors can only be picked from the Home Assistant floor registry. */
-export const floorFields = (choices: Choice[] = []): Field[] => [
+export const floorFields = (choices: Choice[] = [], exclude: string[] = []): Field[] => [
   { path: "floor_id", selector: dropdown(choices), label: "field_floor", required: true },
+  ...meterFields(exclude),
   color("color", "field_color"),
 ];
 
 /** Rooms can only be picked from the Home Assistant area registry. */
-export const roomFields = (choices: Choice[] = []): Field[] => [
+export const roomFields = (choices: Choice[] = [], exclude: string[] = []): Field[] => [
   { path: "area_id", selector: dropdown(choices), label: "field_area", required: true },
+  ...meterFields(exclude),
   color("color", "field_color"),
 ];
 

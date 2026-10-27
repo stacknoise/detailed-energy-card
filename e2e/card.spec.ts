@@ -201,6 +201,47 @@ test.describe("energy mode", () => {
     await expect(view("Verlauf")).toHaveAttribute("aria-pressed", "true");
   });
 
+  test("floors and rooms with their own meter show the metered value and what their consumers miss", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "meters");
+    const row = (text: string) => page.locator("detailed-energy-card .detail .row", { hasText: text });
+    // EG: the meter of the distribution board, its list shows what all consumers of the floor miss
+    await expect(node(page, "EG").locator("small")).toHaveText("12,6 kWh");
+    await expect(row("Nicht erfasst in EG")).toContainText("0,8 kWh");
+    await expect(node(page, "EG").locator(".meter")).toHaveCount(1);
+    // the kitchen meter: 9,1 kWh against 8,7 kWh of consumers
+    await expect(value(page, "Küche")).toHaveText("9,1 kWh");
+    await expect(node(page, "Küche").locator(".meter")).toHaveCount(1);
+    await expect(node(page, "Flur").locator(".meter")).toHaveCount(1);
+    await node(page, "Küche").click();
+    await expect(row("Nicht erfasst in Küche")).toContainText("0,4 kWh");
+    // a room without a meter has no "Unassigned" row (and no longer the one of the home)
+    await node(page, "Wohnzimmer").click();
+    await expect(row("Nicht erfasst")).toHaveCount(0);
+    await expect(node(page, "Wohnzimmer").locator(".meter")).toHaveCount(0);
+    // the power mode uses the power meters: the hall has none, so it shows its sum without a mark
+    await mode(page, "Jetzt").click();
+    await expect(value(page, "Küche")).toHaveText("1,40 kW");
+    await expect(node(page, "Flur").locator(".meter")).toHaveCount(0);
+    await node(page, "Küche").click();
+    await expect(row("Nicht erfasst in Küche")).toContainText("0,15 kW");
+  });
+
+  test("a meter that measures less than its consumers is marked and explained", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "meters");
+    await page.evaluate(() => {
+      const el = document.querySelector("detailed-energy-card") as unknown as { hass: { states: Record<string, unknown> } & object };
+      const hass = el.hass ?? (el as unknown as { _hass: { states: Record<string, unknown> } })._hass;
+      const states = { ...hass.states, "sensor.kueche_zaehler": { state: "1000", attributes: { unit_of_measurement: "W", device_class: "power" } } };
+      el.hass = { ...hass, states };
+    });
+    await mode(page, "Jetzt").click();
+    await node(page, "Küche").click();
+    await expect(node(page, "Küche").locator(".meter.warn")).toHaveCount(1);
+    await expect(page.locator("detailed-energy-card .detail .row.excess")).toContainText("Verbraucher messen 0,25 kW mehr als der Zähler");
+  });
+
   test("a card without energy sensors has no switch", async ({ page }) => {
     await open(page, "floors");
     await expect(page.locator("detailed-energy-card .modes")).toHaveCount(0);

@@ -5,7 +5,7 @@ import { cardStyles, colorVars } from "./styles/theme";
 import { collectEnergyIds, collectEntityIds, hasEnergy, validateConfig, type EnergyCardConfig } from "./model/config";
 import { energyReader, firstWeekdayIndex, loadEnergySeries, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
-import { computeModel, listedConsumers, type EnergyModel, type RoomNode } from "./model/compute";
+import { computeModel, listRemainder, listedConsumers, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
@@ -437,7 +437,8 @@ export class DetailedEnergyCard extends LitElement {
           name: floor?.name ?? home,
           icon: floor?.icon ?? "mdi:home",
           color: floor?.color,
-          watts: sel.rooms.reduce((sum, r) => sum + r.watts, 0),
+          // a floor with its own meter shows the metered value, like its node
+          watts: floor ? floor.watts : sel.rooms.reduce((sum, r) => sum + r.watts, 0),
           consumers: sel.rooms.flatMap((r) => r.consumers),
         }
       : room;
@@ -456,19 +457,35 @@ export class DetailedEnergyCard extends LitElement {
         </header>
         ${this._renderSwitches(cfg)}
         ${this._tree.render(this._treeContext(cfg, model, sel, home))}
-        ${this._config?.options?.show_consumers === false ? nothing : this._renderDetail(model, detailRoom)}
+        ${this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
       </ha-card>
     `;
   }
 
-  private _renderDetail(model: EnergyModel, room?: RoomNode): TemplateResult {
+  /** The "Unassigned" row of the list, or the warning that the children measure more than the meter. */
+  private _renderRemainder(r: Remainder | undefined): TemplateResult | typeof nothing {
+    if (!r || this._config?.options?.show_unassigned === false) return nothing;
+    if (r.excess !== undefined) {
+      const text = this._t(r.scope === "floor" ? "excess_rooms" : "excess_consumers").replace("{0}", this._fmt(r.excess));
+      return html`<div class="row excess" style="cursor:default">
+        <span class="name"><ha-icon icon=${"mdi:alert-outline"}></ha-icon> ${text}</span><span class="spacer"></span><span class="val"></span>
+      </div>`;
+    }
+    if (r.value < 1) return nothing;
+    const name = r.scope === "home" ? this._t("unassigned") : this._t("unassigned_in").replace("{0}", r.name ?? "");
+    return html`<div class="row" style="cursor:default">
+      <span class="name">${name}</span><span class="spacer"></span>
+      <span class="val">${this._fmt(r.value)}</span>
+    </div>`;
+  }
+
+  private _renderDetail(room: RoomNode | undefined, remainder: Remainder | undefined): TemplateResult {
     if (!room) {
       return html`<div class="detail empty">${this._t("no_rooms")}</div>`;
     }
     const onlyActive = this._config?.options?.only_active_consumers === true;
     const sorted = [...listedConsumers(room.consumers, onlyActive)].sort((a, b) => b.watts - a.watts);
     const max = Math.max(1, ...sorted.map((c) => c.watts));
-    const showUnassigned = this._config?.options?.show_unassigned !== false && model.unassigned >= 1;
     const thresholds = this._thresholds;
     return html`
       <div class="detail">
@@ -477,7 +494,9 @@ export class DetailedEnergyCard extends LitElement {
             <span class="muted"> · ${this._fmt(room.watts)}</span></span>
           <span class="muted">${onlyActive ? `${sorted.length} / ${room.consumers.length}` : room.consumers.length} ${this._t("consumers")}</span>
         </div>
-        ${sorted.length === 0 ? html`<div class="empty">${this._t(room.consumers.length === 0 ? "no_consumers" : "no_active_consumers")}</div>` : nothing}
+        ${sorted.length === 0 && !(room.consumers.length === 0 && room.meter?.metered)
+          ? html`<div class="empty">${this._t(room.consumers.length === 0 ? "no_consumers" : "no_active_consumers")}</div>`
+          : nothing}
         <div class="list">
         ${sorted.map((c) => {
           const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
@@ -493,12 +512,7 @@ export class DetailedEnergyCard extends LitElement {
             </button>
           `;
         })}
-        ${showUnassigned
-          ? html`<div class="row" style="cursor:default">
-              <span class="name">${this._t("unassigned")}</span><span class="spacer"></span>
-              <span class="val">${this._fmt(model.unassigned)}</span>
-            </div>`
-          : nothing}
+        ${this._renderRemainder(remainder)}
         </div>
       </div>
     `;

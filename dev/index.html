@@ -194,6 +194,9 @@
         "sensor.flur": s(0), // idle room
         "sensor.og": s(1050),
         "sensor.keller": s(1100),
+        // own meters (scenario "meters"): the distribution board of EG and the kitchen
+        "sensor.uv_eg": s(2050),
+        "sensor.kueche_zaehler": s(1400),
         // flat apartment
         "sensor.balkon": s(620),
         "sensor.netz2": s(1240),
@@ -352,11 +355,33 @@
         floors: scenarios.floors.floors.map((f) => ({ ...f, rooms: withEnergy(f.rooms) })),
         options: { unit: "kW", mode: "energy" },
       };
+      // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a
+      // power and an energy meter, the hall with an energy meter only; the other rooms show their sum.
+      scenarios.meters = {
+        ...scenarios.energy,
+        floors: scenarios.energy.floors.map((f) =>
+          f.floor_id !== "eg"
+            ? f
+            : {
+                ...f,
+                entity: "sensor.uv_eg",
+                energy_entity: "sensor.e_uv_eg",
+                rooms: f.rooms.map((r) =>
+                  r.area_id === "kueche"
+                    ? { ...r, entity: "sensor.kueche_zaehler", energy_entity: "sensor.e_kueche_zaehler" }
+                    : r.area_id === "flur"
+                      ? { ...r, energy_entity: "sensor.e_flur_zaehler" }
+                      : r,
+                ),
+              },
+        ),
+      };
       // kWh of "today"; longer periods are a multiple of it
       const energyToday = {
         "sensor.e_pv": 12.4, "sensor.e_akku": 2.0, "sensor.e_netz": 5.1, "sensor.e_total": 19.5,
         "sensor.e_backofen": 4.2, "sensor.e_spuel": 2.6, "sensor.e_kuehl": 1.9, "sensor.e_wz": 3.1,
         "sensor.e_flur": 0, "sensor.e_og": 4.9, "sensor.e_keller": 2.1,
+        "sensor.e_uv_eg": 12.6, "sensor.e_kueche_zaehler": 9.1, "sensor.e_flur_zaehler": 0.4,
       };
 
       // names for the entity pickers of the editor view, and the energy counters
