@@ -3,7 +3,7 @@ import { state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { cardStyles, colorVars } from "./styles/theme";
 import { collectEnergyIds, collectEntityIds, hasEnergy, validateConfig, type EnergyCardConfig } from "./model/config";
-import { energyReader, firstWeekdayIndex, loadEnergySeries, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
+import { energyReader, firstWeekdayIndex, loadEnergySeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
 import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
@@ -15,6 +15,17 @@ import "./editor/card-editor";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { MAX_LEVEL, TreeView, type ResolvedSelection, type TreeContext } from "./view/tree";
+import { renderTimeline, type TimelineContext, type TimelineKpi, type TimelineStack } from "./view/timeline";
+import {
+  bucketStarts,
+  bucketUnitFor,
+  compareWithPrevious,
+  comparisonDayBack,
+  peakIndex,
+  periodBounds,
+  treeSeries,
+  type TimelineSeries,
+} from "./model/timeline";
 import { AVAILABLE_VIEWS, VIEW_ICONS, offeredViews, parseShown, type ViewId } from "./view/views";
 import { parseSelection, removeLegacyKeysOnce, selectionKey, type Selection } from "./model/selection";
 interface Hass {
@@ -39,8 +50,6 @@ export class DetailedEnergyCard extends LitElement {
   @state() private _period: EnergyPeriod = "today";
   /** the view chosen in the view switch; every view draws the tree until the others exist (P7, P9) */
   @state() private _view: ViewId = "tree";
-  /** views offered regardless of the configuration: only for tests, until `options.views` exists (P7) */
-  private _testViews?: ViewId[];
   /** energy of the shown period, loaded from the statistics and refreshed while the card is visible */
   private _energyStore = new EnergyStore(
     (q) => this._loadEnergy(q),
@@ -245,7 +254,8 @@ export class DetailedEnergyCard extends LitElement {
 
   /** Views the view switch offers. */
   private get _views(): ViewId[] {
-    return this._testViews ?? offeredViews(undefined, AVAILABLE_VIEWS);
+    const o = this._config?.options;
+    return offeredViews(o?.view, o?.views, !!this._config && hasEnergy(this._config), AVAILABLE_VIEWS);
   }
 
   /** Mode, period and view: the remembered ones, else the configured mode, the first period and the first view offered. */
@@ -255,7 +265,8 @@ export class DetailedEnergyCard extends LitElement {
     const views = this._views;
     let mode: "power" | "energy" = cfg?.options?.mode === "energy" ? "energy" : "power";
     let period: EnergyPeriod = periods[0];
-    let view: ViewId = views[0];
+    const configured = this._config?.options?.view;
+    let view: ViewId = views.includes(configured as ViewId) ? (configured as ViewId) : views[0];
     if (cfg?.options?.remember_selection !== false) {
       try {
         const v = parseShown(localStorage.getItem(this._modeKey), periods, views);
@@ -285,6 +296,7 @@ export class DetailedEnergyCard extends LitElement {
   private _showView(view: ViewId): void {
     this._view = view;
     this._saveShown();
+    this._ensureEnergy();
   }
 
   private _setView(mode: "power" | "energy", period: EnergyPeriod): void {
@@ -334,19 +346,177 @@ export class DetailedEnergyCard extends LitElement {
     if (!this._config || !this._hass) return;
     const query = this._energyQuery();
     // in the power mode the energy of today is loaded for the second value, in the same rhythm
-    this._energyStore.want(query ? [query] : this._secondKind() === "today" ? [this._todayQuery()] : []);
+    const wanted = query ? [query] : this._secondKind() === "today" ? [this._todayQuery()] : [];
+    // the timeline also needs the previous period and, for a week or a month, the day today is compared with
+    if (this._showsTimeline) wanted.push(...this._timelineQueries());
+    this._energyStore.want(wanted);
+  }
+
+  private get _timeZone(): string {
+    return this._hass?.config?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+
+  private get _firstWeekday(): number {
+    const hass = this._hass;
+    return firstWeekdayIndex(hass?.locale?.first_weekday, hass?.locale?.language ?? hass?.language);
   }
 
   private _loadEnergy(q: EnergyQuery) {
-    const hass = this._hass!;
-    const { start, end } = periodRange(
-      q.period,
-      new Date(),
-      hass.config?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-      firstWeekdayIndex(hass.locale?.first_weekday, hass.locale?.language ?? hass.language),
-      q.offset,
-    );
-    return loadEnergySeries(hass, q.ids, start, end, statPeriodFor(q.period));
+    const { start, end } = periodRange(q.period, new Date(), this._timeZone, this._firstWeekday, q.offset);
+    return loadEnergySeries(this._hass!, q.ids, start, end, statPeriodFor(q.period));
+  }
+
+  // ---------- timeline ----------
+
+  /** The timeline is chosen and offered (it needs an energy sensor). */
+  private get _showsTimeline(): boolean {
+    return this._view === "timeline" && this._views.includes("timeline");
+  }
+
+  /** The period of the timeline: the one of the energy mode, "today" in the power mode (the timeline has no live value). */
+  private get _timelinePeriod(): EnergyPeriod {
+    return this._mode === "energy" ? this._period : "today";
+  }
+
+  /** Running and previous period; a week or a month also the hours of the day today is compared with. */
+  private _timelineQueries(): EnergyQuery[] {
+    const ids = collectEnergyIds(this._config!);
+    const period = this._timelinePeriod;
+    const out: EnergyQuery[] = [
+      { ids, period },
+      { ids, period, offset: -1 },
+    ];
+    if (period !== "today") out.push({ ids, period: "today", offset: -comparisonDayBack(period, new Date(), this._timeZone) });
+    return out;
+  }
+
+  /** Values per bar of a period, or undefined while its rows are not there. */
+  private _series(q: EnergyQuery, starts: number[], end: number): TimelineSeries | undefined {
+    const rows = this._energyStore.series(q);
+    return rows ? treeSeries(this._config!, rows, starts, end) : undefined;
+  }
+
+  private _timelineContext(model: EnergyModel, sel: ResolvedSelection): TimelineContext {
+    const cfg = this._config!;
+    const tz = this._timeZone;
+    const fw = this._firstWeekday;
+    const lang = this._hass?.locale?.language ?? this._hass?.language;
+    const now = new Date();
+    const period = this._timelinePeriod;
+    const unit = bucketUnitFor(period);
+    const [q, qPrev, qDay] = this._timelineQueries();
+    const cur = periodBounds(period, now, tz, fw);
+    const prev = periodBounds(period, now, tz, fw, -1);
+    const starts = bucketStarts(cur.start, cur.end, unit, tz);
+    const prevStarts = bucketStarts(prev.start, prev.end, unit, tz);
+    const series = this._series(q, starts, cur.end.getTime());
+    const prevSeries = this._series(qPrev, prevStarts, prev.end.getTime());
+    const zeros = starts.map(() => 0);
+
+    // the stack follows the selection: the floors of the home, the rooms of a floor, the consumers of a room
+    const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
+    const room = sel.room !== undefined ? sel.rooms[sel.room] : undefined;
+    const floors = model.floors.length > 0;
+    let stacks: TimelineStack[];
+    let shown: (s: TimelineSeries | undefined) => number[] | undefined;
+    if (room) {
+      stacks = room.consumers.flatMap((c) => {
+        const v = series?.consumers.get(c.entity);
+        if (!v && series) return [];
+        const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
+        return [{ id: c.entity, name: String(name), values: v ?? zeros, pick: () => this._moreInfo(c.entity) }];
+      });
+      shown = (s) => s?.rooms.get(room.id);
+    } else if (floor) {
+      stacks = floor.rooms.flatMap((r) => {
+        const v = series?.rooms.get(r.id);
+        if (!v && series) return [];
+        return [{ id: r.id, name: r.name, color: r.color, values: v ?? zeros, pick: () => this._select({ ...this._sel, room: r.id }) }];
+      });
+      shown = (s) => s?.floors.get(floor.id);
+    } else {
+      const children = floors ? model.floors : model.rooms;
+      stacks = children.flatMap((n) => {
+        const v = floors ? series?.floors.get(n.id) : series?.rooms.get(n.id);
+        if (!v && series) return [];
+        const pick = floors ? () => this._select({ floor: n.id }) : () => this._select({ room: n.id });
+        return [{ id: n.id, name: n.name, color: n.color, values: v ?? zeros, pick }];
+      });
+      shown = (s) => s?.home;
+    }
+
+    const hourOf = (t: number) => localTime(new Date(t), tz).hour;
+    const two = (h: number) => String(h).padStart(2, "0");
+    const dayName = (t: number) => new Intl.DateTimeFormat(lang, { weekday: "short", timeZone: tz }).format(new Date(t));
+    const dayNum = (t: number) => new Intl.DateTimeFormat(lang, { day: "numeric", timeZone: tz }).format(new Date(t));
+    const barTime = (i: number) =>
+      unit === "hour" ? this._t("tl_hour").replace("{0}", two(hourOf(starts[i]))).replace("{1}", two((hourOf(starts[i]) + 1) % 24)) : `${dayName(starts[i])} ${dayNum(starts[i])}.`;
+
+    const kpis: TimelineKpi[] = [];
+    const values = shown(series);
+    const nowMs = now.getTime();
+    const fullHour = two(localTime(new Date(nowMs - (nowMs - cur.start.getTime()) % 3_600_000), tz).hour);
+    if (values) {
+      const dayRows = qDay ? this._energyStore.series(qDay) : undefined;
+      const day = qDay ? periodBounds("today", now, tz, fw, qDay.offset) : undefined;
+      const dayStarts = day ? bucketStarts(day.start, day.end, "hour", tz) : undefined;
+      const daySeries = dayRows && dayStarts && day ? treeSeries(cfg, dayRows, dayStarts, day.end.getTime()) : undefined;
+      const prevValues = shown(prevSeries);
+      const cmp = compareWithPrevious({
+        unit,
+        now: nowMs,
+        starts,
+        values,
+        prevStarts,
+        prevValues: prevValues ?? prevStarts.map(() => 0),
+        dayStarts,
+        dayValues: shown(daySeries),
+      });
+      const totalLabel = period === "today" ? this._t("tl_until").replace("{0}", fullHour) : this._t(period === "week" ? "tl_week" : "tl_month");
+      kpis.push({ value: this._fmtAs("energy", cmp.current), label: totalLabel });
+      if (prevValues && cmp.change !== null && (period === "today" || dayRows)) {
+        const pct = Math.round(cmp.change * 100);
+        const vs = period === "today" ? this._t("tl_vs_day").replace("{0}", fullHour) : this._t(period === "week" ? "tl_vs_week" : "tl_vs_month");
+        kpis.push({ value: `${pct > 0 ? "+" : pct < 0 ? "−" : "±"}${Math.abs(pct)} %`, label: vs, tone: pct > 0 ? "up" : pct < 0 ? "down" : undefined });
+      }
+      const peak = peakIndex(values);
+      if (peak >= 0) kpis.push({ value: this._fmtAs("energy", values[peak]), label: this._t("tl_peak").replace("{0}", barTime(peak)) });
+    }
+
+    const prevKey = period === "today" ? "tl_prev_today" : period === "week" ? "tl_prev_week" : "tl_prev_month";
+    const nowIndex = starts.findIndex((t, i) => nowMs >= t && nowMs < (starts[i + 1] ?? cur.end.getTime()));
+    const axisNumber = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
+    return {
+      width: this._width || 320,
+      stacks,
+      previous: shown(prevSeries),
+      previousLabel: this._t(prevKey),
+      kpis,
+      axisLabel: (i) =>
+        unit === "hour"
+          ? hourOf(starts[i]) % 6 === 0 && (i === 0 || hourOf(starts[i - 1]) !== hourOf(starts[i]))
+            ? two(hourOf(starts[i]))
+            : undefined
+          : period === "week"
+            ? dayName(starts[i])
+            : i % 7 === 0
+              ? dayNum(starts[i])
+              : undefined,
+      barTitle: (i, st, v) => `${barTime(i)} · ${st.name} ${this._fmtAs("energy", v)}`,
+      axisValue: (wh) => axisNumber.format(wh / 1000),
+      nowIndex,
+      nowLabel: this._t("tl_now"),
+      loading: series ? undefined : this._t("energy_loading"),
+    };
+  }
+
+  /** The path of the head; in the timeline its parts select the home or the floor again (there are no nodes to click). */
+  private _renderPath(model: EnergyModel, home: string, floor?: { id: string; name: string }, room?: { name: string }): TemplateResult {
+    if (!this._showsTimeline) return html`${[home, floor?.name, room?.name].filter(Boolean).join(" › ")}`;
+    const toHome = () => this._select(model.floors.length ? { floor: null } : { room: null });
+    return html`<button class="crumb" @click=${toHome}>${home}</button>${floor
+        ? html` › <button class="crumb" @click=${() => this._select({ floor: floor.id })}>${floor.name}</button>`
+        : nothing}${room ? html` › <span>${room.name}</span>` : nothing}`;
   }
 
   private _renderModeSwitch(cfg: EnergyCardConfig): TemplateResult | typeof nothing {
@@ -459,7 +629,7 @@ export class DetailedEnergyCard extends LitElement {
     if (this._error) return html`<ha-card><div class="error">${this._error}</div></ha-card>`;
     const cfg = this._config;
     const model = this._model;
-    if (!cfg || !model || !this._tree.ready) return html`<ha-card></ha-card>`;
+    if (!cfg || !model || (!this._showsTimeline && !this._tree.ready)) return html`<ha-card></ha-card>`;
 
     const sel = this._resolve(model);
     const floor = sel.floor !== undefined ? model.floors[sel.floor] : undefined;
@@ -487,19 +657,18 @@ export class DetailedEnergyCard extends LitElement {
           consumers: sel.rooms.flatMap((r) => r.consumers),
         }
       : room;
-    const path = [home, floor?.name, room?.name].filter(Boolean).join(" › ");
 
     return html`
       <ha-card style=${colorVars(cfg.colors)}>
         <header>
           <div>
             ${cfg.title ? html`<h2>${cfg.title}</h2>` : nothing}
-            <div class="path">${path}</div>
+            <div class="path">${this._renderPath(model, home, floor, room)}</div>
           </div>
           ${this._renderBadges(cfg, model)}
         </header>
         ${this._renderSwitches(cfg)}
-        ${this._tree.render(this._treeContext(cfg, model, sel, home))}
+        ${this._showsTimeline ? renderTimeline(this._timelineContext(model, sel)) : this._tree.render(this._treeContext(cfg, model, sel, home))}
         ${this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
       </ha-card>
     `;

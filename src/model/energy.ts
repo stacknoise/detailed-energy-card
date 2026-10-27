@@ -20,6 +20,18 @@ function tzOffsetMs(date: Date, timeZone: string): number {
   return asUtc - Math.floor(date.getTime() / 1000) * 1000;
 }
 
+/** Calendar day (year, month 1-12, day) of a moment in a time zone. */
+export function localDate(date: Date, timeZone: string): [number, number, number] {
+  const local = new Date(date.getTime() + tzOffsetMs(date, timeZone));
+  return [local.getUTCFullYear(), local.getUTCMonth() + 1, local.getUTCDate()];
+}
+
+/** Hour (0-23) and weekday (0 = Sunday) of a moment in a time zone. */
+export function localTime(date: Date, timeZone: string): { hour: number; weekday: number } {
+  const local = new Date(date.getTime() + tzOffsetMs(date, timeZone));
+  return { hour: local.getUTCHours(), weekday: local.getUTCDay() };
+}
+
 /** The moment a calendar day starts in a time zone (handles days with a daylight saving change). */
 export function localMidnight(year: number, month: number, day: number, timeZone: string): Date {
   const guess = Date.UTC(year, month - 1, day);

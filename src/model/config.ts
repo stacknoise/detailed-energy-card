@@ -95,6 +95,10 @@ export interface OptionsConfig {
   show_self_consumption?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
+  /** what the card draws when it loads: the tree or the timeline (default tree; the timeline needs an energy sensor) */
+  view?: "tree" | "timeline";
+  /** the views the view switch offers (default only `view`, then there is no switch); must contain `view` */
+  views?: Array<"tree" | "timeline">;
   /**
    * a second, smaller value under every node and in the consumer list (default none): "today" shows the
    * energy of today in the power mode, "power" the power now in the energy mode, "auto" both
@@ -103,6 +107,8 @@ export interface OptionsConfig {
 }
 
 export const SECONDARY_VALUES = ["none", "auto", "today", "power"] as const;
+/** views that can be configured so far (the Sankey diagram follows with P9) */
+export const CONFIG_VIEWS = ["tree", "timeline"] as const;
 export type SecondaryValue = (typeof SECONDARY_VALUES)[number];
 
 export interface EnergyCardConfig {
@@ -186,6 +192,18 @@ function checkOptions(options: unknown): void {
   }
   if (options.secondary_value !== undefined && !(SECONDARY_VALUES as readonly unknown[]).includes(options.secondary_value)) {
     throw new ConfigError(`options.secondary_value: "${String(options.secondary_value)}" must be one of ${SECONDARY_VALUES.join(", ")}`);
+  }
+  if (options.view !== undefined && !(CONFIG_VIEWS as readonly unknown[]).includes(options.view)) {
+    throw new ConfigError(`options.view: "${String(options.view)}" must be one of ${CONFIG_VIEWS.join(", ")}`);
+  }
+  const views = list(options.views, "options.views");
+  views.forEach((v, i) => {
+    if (!(CONFIG_VIEWS as readonly unknown[]).includes(v)) {
+      throw new ConfigError(`options.views[${i}]: "${String(v)}" must be one of ${CONFIG_VIEWS.join(", ")}`);
+    }
+  });
+  if (options.view !== undefined && views.length && !views.includes(options.view)) {
+    throw new ConfigError(`options.view: "${String(options.view)}" must be one of options.views`);
   }
   list(options.energy_periods, "options.energy_periods").forEach((p, i) => {
     if (!(ENERGY_PERIODS as readonly unknown[]).includes(p)) {

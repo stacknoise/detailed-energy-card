@@ -122,6 +122,29 @@ export const ENERGY_MODE: Field[] = [
     when: hasEnergySensor,
   },
   {
+    path: "options.view",
+    selector: { select: { mode: "dropdown" } },
+    options: [
+      { value: "tree", label: "view_tree" },
+      { value: "timeline", label: "view_timeline" },
+    ],
+    label: "field_view",
+    default: "tree",
+    when: hasEnergySensor,
+  },
+  {
+    path: "options.views",
+    selector: { select: { multiple: true, mode: "list" } },
+    options: [
+      { value: "tree", label: "view_tree" },
+      { value: "timeline", label: "view_timeline" },
+    ],
+    label: "field_views",
+    default: ["tree"],
+    multi: true,
+    when: hasEnergySensor,
+  },
+  {
     path: "options.secondary_value",
     selector: { select: { mode: "dropdown" } },
     options: [

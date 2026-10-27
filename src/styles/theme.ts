@@ -316,6 +316,102 @@ export const cardStyles = css`
     font-weight: 600;
     white-space: nowrap;
   }
+  /* timeline (options.view / views) */
+  .timeline {
+    display: grid;
+    gap: 8px;
+  }
+  .kpis {
+    color: var(--_muted);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.8em;
+    gap: 6px 18px;
+  }
+  .kpi b {
+    color: var(--_text);
+    display: block;
+    font-size: 1.35em;
+    font-weight: 600;
+  }
+  .kpi b.up {
+    color: var(--warning-color, #ffb74d);
+  }
+  .kpi b.down {
+    color: var(--success-color, #81c784);
+  }
+  .chart {
+    display: block;
+    overflow: visible;
+  }
+  .chart .grid {
+    stroke: var(--_line);
+    stroke-width: 0.6;
+  }
+  .chart .axis {
+    fill: var(--_muted);
+    font-size: 10px;
+  }
+  .chart .prev {
+    fill: none;
+    opacity: 0.8;
+    stroke: var(--_muted);
+    stroke-dasharray: 2 2;
+    stroke-width: 0.9;
+  }
+  .chart .now {
+    stroke: var(--_accent);
+    stroke-width: 1;
+  }
+  .chart .now-label {
+    fill: var(--_accent);
+    font-size: 10px;
+  }
+  .timeline-loading {
+    color: var(--_muted);
+    font-size: 0.85em;
+    padding: 40px 0;
+    text-align: center;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+  }
+  .legend-item {
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--_muted);
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    font-size: 0.8em;
+    gap: 6px;
+    padding: 2px 0;
+  }
+  .legend-item:disabled,
+  .legend-item.prev-key {
+    cursor: default;
+  }
+  .legend-item i {
+    border-radius: 3px;
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+  }
+  .prev-key i {
+    border: 1px dashed var(--_muted);
+  }
+  .crumb {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-decoration: underline dotted;
+  }
   /* second value under a node (options.secondary_value); an empty line keeps the nodes of a level aligned */
   .second {
     color: var(--_muted);

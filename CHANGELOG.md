@@ -12,6 +12,8 @@
 - Feed-in and battery charging in the energy mode: `energy_entity_return` on grid, battery and generic sources (editor: *Energy sensor of the other direction*). The node keeps the import (battery: discharged) as its value and shows "feed-in 3.8 kWh" / "charged 2.4 kWh" in a small line below; the line follows the balance. This closes the gap of 1.0.0.
 - Second badge *Self-consumption* next to the self-sufficiency: (solar − feed-in) / solar, shown only when it can be computed (in the power mode from the grid export, in the energy mode from the feed-in counter). `options.show_self_consumption: false` (editor: *Show self-consumption*) hides it. On narrow cards the badges wrap.
 
+- Timeline view: stacked bars per hour of today or per day of the week or month, the previous period dashed, numbers above (used so far, change against the previous period up to the same time, largest bar). The stack follows the selection (floors, rooms, consumers); the legend goes one level down, the path in the head back up. New options `options.view` (`tree` | `timeline`) and `options.views` with fields under *General*; with two views a switch appears next to *Now | Today | Week | Month*. The timeline needs energy sensors.
+
 ### Changed
 
 - The "Unassigned" row of the list belongs to what the list shows: a selected room shows its own remainder (only with a room meter), a floor with all its rooms its own (only when the floor or one of its rooms has a meter), the home the rest of the home. Before, every list showed the remainder of the whole home, also the list of a single room.
@@ -19,7 +21,7 @@
 
 ### Docs
 
-- README: meters of floors and rooms, the second value, feed-in and self-consumption, new screenshots `card-meters`, `card-secondary` and `card-feedin`, all dev scenarios listed. The card screenshots in the power mode show the new badge. The screenshots with a room list no longer show the remainder of the home.
+- README: meters of floors and rooms, the second value, feed-in and self-consumption, new screenshots `card-meters`, `card-secondary`, `card-feedin` and `card-timeline`, all dev scenarios listed. The card screenshots in the power mode show the new badge. The screenshots with a room list no longer show the remainder of the home.
 
 ### Internal
 
