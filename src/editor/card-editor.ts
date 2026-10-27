@@ -47,6 +47,7 @@ import {
 } from "../model/thresholds";
 import { colorError, contrastWarning, fieldErrors, sumConflict } from "./validation";
 import { defineOnce } from "../register";
+import "./import/wizard";
 import { hassChangedForEditor, type EditorHass } from "./hass-change";
 import { makeTr, type EditorKey, type Tr } from "../localize/editor";
 
@@ -73,6 +74,8 @@ export class DetailedEnergyCardEditor extends LitElement {
 
   /** short message when an edit was refused, cleared by the next accepted change */
   @state() private _notice?: string;
+  /** the wizard that proposes the structure from the Energy dashboard is open */
+  @state() private _wizard = false;
   /** which thresholds the editor shows: the shared list or one level */
   @state() private _thrLevel: "all" | ThresholdLevel = "all";
   /** factor of the "scale limits" button */
@@ -804,6 +807,18 @@ export class DetailedEnergyCardEditor extends LitElement {
     );
     const conflict = sumConflict(this._config, (this.hass?.states ?? {}) as Record<string, StateLike | undefined>);
     return html`
+      <button class="add import" @click=${() => (this._wizard = true)}>${this._tr("wiz_button")}</button>
+      ${this._wizard
+        ? html`<detailed-energy-import-wizard
+            .hass=${this.hass}
+            .config=${this._config}
+            @wizard-close=${() => (this._wizard = false)}
+            @wizard-apply=${(e: CustomEvent) => {
+              this._wizard = false;
+              this._emit(e.detail.config);
+            }}
+          ></detailed-energy-import-wizard>`
+        : nothing}
       <section><h3>${this._tr("section_general")}</h3>${this._form([], GENERAL)}${this._form([], ENERGY_MODE)}${hasEnergySensor(this._config) ? nothing : html`<div class="hint energy-hint">${this._tr("energy_mode_hint")}</div>`}${costsNeedGridCounter(this._config) ? html`<div class="warn costs-hint">⚠ ${this._tr("costs_need_grid")}</div>` : nothing}</section>
       <section><h3>${this._tr("section_colors")}</h3>${this._form([], COLORS)}${this._renderThresholds()}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
       <section><h3>${this._tr("section_home")}</h3>${this._form([], HOME)}</section>

@@ -75,7 +75,7 @@ floors:                    # optional – weglassen = Räume direkt am Zuhause
         entity: sensor.kueche_power          # optional, eigener Leistungszähler des Raums
         energy_entity: sensor.kueche_energie # optional, eigener Energiezähler des Raums
         consumers:
-          - entity: sensor.backofen_power
+          - entity: sensor.backofen_power   # Leistungssensor; optional, wenn energy_entity gesetzt ist (mindestens eines von beiden)
             name: Backofen      # optional, sonst friendly_name
             energy_entity: sensor.backofen_energie   # optional, Energie-Modus
           - entity: sensor.kuehlschrank_power
@@ -157,6 +157,7 @@ Nur **Sensoren** sind zulässig. Die Validierung erfolgt im Editor und zur Laufz
 - `device_class: power`, Einheit `W`, `kW` oder `MW`
 - `device_class: energy` (`Wh`/`kWh`/`MWh`) als `energy_entity` für den Energie-Modus (Abschnitt 15)
 - Dieselben Regeln gelten für die Zähler von Etagen und Räumen: `entity` ist ein Leistungssensor, `energy_entity` ein Energiezähler.
+- Ein Verbraucher braucht `entity`, `energy_entity` oder beide (`consumers[i]: entity or energy_entity is required`). Nur mit Zähler zeigt er im Modus *Jetzt* „Kein Leistungssensor konfiguriert“ (ausgegraut, 0 W, kein Warnsymbol; mit `only_active_consumers` ausgeblendet), im Energiemodus zählt er. Schlüssel für Auswahl, Duplikatprüfung und Verlauf ist `entity ?? energy_entity`.
 - `energy_entity_return` einer Quelle (Gegenrichtung) ist wie `energy_entity` ein Energiezähler; bei Quellen vom Typ `solar` ist er ein Validierungsfehler.
 
 Nicht passende Entitäten werden im Editor ausgefiltert. Kommen sie per YAML trotzdem in die Konfiguration, zeigt die Card eine Warnung am Knoten statt abzustürzen. Eine unbekannte Einheit (z. B. `kWh`, `V`) wird nie als Watt gezählt, sondern gilt als ungültig; der SoC-Sensor einer Batterie wird getrennt gelesen und muss `%` liefern (Wert auf 0…100 begrenzt).
@@ -286,6 +287,10 @@ src/
     validation.ts             // Live-Prüfung: Sensoren, Farben, Summenkonflikt
     config-utils.ts           // reine Funktionen: Etagen ein/aus, Verschieben, Duplikate
     hass-change.ts            // welche hass-Änderungen den Editor neu rendern
+    import/collect.ts         // Assistent: energy/get_prefs und Registries lesen (defensiv)
+    import/propose.ts         // Assistent: Vorschlag als Baum mit Auswahlzustand
+    import/apply.ts           // Assistent: Auswahl → Quellen/Etagen/Räume, Ersetzen und Ergänzen
+    import/wizard.ts          // Assistent: das Overlay (Lit-Element)
   model/
     config.ts                 // Typen + Validierung (validateConfig, Pfad-Fehlermeldungen)
     colors.ts                 // isValidColor: genau eine CSS-Farbe
@@ -377,6 +382,12 @@ src/
 
 **Grundsatz: Die gesamte Konfiguration ist im visuellen Editor möglich.** Jede Option aus Abschnitt 3 hat ein Bedienelement. Nutzer müssen nie auf YAML wechseln. YAML bleibt nur als optionale Alternative.
 
+**Assistent „Aus Energie-Dashboard übernehmen“** (`src/editor/import/`): Schaltfläche oben im Editor, Overlay `detailed-energy-import-wizard` in drei Schritten.
+- `collect.ts` liest die Antwort von `energy/get_prefs` defensiv (unbekannte Felder werden ignoriert, fehlende toleriert; neue Form des Netzes mit beiden Zählern in einem Eintrag und die alte mit `flow_from` / `flow_to`; Gas und Wasser entfallen). Leistungssensor einer Quelle oder eines Geräts: `stat_rate`, sonst der einzige Sensor mit `device_class: power` am selben Gerät, bei mehreren eine Auswahl, bei keinem bleibt ein Gerät ein Verbraucher nur mit Zähler und eine Quelle wartet auf die Wahl des Users (die Karte braucht für Quellen einen Leistungssensor). Bereich eines Geräts: der eigene Bereich der Entität, sonst der des Geräts; Etage über `hass.areas`.
+- `propose.ts` baut den Baum (Etagen nach `level`, Räume nach Name) mit Auswahlzustand und den Operationen `setFloor`, `setRoom`, `setConsumer`, `moveConsumer`. Geräte mit `included_in_stat` stehen unter ihrem Elterngerät: liegt die ganze Familie in einem Raum, wird das Elterngerät der Raumzähler (P4), sonst bleibt es ein Gerät und die Teile sind standardmäßig aus (nichts doppelt gezählt). Geräte ohne Bereich stehen unter „Ohne Raum“ und sind aus, Bereiche ohne Etage unter „Ohne Etage“ (nur ohne Etagen anzeigbar), externe Statistiken (keine Entität dieser Installation) sind sichtbar, aber nicht wählbar.
+- `apply.ts`: `buildSections` macht aus der Auswahl Quellen, Etagen und Räume (ein Sensor nur einmal, der erste gewinnt); `applySections` ersetzt (Titel, Farben, Optionen, `home` bleiben) oder ergänzt (nur was fehlt; vorhandene Einträge bleiben unverändert, bekommen aber den Energiezähler, den das Energie-Dashboard für ihren Leistungssensor kennt); `checkedConfig` meldet, was `validateConfig` ablehnen würde. Ergänzen zweimal hintereinander ändert nichts.
+- Vorschau: eine echte `detailed-energy-card` mit demselben `hass` (ohne gemerkte Auswahl), umschaltbar zwischen *Jetzt* und *Heute*. Ohne Energie-Dashboard (`No prefs.`) steht ein Hinweis mit Link zu `/config/energy`.
+
 Die Heatmap-Karte hat einen eigenen kleinen Editor (`HEATMAP` in `schema.ts`, dieselbe Feld-Technik; ein Test prüft, dass jede ihrer Optionen ein Feld hat).
 
 **Abnahmekriterium:** Ein Konfigurationsobjekt, das im Editor angelegt wurde, ist identisch mit dem entsprechenden YAML. Das wird durch einen automatischen Test sichergestellt, der für jeden Konfigurationsschlüssel prüft, ob ein Editor-Feld existiert (Schema → Feld-Mapping).
@@ -447,6 +458,7 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 - Nur eine Quelle oder gar keine: Die Quellenzeile wird ausgeblendet, das Zuhause rückt nach oben.
 - Summe der Räume ist größer als `total_entity`: „Nicht erfasst“ wird nicht angezeigt, dafür eine Hinweis-Warnung im Editor.
 - Verbraucher messen mehr als der Zähler ihres Raums (bzw. Räume mehr als der Zähler ihrer Etage): Warnsymbol am Knoten und Hinweiszeile in der Liste, ab 5 % und mindestens 10 W / 50 Wh (Abschnitt 5).
+- Verbraucher nur mit Energiezähler im Modus *Jetzt*: ausgegraut mit „Kein Leistungssensor konfiguriert“, 0 W, ohne Warnsymbol (anders als ein nicht lesbarer Sensor).
 - Zähler einer Etage oder eines Raums nicht lesbar: Der Knoten zeigt die Summe seiner Kinder mit Warnsymbol.
 - Netz speist ein und Batterie lädt gleichzeitig: Pfeile werden umgekehrt, die Werte korrekt gezeigt.
 - Sehr kleine Werte (< 1 W): Anzeige „0 W“, keine Animation.

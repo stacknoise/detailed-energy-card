@@ -933,4 +933,78 @@ test.describe("editor", () => {
     await expect(page.locator("detailed-energy-card-editor h3").first()).toBeVisible();
     await expect(hint(page)).toHaveCount(0);
   });
+
+  test.describe("import from the Energy dashboard", () => {
+    const wizard = (page: Page) => page.locator("detailed-energy-card-editor detailed-energy-import-wizard");
+    // the room selects list every area, so rooms and groups are found by their head line, not by their text
+    const roomOf = (page: Page, name: string) => wizard(page).locator(".room").filter({ has: page.locator(".row.head", { hasText: new RegExp(String.raw`^\s*${name}\s*$`) }) });
+    const open = async (page: Page, query = "") => {
+      await page.goto(`/dev/index.html?editor=floors${query}`);
+      await page.locator("detailed-energy-card-editor button.import").click();
+    };
+
+    test("proposes sources, then floors, rooms and devices, shows a preview and replaces the structure", async ({ page }) => {
+      await open(page);
+      await expect(wizard(page).locator(".steps .on")).toHaveText("1 Quellen");
+      // grid, solar and battery with the power sensor of the dashboard, all taken over
+      await expect(wizard(page).locator(".group")).toHaveCount(3);
+      await expect(wizard(page).locator('input[type="checkbox"]:checked')).toHaveCount(3);
+      await wizard(page).getByRole("button", { name: "Weiter" }).click();
+      await expect(wizard(page).locator(".steps .on")).toHaveText("2 Struktur");
+      // floors by level, rooms by the areas Home Assistant assigns, devices without an area off
+      await expect(wizard(page).locator(".group > .row.head").filter({ hasText: /^\s*EG\s*$/ })).toBeVisible();
+      await expect(roomOf(page, "Küche")).toBeVisible();
+      const noRoom = wizard(page).locator(".group").filter({ has: page.locator(".row.head", { hasText: /^\s*Ohne Raum\s*$/ }) });
+      await expect(noRoom.locator('input[type="checkbox"]')).toHaveCount(2);
+      await expect(noRoom.locator('input[type="checkbox"]:checked')).toHaveCount(0);
+      // the external statistic cannot be taken over
+      await expect(wizard(page).locator(".warn", { hasText: "externe Statistik" })).toHaveCount(1);
+      await wizard(page).getByRole("button", { name: "Weiter" }).click();
+      await expect(wizard(page).locator(".steps .on")).toHaveText("3 Vorschau");
+      await expect(wizard(page)).toContainText(/3 Quellen, 3 Etagen, 5 Räume, 7 Verbraucher, 2 ausgelassen/);
+      // the preview is a card of its own with the proposed structure
+      const preview = wizard(page).locator("detailed-energy-card");
+      await expect(preview.locator(".path")).toContainText("Zuhause");
+      await wizard(page).locator(".toggle button").nth(1).click();
+      await expect(preview.locator(".modes button.on")).toHaveText("Heute");
+      // the editor of the card has the scenario's structure; this card has the dashboard's: replace it
+      await wizard(page).locator('input[name="mode"]').first().check();
+      await wizard(page).getByRole("button", { name: "Übernehmen" }).click();
+      await expect(wizard(page)).toHaveCount(0);
+      const cfg = await page.evaluate(() => (document.querySelector("detailed-energy-card") as unknown as { _config: { sources: Array<{ energy_entity?: string }>; floors: Array<{ floor_id: string }> } })._config);
+      expect(cfg.sources.map((x) => x.energy_entity)).toEqual(["sensor.e_netz", "sensor.e_pv", "sensor.e_akku"]);
+      expect(cfg.floors.map((f) => f.floor_id).sort()).toEqual(["eg", "keller", "og"]);
+    });
+
+    test("switching a floor off takes its devices out of the result, and cancel changes nothing", async ({ page }) => {
+      await open(page);
+      const before = await page.evaluate(() => JSON.stringify((document.querySelector("detailed-energy-card") as unknown as { _config: object })._config));
+      await wizard(page).getByRole("button", { name: "Weiter" }).click();
+      await wizard(page).locator(".group > .row.head", { hasText: /^\s*EG\s*$/ }).locator("input").uncheck();
+      await wizard(page).getByRole("button", { name: "Weiter" }).click();
+      await expect(wizard(page)).toContainText(/2 Etagen, 2 Räume/);
+      await wizard(page).getByRole("button", { name: "Abbrechen" }).click();
+      await expect(wizard(page)).toHaveCount(0);
+      const after = await page.evaluate(() => JSON.stringify((document.querySelector("detailed-energy-card") as unknown as { _config: object })._config));
+      expect(after).toBe(before);
+    });
+
+    test("moves a device to another room", async ({ page }) => {
+      await open(page);
+      await wizard(page).getByRole("button", { name: "Weiter" }).click();
+      // the first device of the kitchen is the oven
+      const row = roomOf(page, "Küche").locator(".row:not(.head)").first();
+      await row.locator("select.pick").selectOption("wohnzimmer");
+      await expect(roomOf(page, "Wohnzimmer").locator(".row:not(.head)")).toHaveCount(2);
+      await expect(roomOf(page, "Küche").locator(".row:not(.head)")).toHaveCount(2);
+    });
+
+    test("says so when the Energy dashboard was never set up or cannot be read", async ({ page }) => {
+      await open(page, "&prefs=empty");
+      await expect(wizard(page)).toContainText("Im Energie-Dashboard ist noch nichts eingerichtet.");
+      await expect(wizard(page).locator('a[href="/config/energy"]')).toBeVisible();
+      await open(page, "&prefs=error");
+      await expect(wizard(page).locator(".warn")).toContainText("boom");
+    });
+  });
 });
