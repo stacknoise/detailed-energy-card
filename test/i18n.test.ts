@@ -24,6 +24,8 @@ describe("editor translations", () => {
     expect(makeTr(undefined)("section_colors")).toBe("Colors");
     expect(makeTr("fr")("section_colors")).toBe("Colors");
     expect(makeTr("en")("warn_duplicate_entity", "sensor.a")).toBe("sensor.a is assigned more than once: ");
+    expect(makeTr("en")("energy_mode_hint")).toMatch(/Now \| Today \| Week \| Month/);
+    expect(makeTr("de")("energy_mode_hint")).toMatch(/Jetzt \| Heute \| Woche \| Monat/);
   });
 
   it("leaves no German text in the editor sources", () => {

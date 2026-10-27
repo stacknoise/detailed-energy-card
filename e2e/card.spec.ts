@@ -533,3 +533,23 @@ test("sources without a name are called after their type in the language of the 
   for (const t of ["Solar", "Battery", "Grid"]) await expect(node(page, t)).toBeVisible();
   await expect(page.locator("detailed-energy-card .badge")).toContainText("Self-sufficiency");
 });
+
+test.describe("editor", () => {
+  const hint = (page: Page) => page.locator("detailed-energy-card-editor .energy-hint");
+
+  test("explains how to get the energy switch until an energy sensor is entered", async ({ page }) => {
+    await page.goto("/dev/index.html?editor=floors");
+    await expect(hint(page)).toHaveText(/Energiesensor \(kWh\).*Jetzt \| Heute \| Woche \| Monat/);
+    await page.evaluate(() => {
+      const ed = document.querySelector("detailed-energy-card-editor") as unknown as { _config: { home?: object }; setConfig(c: object): void };
+      ed.setConfig({ ...ed._config, home: { ...ed._config.home, total_energy_entity: "sensor.e_total" } });
+    });
+    await expect(hint(page)).toHaveCount(0);
+  });
+
+  test("shows no hint when the card has an energy sensor", async ({ page }) => {
+    await page.goto("/dev/index.html?editor=energy");
+    await expect(page.locator("detailed-energy-card-editor h3").first()).toBeVisible();
+    await expect(hint(page)).toHaveCount(0);
+  });
+});
