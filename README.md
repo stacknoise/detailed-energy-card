@@ -87,108 +87,108 @@ Click the button above to open the card in HACS on your Home Assistant instance,
 
 ## Options
 
-All options are optional unless marked *required*. Everything can be set in the visual editor; the first column of each table shows the text of the field in the editor, in English and in German (*Deutsch*), a help text under many fields explains them there. The YAML key is for the code editor. The details of every option are in the sections below the example.
+All options are optional unless marked *required*. Everything can be set in the visual editor; the first column of each table shows the text of the field in the editor, and a help text under many fields explains them there. The YAML key is for the code editor. The details of every option are in the sections below the example.
 
 ### Card
 
-| Editor field (English / *Deutsch*) | YAML key | Default | What it does |
+| Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
 | – | `type` | – | *Required.* `custom:detailed-energy-card` |
-| Title<br>*Titel* | `title` | none | Heading of the card. |
-| Total sensor (optional)<br>*Gesamt-Sensor (optional)* | `home.total_entity` | none | Power sensor of the whole home. Gives the self-sufficiency and "Unassigned". |
-| Total energy sensor (optional, kWh)<br>*Gesamt-Energiesensor (optional, kWh)* | `home.total_energy_entity` | none | Energy counter (kWh) of the whole home, for the energy mode. |
-| Power sources<br>*Stromquellen* | `sources` | none | List of power sources, see *Sources*. |
-| Structure<br>*Struktur* | `floors` / `rooms` | none | Floors with their rooms, or rooms without floors, see *Floors and rooms*. Use `floors` **or** `rooms`. |
-| Colors<br>*Farben* | `colors` | theme | Colors and thresholds, see *Colors and thresholds*. |
+| Title | `title` | none | Heading of the card. |
+| Total sensor (optional) | `home.total_entity` | none | Power sensor of the whole home. Gives the self-sufficiency and "Unassigned". |
+| Total energy sensor (optional, kWh) | `home.total_energy_entity` | none | Energy counter (kWh) of the whole home, for the energy mode. |
+| Power sources | `sources` | none | List of power sources, see *Sources*. |
+| Structure | `floors` / `rooms` | none | Floors with their rooms, or rooms without floors, see *Floors and rooms*. Use `floors` **or** `rooms`. |
+| Colors | `colors` | theme | Colors and thresholds, see *Colors and thresholds*. |
 
 ### `options`
 
-| Editor field (English / *Deutsch*) | YAML key | Default | What it does |
+| Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
-| Unit<br>*Einheit* | `options.unit` | `W` | Unit of the power: `W`, `kW` or `auto`. |
-| Decimals (empty: 2, energy: 1)<br>*Nachkommastellen (leer: 2, Energie: 1)* | `options.decimals` | 2 (energy: 1) | Decimals of kW and kWh values, 0 to 20. |
+| Unit | `options.unit` | `W` | Unit of the power: `W`, `kW` or `auto`. |
+| Decimals (empty: 2, energy: 1) | `options.decimals` | 2 (energy: 1) | Decimals of kW and kWh values, 0 to 20. |
 | Animation | `options.animation` | `true` | Moving dashes on the lines (not in the energy mode). |
-| Show the list of consumers<br>*Verbraucher-Liste anzeigen* | `options.show_consumers` | `true` | Show the list of consumers under the diagram. |
-| Show only active consumers (1 W or more)<br>*Nur aktive Verbraucher anzeigen (ab 1 W)* | `options.only_active_consumers` | `false` | List only consumers that draw 1 W or more. |
-| Show "Unassigned"<br>*„Nicht erfasst“ anzeigen* | `options.show_unassigned` | `true` | Show "Unassigned" (what the consumers do not explain). |
-| Show self-consumption (when solar and feed-in are measured)<br>*Eigenverbrauch anzeigen (wenn PV und Einspeisung gemessen werden)* | `options.show_self_consumption` | `true` | Badge *Self-consumption* when it can be computed. |
-| Remember selection<br>*Auswahl merken* | `options.remember_selection` | `true` | Remember the selected floor, room, mode, period and view in the browser. |
-| Name of the remembered selection<br>*Name der gemerkten Auswahl* | `options.storage_id` | none | Own name for the remembered selection. Only needed for several cards with the same floors and rooms. |
-| Wrap many rooms into two rows (instead of scrolling)<br>*Viele Räume in zwei Reihen umbrechen (statt scrollen)* | `options.wrap_rooms` | `false` | Wrap more than 6 rooms into two rows instead of scrolling. |
-| Move the selected floor or room to the middle (the others fade out)<br>*Gewählte Etage oder gewählten Raum in die Mitte schieben (die anderen blenden aus)* | `options.focus_selected` | `false` | The selected floor or room slides to the middle, the others fade out. |
-| Compact view<br>*Kompakte Ansicht* | `options.compact` | `false` | Compact view: only sources, home and floors in small circles, no list. |
-| Chart shown at start<br>*Startansicht des Diagramms* | `options.view` | `tree` | View at start: `tree`, `sankey` or `timeline` (the timeline needs energy sensors). |
-| Charts in the switch (a switch appears from two)<br>*Ansichten im Schalter (ab zwei erscheint ein Schalter)* | `options.views` | only `view` | Views the switch offers, for example `[tree, sankey, timeline]`. A switch appears from two. |
-| Start view<br>*Startansicht* | `options.mode` | `power` | Start mode: `power` (now) or `energy` (needs an energy sensor). |
-| Periods in the switch<br>*Zeiträume im Schalter* | `options.energy_periods` | all | Periods of the switch: `today`, `week`, `month`. |
-| Second value under the values<br>*Zweitwert unter den Werten* | `options.secondary_value` | `none` | Small second value under every node: `none`, `auto`, `today`, `power`, `cost`. |
-| Electricity price (fixed, per kWh)<br>*Strompreis (fest, pro kWh)* | `options.price` | none | Fixed price per kWh. Switches the costs on. Use `price` **or** `price_entity`. |
-| Electricity price sensor (dynamic tariff, per kWh)<br>*Strompreis-Sensor (dynamischer Tarif, pro kWh)* | `options.price_entity` | none | Price sensor per kWh (dynamic tariff, recorded as statistics). |
-| Feed-in compensation (fixed, per kWh)<br>*Einspeisevergütung (fest, pro kWh)* | `options.feed_in_price` | none | Fixed compensation per kWh fed in. Use it **or** `feed_in_price_entity`. |
-| Feed-in compensation sensor (per kWh)<br>*Einspeisevergütung-Sensor (pro kWh)* | `options.feed_in_price_entity` | none | Sensor of the compensation per kWh. |
-| Currency (empty: the one of Home Assistant)<br>*Währung (leer: die von Home Assistant)* | `options.currency` | of Home Assistant | Three-letter currency code, for example `EUR`. |
-| Show base load<br>*Grundlast anzeigen* | `options.show_base_load` | `false` | Badge *Base load*: the lowest hourly mean of the home between 1 and 5 o'clock in the last 7 nights. |
-| Always-on from (W)<br>*Dauerlast ab (W)* | `options.standby_watts` | none | Consumers that never fell below this power in the last 24 hours get a symbol. |
+| Show the list of consumers | `options.show_consumers` | `true` | Show the list of consumers under the diagram. |
+| Show only active consumers (1 W or more) | `options.only_active_consumers` | `false` | List only consumers that draw 1 W or more. |
+| Show "Unassigned" | `options.show_unassigned` | `true` | Show "Unassigned" (what the consumers do not explain). |
+| Show self-consumption (when solar and feed-in are measured) | `options.show_self_consumption` | `true` | Badge *Self-consumption* when it can be computed. |
+| Remember selection | `options.remember_selection` | `true` | Remember the selected floor, room, mode, period and view in the browser. |
+| Name of the remembered selection | `options.storage_id` | none | Own name for the remembered selection. Only needed for several cards with the same floors and rooms. |
+| Wrap many rooms into two rows (instead of scrolling) | `options.wrap_rooms` | `false` | Wrap more than 6 rooms into two rows instead of scrolling. |
+| Move the selected floor or room to the middle (the others fade out) | `options.focus_selected` | `false` | The selected floor or room slides to the middle, the others fade out. |
+| Compact view | `options.compact` | `false` | Compact view: only sources, home and floors in small circles, no list. |
+| Chart shown at start | `options.view` | `tree` | View at start: `tree`, `sankey` or `timeline` (the timeline needs energy sensors). |
+| Charts in the switch (a switch appears from two) | `options.views` | only `view` | Views the switch offers, for example `[tree, sankey, timeline]`. A switch appears from two. |
+| Start view | `options.mode` | `power` | Start mode: `power` (now) or `energy` (needs an energy sensor). |
+| Periods in the switch | `options.energy_periods` | all | Periods of the switch: `today`, `week`, `month`. |
+| Second value under the values | `options.secondary_value` | `none` | Small second value under every node: `none`, `auto`, `today`, `power`, `cost`. |
+| Electricity price (fixed, per kWh) | `options.price` | none | Fixed price per kWh. Switches the costs on. Use `price` **or** `price_entity`. |
+| Electricity price sensor (dynamic tariff, per kWh) | `options.price_entity` | none | Price sensor per kWh (dynamic tariff, recorded as statistics). |
+| Feed-in compensation (fixed, per kWh) | `options.feed_in_price` | none | Fixed compensation per kWh fed in. Use it **or** `feed_in_price_entity`. |
+| Feed-in compensation sensor (per kWh) | `options.feed_in_price_entity` | none | Sensor of the compensation per kWh. |
+| Currency (empty: the one of Home Assistant) | `options.currency` | of Home Assistant | Three-letter currency code, for example `EUR`. |
+| Show base load | `options.show_base_load` | `false` | Badge *Base load*: the lowest hourly mean of the home between 1 and 5 o'clock in the last 7 nights. |
+| Always-on from (W) | `options.standby_watts` | none | Consumers that never fell below this power in the last 24 hours get a symbol. |
 
 ### Sources (`sources[]`)
 
-| Editor field (English / *Deutsch*) | YAML key | Default | What it does |
+| Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
 | Sensor | `entity` | – | *Required.* Power sensor (W, kW or MW). |
-| Type<br>*Typ* | `type` | `generic` | `solar`, `battery`, `grid` or `generic`. |
+| Type | `type` | `generic` | `solar`, `battery`, `grid` or `generic`. |
 | Name | `name` | by type | Own name. |
 | Icon | `icon` | by type | Own icon. |
-| Color<br>*Farbe* | `color` | accent | Own color. |
-| Energy sensor (kWh, optional)<br>*Energiesensor (kWh, optional)* | `energy_entity` | none | Energy counter (kWh) for the energy mode. |
-| Energy sensor of the other direction (feed-in or charged, kWh, optional)<br>*Energiesensor Gegenrichtung (Einspeisung bzw. geladen, kWh, optional)* | `energy_entity_return` | none | Counter of the other direction (grid feed-in, battery charged); not for `solar`. |
-| State of charge (SoC)<br>*Ladezustand (SoC)* | `soc_entity` | none | State of charge of a battery, in %. |
-| Invert sign<br>*Vorzeichen invertieren* | `invert` | `false` | Turn the sign of the sensor around. |
-| Tap action (default: select, or details)<br>*Aktion bei Tipp (Standard: Auswahl bzw. Details)* | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions of this source, see *Actions*; `thresholds` sets own thresholds. |
+| Color | `color` | accent | Own color. |
+| Energy sensor (kWh, optional) | `energy_entity` | none | Energy counter (kWh) for the energy mode. |
+| Energy sensor of the other direction (feed-in or charged, kWh, optional) | `energy_entity_return` | none | Counter of the other direction (grid feed-in, battery charged); not for `solar`. |
+| State of charge (SoC) | `soc_entity` | none | State of charge of a battery, in %. |
+| Invert sign | `invert` | `false` | Turn the sign of the sensor around. |
+| Tap action (default: select, or details) | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions of this source, see *Actions*; `thresholds` sets own thresholds. |
 
 ### Floors and rooms (`floors[]`, `rooms[]`)
 
-| Editor field (English / *Deutsch*) | YAML key | Default | What it does |
+| Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
-| Floor<br>*Etage* | `floor_id` | – | *Required for a floor.* A floor of Home Assistant; name and icon come from there. |
-| Area (room)<br>*Bereich (Raum)* | `area_id` | – | *Required for a room.* An area of Home Assistant. |
-| Structure<br>*Struktur* | `rooms` | none | The rooms of a floor. |
-| Power sensor (optional)<br>*Leistungssensor (optional)* | `entity` | none | Own power meter of the floor or room. Without it the node shows the sum of its children. |
-| Energy sensor (optional)<br>*Energiesensor (optional)* | `energy_entity` | none | Own energy counter (kWh) of the floor or room. |
-| Color<br>*Farbe* | `color` | accent | Own color. |
-| Tap action (default: select, or details)<br>*Aktion bei Tipp (Standard: Auswahl bzw. Details)* | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions, see *Actions*; `thresholds` sets own thresholds. |
-| Consumers<br>*Verbraucher* | `consumers` | none | The consumers of a room, see below. |
+| Floor | `floor_id` | – | *Required for a floor.* A floor of Home Assistant; name and icon come from there. |
+| Area (room) | `area_id` | – | *Required for a room.* An area of Home Assistant. |
+| Structure | `rooms` | none | The rooms of a floor. |
+| Power sensor (optional) | `entity` | none | Own power meter of the floor or room. Without it the node shows the sum of its children. |
+| Energy sensor (optional) | `energy_entity` | none | Own energy counter (kWh) of the floor or room. |
+| Color | `color` | accent | Own color. |
+| Tap action (default: select, or details) | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions, see *Actions*; `thresholds` sets own thresholds. |
+| Consumers | `consumers` | none | The consumers of a room, see below. |
 
 ### Consumers (`consumers[]`)
 
-| Editor field (English / *Deutsch*) | YAML key | Default | What it does |
+| Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
-| Power sensor (optional when an energy sensor is set)<br>*Leistungssensor (optional, wenn ein Energiesensor gesetzt ist)* | `entity` | – | Power sensor. A consumer needs `entity` **or** `energy_entity`, or both. |
-| Energy sensor (kWh, optional)<br>*Energiesensor (kWh, optional)* | `energy_entity` | none | Energy counter (kWh). Without `entity` the consumer only shows in the energy mode. |
+| Power sensor (optional when an energy sensor is set) | `entity` | – | Power sensor. A consumer needs `entity` **or** `energy_entity`, or both. |
+| Energy sensor (kWh, optional) | `energy_entity` | none | Energy counter (kWh). Without `entity` the consumer only shows in the energy mode. |
 | Name (optional) | `name` | friendly name | Own name. |
-| Switch of the consumer<br>*Schalter des Verbrauchers* | `switch_entity` | none | A `switch`, `input_boolean`, `light` or `fan`: the list shows a toggle at the end of the row. |
-| Ask before turning it off<br>*Vor dem Ausschalten nachfragen* | `confirm_switch` | `false` | Ask before the switch is turned off. |
-| Tap action (default: select, or details)<br>*Aktion bei Tipp (Standard: Auswahl bzw. Details)* | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions, see *Actions*; `thresholds` sets own thresholds. |
+| Switch of the consumer | `switch_entity` | none | A `switch`, `input_boolean`, `light` or `fan`: the list shows a toggle at the end of the row. |
+| Ask before turning it off | `confirm_switch` | `false` | Ask before the switch is turned off. |
+| Tap action (default: select, or details) | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions, see *Actions*; `thresholds` sets own thresholds. |
 
 ### Actions (`tap_action`, `hold_action`, `double_tap_action`)
 
-| Editor field (English / *Deutsch*) | YAML key | Default | What it does |
+| Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
-| Tap action (default: select, or details)<br>*Aktion bei Tipp (Standard: Auswahl bzw. Details)* | `tap_action` | select, or details | A tap. Without an entry a click selects a floor or room, a source or consumer opens its dialog. |
-| Hold action<br>*Aktion bei langem Drücken* | `hold_action` | none | Pressing for 0.5 seconds. |
-| Double tap action<br>*Aktion bei Doppeltipp* | `double_tap_action` | none | Two taps within a quarter of a second. |
+| Tap action (default: select, or details) | `tap_action` | select, or details | A tap. Without an entry a click selects a floor or room, a source or consumer opens its dialog. |
+| Hold action | `hold_action` | none | Pressing for 0.5 seconds. |
+| Double tap action | `double_tap_action` | none | Two taps within a quarter of a second. |
 
 Home Assistant standard: `action` is `more-info`, `toggle`, `navigate` (`navigation_path`), `url` (`url_path`), `perform-action` (`perform_action`, `data`, `target`), `call-service` or `none`; `entity` names the entity it acts on; `confirmation: true` asks first. In the editor the action selector of Home Assistant sets all of this.
 
 ### Heatmap card (`custom:detailed-energy-heatmap-card`)
 
-| Editor field (English / *Deutsch*) | YAML key | Default | What it does |
+| Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
-| Energy counter of the home (kWh)<br>*Energiezähler des Hauses (kWh)* | `entity` | – | *Required.* Energy counter (kWh) of the home. |
-| Number of days (7 to 28)<br>*Anzahl Tage (7 bis 28)* | `days` | 7 | Number of days, 7 to 28. |
-| Title<br>*Titel* | `title` | none | Heading. |
-| Electricity price (fixed, per kWh)<br>*Strompreis (fest, pro kWh)* | `price` | none | Fixed price per kWh for the most expensive hour (else the peak hour is shown). Use `price` **or** `price_entity`. |
-| Electricity price sensor (dynamic tariff, per kWh)<br>*Strompreis-Sensor (dynamischer Tarif, pro kWh)* | `price_entity` | none | Price sensor per kWh. |
-| Currency (empty: the one of Home Assistant)<br>*Währung (leer: die von Home Assistant)* | `currency` | of Home Assistant | Three-letter currency code. |
+| Energy counter of the home (kWh) | `entity` | – | *Required.* Energy counter (kWh) of the home. |
+| Number of days (7 to 28) | `days` | 7 | Number of days, 7 to 28. |
+| Title | `title` | none | Heading. |
+| Electricity price (fixed, per kWh) | `price` | none | Fixed price per kWh for the most expensive hour (else the peak hour is shown). Use `price` **or** `price_entity`. |
+| Electricity price sensor (dynamic tariff, per kWh) | `price_entity` | none | Price sensor per kWh. |
+| Currency (empty: the one of Home Assistant) | `currency` | of Home Assistant | Three-letter currency code. |
 
 ## Example
 
