@@ -257,10 +257,10 @@
           ],
         },
         flat: {
-          title: "Energiefluss",
+          title: T("Energiefluss", "Energy"),
           home: { total_entity: "sensor.total2" },
           sources: [
-            { entity: "sensor.balkon", type: "solar", name: "Balkon-PV" },
+            { entity: "sensor.balkon", type: "solar", name: T("Balkon-PV", "Balcony PV") },
             { entity: "sensor.netz2", type: "grid" },
           ],
           colors: { thresholds },
@@ -274,7 +274,7 @@
           ],
         },
         long: {
-          title: "Lange Namen",
+          title: T("Lange Namen", "Long names"),
           sources,
           rooms: [
             room("kueche", [
@@ -285,12 +285,12 @@
           ],
         },
         many: { title: T("Viele Räume", "Many rooms"), sources, options: { unit: "kW" }, rooms: manyRooms },
-        wrap: { title: "Viele Räume", sources, options: { unit: "kW", wrap_rooms: true }, rooms: manyRooms },
+        wrap: { title: T("Viele Räume", "Many rooms"), sources, options: { unit: "kW", wrap_rooms: true }, rooms: manyRooms },
         duplicate: {
-          title: "Doppelt",
+          title: T("Doppelt", "Duplicate"),
           rooms: [room("kueche", [c("sensor.backofen")]), room("bad", [c("sensor.backofen")])],
         },
-        invalid: { title: "Ungültig", rooms: [{ name: "ohne area_id" }] },
+        invalid: { title: T("Ungültig", "Invalid"), rooms: [{ name: "ohne area_id" }] },
       };
 
       // Own limits per level, and the oven with its own list (green until 1 kW instead of orange from 300 W).
