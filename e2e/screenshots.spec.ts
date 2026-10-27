@@ -70,6 +70,15 @@ const shots: Array<{ scenario: string; file: string; clock?: string; before?: (p
     },
   },
   {
+    scenario: "sankey",
+    file: "card-sankey",
+    // sources, floors and rooms with feed-in and charging below; the kitchen is selected, the hours do not matter
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .sk-label", { hasText: "kWh" }).first()).toBeVisible();
+      await page.locator('detailed-energy-card .sk-node[aria-label^="Küche:"]').click();
+    },
+  },
+  {
     scenario: "costs",
     file: "card-costs",
     // costs from a dynamic price: the badge and the costs of every node; a fixed clock gives the same amounts

@@ -361,6 +361,56 @@ test.describe("energy mode", () => {
     await expect(page.locator("detailed-energy-card .views")).toHaveCount(0);
   });
 
+  test("the Sankey diagram draws sources, floors and rooms; floors and rooms are selected by clicking them", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "sankey");
+    const sk = (label: string) => page.locator(`detailed-energy-card .sk-node[aria-label^="${label}:"]`);
+    const labels = page.locator("detailed-energy-card .sk-label");
+    await expect(page.locator('detailed-energy-card .views button[aria-label="Sankey-Diagramm"]')).toHaveAttribute("aria-pressed", "true");
+    // the largest floor is selected like in the tree: its rooms are drawn, the other floors stay without rooms
+    await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause › EG");
+    for (const t of ["PV", "Netz", "EG", "OG", "Keller", "Küche", "Wohnzimmer"]) await expect(sk(t)).toBeVisible();
+    await expect(sk("Bad")).toHaveCount(0);
+    // feed-in and charging sit below the floors as nodes of their own (no click: nothing to select there)
+    await expect(labels.filter({ hasText: "Einspeisung" })).toBeVisible();
+    await expect(labels.filter({ hasText: "Batterie laden" })).toBeVisible();
+    await expect(page.locator('detailed-energy-card .sk-node[aria-label^="Einspeisung"]')).toHaveCount(0);
+    // a floor shows its rooms only; a second click on it shows the rooms of all floors again
+    await sk("OG").click();
+    await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause › OG");
+    await expect(sk("Bad")).toBeVisible();
+    await expect(sk("Küche")).toHaveCount(0);
+    await sk("OG").click();
+    await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause");
+    await expect(sk("Küche")).toBeVisible();
+    await expect(sk("Bad")).toBeVisible();
+    // a room shows its consumers as the last column, a second click hides them
+    await sk("EG").click();
+    await sk("Küche").click();
+    await expect(page.locator("detailed-energy-card .path")).toHaveText("Zuhause › EG › Küche");
+    await expect(sk("Backofen")).toBeVisible();
+    await expect(sk("Kühlschrank")).toBeVisible();
+    await sk("Küche").click();
+    await expect(sk("Backofen")).toHaveCount(0);
+    // the tooltip of a node that takes its energy in proportion says so
+    await expect(sk("EG").locator("title")).toContainText("proportional");
+  });
+
+  test("the Sankey diagram shows the power in the mode Now and works without energy sensors", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "sankey");
+    await mode(page, "Jetzt").click();
+    await expect(page.locator('detailed-energy-card .sk-node[aria-label^="PV:"] title')).toContainText(/kW$/);
+    await page.goto("/dev/index.html?scenario=floors");
+    await page.evaluate(() => {
+      const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+      el.setConfig({ ...el._config, options: { ...el._config.options, view: "sankey", views: ["tree", "sankey", "timeline"] } });
+    });
+    // the timeline needs energy sensors, the Sankey diagram does not
+    await expect(page.locator("detailed-energy-card .sk-label", { hasText: "PV" })).toBeVisible();
+    await expect(page.locator("detailed-energy-card .views button")).toHaveCount(2);
+  });
+
   test("the costs show as a badge and as the second value, from hourly prices", async ({ page }) => {
     await fixClock(page);
     await open(page, "costs");
