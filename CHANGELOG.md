@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Editor: the help texts under the sensor fields of consumers and meters say that a sensor can be assigned only once and that sensors already assigned are not offered, so a missing sensor in the picker is explained.
+
 ## 1.3.0
 
 ### Added
