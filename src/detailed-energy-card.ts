@@ -513,7 +513,8 @@ export class DetailedEnergyCard extends LitElement {
   private _consumerIds(): string[] {
     const cfg = this._config;
     const rooms = [...(cfg?.rooms ?? []), ...(cfg?.floors ?? []).flatMap((f) => f.rooms ?? [])];
-    return [...new Set(rooms.flatMap((r) => (r.consumers ?? []).flatMap((c) => (c.entity ? [c.entity] : []))))];
+    const all = [...rooms.flatMap((r) => r.consumers ?? []), ...(cfg?.consumers ?? [])];
+    return [...new Set(all.flatMap((c) => (c.entity ? [c.entity] : [])))];
   }
 
   /** The base load in watts, undefined while it is not known (not asked for, no statistics yet, no night in them). */
@@ -686,6 +687,13 @@ export class DetailedEnergyCard extends LitElement {
         const pick = floors ? () => this._select({ floor: n.id }) : () => this._select({ room: n.id });
         return [{ id: n.id, name: n.name, color: n.color, values: v ?? zeros, pick }];
       });
+      // consumers directly under the home are part of the stack of the home
+      for (const c of model.consumers) {
+        const v = series?.consumers.get(c.entity);
+        if (!v && series) continue;
+        const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
+        stacks.push({ id: c.entity, name: String(name), values: v ?? zeros, pick: () => this._moreInfo(c.entity) });
+      }
       shown = (s) => s?.home;
     }
 
@@ -919,6 +927,7 @@ export class DetailedEnergyCard extends LitElement {
       thresholds: this._thresholds,
       home,
       fmt: (w) => this._fmt(w),
+      consumerName: (c) => String(c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity),
       secondary: this._secondKind() !== undefined,
       second: (key) => this._secondLabel(key),
       secondTitle: (key) => this._secondTitle(key),
@@ -966,8 +975,8 @@ export class DetailedEnergyCard extends LitElement {
           id: "",
           name: home,
           icon: "mdi:home",
-          watts: model.floors.reduce((sum, f) => sum + f.watts, 0),
-          consumers: model.floors.flatMap((f) => f.rooms.flatMap((r) => r.consumers)),
+          watts: model.floors.reduce((sum, f) => sum + f.watts, 0) + model.consumers.reduce((sum, c) => sum + c.watts, 0),
+          consumers: [...model.floors.flatMap((f) => f.rooms.flatMap((r) => r.consumers)), ...model.consumers],
         }
       : allRooms
       ? {
@@ -976,8 +985,9 @@ export class DetailedEnergyCard extends LitElement {
           icon: floor?.icon ?? "mdi:home",
           color: floor?.color,
           // a floor with its own meter shows the metered value, like its node
-          watts: floor ? floor.watts : sel.rooms.reduce((sum, r) => sum + r.watts, 0),
-          consumers: sel.rooms.flatMap((r) => r.consumers),
+          // without floors the consumers directly under the home belong to the whole home
+          watts: floor ? floor.watts : sel.rooms.reduce((sum, r) => sum + r.watts, 0) + model.consumers.reduce((sum, c) => sum + c.watts, 0),
+          consumers: [...sel.rooms.flatMap((r) => r.consumers), ...(floor ? [] : model.consumers)],
         }
       : room;
 

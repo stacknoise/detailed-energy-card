@@ -1,5 +1,5 @@
 import { actionsOf, type NodeActions } from "./actions";
-import type { EnergyCardConfig, RoomConfig, SourceType } from "./config";
+import type { ConsumerConfig, EnergyCardConfig, RoomConfig, SourceType } from "./config";
 import { isIdle, type ThresholdConfig } from "./thresholds";
 
 export interface Reading {
@@ -26,6 +26,8 @@ export interface ConsumerNode {
   confirmSwitch?: boolean;
   /** own thresholds from the config, replace the level thresholds */
   thresholds?: ThresholdConfig[];
+  /** icon of the node of a consumer directly under the home */
+  icon?: string;
 }
 /** Consumers the list shows: with `onlyActive` the ones at rest (under 1 W) are left out, unreadable sensors stay as warnings. */
 export function listedConsumers(consumers: ConsumerNode[], onlyActive: boolean): ConsumerNode[] {
@@ -108,6 +110,8 @@ export interface EnergyModel {
   floors: FloorNode[];
   /** rooms directly under home (no floors configured) */
   rooms: RoomNode[];
+  /** consumers that belong to no room: they hang directly under the home */
+  consumers: ConsumerNode[];
   homeWatts: number;
   unassigned: number;
   /** 0..1, null when home consumption is zero or the grid is not measured (no grid source, or unreadable) */
@@ -155,26 +159,29 @@ export function metered(
   return { watts, meter: { metered: true, unassigned: Math.max(0, -over), excess } };
 }
 
+function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean): ConsumerNode {
+  const noEnergy = energy && !c.energy_entity;
+  const noPower = !energy && !c.entity;
+  const r = noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
+  // `entity` is the key of the consumer: its power sensor, else its energy counter
+  const key = (c.entity ?? c.energy_entity)!;
+  return {
+    entity: key,
+    name: c.name,
+    watts: r.valid ? Math.max(0, r.watts) : 0,
+    valid: r.valid,
+    noEnergy: noEnergy || undefined,
+    noPower: noPower || undefined,
+    thresholds: c.thresholds,
+    actions: actionsOf(c, c.switch_entity ?? key),
+    switchEntity: c.switch_entity || undefined,
+    confirmSwitch: c.confirm_switch || undefined,
+    icon: c.icon,
+  };
+}
+
 function computeRoom(room: RoomConfig, read: Reader, energy: boolean): RoomNode {
-  const consumers = (room.consumers ?? []).map((c): ConsumerNode => {
-    const noEnergy = energy && !c.energy_entity;
-    const noPower = !energy && !c.entity;
-    const r = noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
-    // `entity` is the key of the consumer: its power sensor, else its energy counter
-    const key = (c.entity ?? c.energy_entity)!;
-    return {
-      entity: key,
-      name: c.name,
-      watts: r.valid ? Math.max(0, r.watts) : 0,
-      valid: r.valid,
-      noEnergy: noEnergy || undefined,
-      noPower: noPower || undefined,
-      thresholds: c.thresholds,
-      actions: actionsOf(c, c.switch_entity ?? key),
-      switchEntity: c.switch_entity || undefined,
-      confirmSwitch: c.confirm_switch || undefined,
-    };
-  });
+  const consumers = (room.consumers ?? []).map((c) => computeConsumer(c, read, energy));
   const sum = consumers.reduce((s, c) => s + c.watts, 0);
   const { watts, meter } = metered(energy ? room.energy_entity : room.entity, sum, read, energy);
   return {
@@ -247,9 +254,10 @@ export function computeModel(
   });
   const rooms = (cfg.rooms ?? []).map((r) => computeRoom(r, read, energy));
 
-  const roomSum = floors.length
-    ? floors.reduce((s, f) => s + f.watts, 0)
-    : rooms.reduce((s, r) => s + r.watts, 0);
+  const consumers = (cfg.consumers ?? []).map((c) => computeConsumer(c, read, energy));
+  const roomSum =
+    (floors.length ? floors.reduce((s, f) => s + f.watts, 0) : rooms.reduce((s, r) => s + r.watts, 0)) +
+    consumers.reduce((s, c) => s + c.watts, 0);
 
   const totalId = energy ? cfg.home?.total_energy_entity : cfg.home?.total_entity;
   const total = totalId ? read(totalId) : undefined;
@@ -272,7 +280,7 @@ export function computeModel(
   const feedIn = energy ? grids.reduce((sum, s) => sum + (s.returned ?? 0), 0) : grids.reduce((sum, s) => sum + Math.max(0, -s.watts), 0);
   const selfConsumption = solar.length && feedInKnown && solarProduced > 0 ? Math.min(1, Math.max(0, 1 - feedIn / solarProduced)) : null;
 
-  return { sources, floors, rooms, homeWatts, unassigned, autarky, selfConsumption, totalValid };
+  return { sources, floors, rooms, consumers, homeWatts, unassigned, autarky, selfConsumption, totalValid };
 }
 
 /**
@@ -300,7 +308,8 @@ export function listRemainder(model: EnergyModel, floor?: FloorNode, room?: Room
     return { scope: "floor", name: floor.name, value: Math.max(0, floor.watts - consumerSum(floor.rooms)), excess: floor.meter?.excess };
   }
   const rooms = model.floors.length ? model.floors.flatMap((f) => f.rooms) : model.rooms;
-  return { scope: "home", value: Math.max(0, model.homeWatts - consumerSum(rooms)) };
+  const direct = model.consumers.reduce((s, c) => s + c.watts, 0);
+  return { scope: "home", value: Math.max(0, model.homeWatts - consumerSum(rooms) - direct) };
 }
 
 /** Key of a node for its second value: the home, a source or a consumer by entity, a floor or a room by id. */
@@ -331,6 +340,11 @@ export function nodeValues(model: EnergyModel): Map<string, number> {
     return has;
   };
   let any = false;
+  for (const c of model.consumers) {
+    if (!c.valid || c.noEnergy || c.noPower) continue;
+    out.set(nodeKey.consumer(c.entity), c.watts);
+    any = true;
+  }
   for (const f of model.floors) {
     const rooms = f.rooms.map(room).some(Boolean);
     if (rooms || f.meter?.metered) {

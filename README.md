@@ -170,6 +170,8 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Ask before turning it off | `confirm_switch` | `false` | Ask before the switch is turned off. |
 | Tap action (default: select, or details) | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions, see *Actions*; `thresholds` sets own thresholds. |
 
+**Consumers directly under the home.** A consumer that belongs to no floor and no room (lights outside the house, a wallbox) goes into `consumers` on the top level, next to `floors` and `rooms`. It uses the same fields as above, plus `icon` (default `mdi:flash`), and hangs under the home as a node of its own: a dashed pill in the row of the floors, a circle in the row of the rooms when there are no floors. A click opens its dialog (or runs its actions) and does not select anything. It counts in the home, in the Sankey diagram and in the timeline, and the list of the whole home shows it. With a floor selected the list shows that floor only, and with `options.focus_selected` the nodes under the home fade out behind a selected floor. When the row gets too full for the width of the card it scrolls sideways, like many rooms.
+
 ### Actions (`tap_action`, `hold_action`, `double_tap_action`)
 
 | Editor field | YAML key | Default | What it does |

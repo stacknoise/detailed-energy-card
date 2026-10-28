@@ -2,7 +2,7 @@ import { html, nothing, svg, type TemplateResult } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
 import type { NodeActions } from "../model/actions";
 import type { EnergyCardConfig } from "../model/config";
-import { nodeKey, type EnergyModel, type MeterInfo, type RoomNode, type SourceNode } from "../model/compute";
+import { nodeKey, type ConsumerNode, type EnergyModel, type MeterInfo, type RoomNode, type SourceNode } from "../model/compute";
 import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
 import type { Key } from "../localize";
@@ -76,6 +76,8 @@ export interface TreeContext {
   thresholds: Record<ThresholdLevel, ThresholdConfig[]>;
   home: string;
   fmt(watts: number): string;
+  /** the name shown for a consumer: its configured name, else the friendly name of its sensor */
+  consumerName(c: ConsumerNode): string;
   /** the compact view: smaller circles, a click on a node opens the dialog of its sensor */
   compact?: boolean;
   /** the nodes show a second value (options.secondary_value): one line more */
@@ -104,7 +106,7 @@ export class TreeView {
   private _raf = 0;
   private _lastSelKey?: string;
   /** positions drawn by the current render, computed in `prepare` */
-  private _frame?: { floorViews: Pos[]; roomViews: RoomView[] };
+  private _frame?: { floorViews: Pos[]; roomViews: RoomView[]; directViews: Pos[] };
   /** what the previous render showed, the start of the next slide */
   private _lastShown = new Map<string, Pos>();
   private _lastRooms = new Map<string, RoomNode>();
@@ -141,7 +143,7 @@ export class TreeView {
 
   /** The value goes under the name of a floor when the floors do not fit side by side (always in the compact view). */
   private _stackFloors(c: TreeContext): boolean {
-    return c.compact || floorsStacked(c.width || 320, c.model.floors.map((f) => f.name));
+    return c.compact || floorsStacked(c.width || 320, [...c.model.floors.map((f) => f.name), ...c.model.consumers.map((x) => c.consumerName(x))]);
   }
 
   /** What the selection and the width of the card make of the diagram: pure, nothing is stored. */
@@ -157,6 +159,7 @@ export class TreeView {
       returnLine: c.energy && model.sources.some((s) => s.returnCounter),
       compact: c.compact,
       stackFloors: this._stackFloors(c),
+      direct: model.consumers.length,
     });
     // Positions of the floors and rooms. With options.focus_selected the selected element of a level
     // slides to the middle under its parent and the rest of that level fades out behind it.
@@ -167,8 +170,10 @@ export class TreeView {
       rooms: sel.rooms.length,
       selRoom: sel.room,
       focus: c.focus,
+      direct: model.consumers.length,
     });
     const targets = new Map<string, Pos>();
+    model.consumers.forEach((x, i) => targets.set(`d:${x.entity}`, tg.direct[i]));
     model.floors.forEach((f, i) => targets.set(`f:${f.id}`, tg.floors[i]));
     sel.rooms.forEach((r, i) => targets.set(`r:${r.id}`, tg.rooms[i]));
     const selKey = `${sel.floor ?? ""}|${sel.room ?? ""}`;
@@ -191,6 +196,7 @@ export class TreeView {
     if (this._tween?.finished(now)) this._tween = undefined;
     const pos = (id: string): Pos => this._tween?.sample(id, now) ?? targets.get(id) ?? { x: 0, y: 0, o: 0 };
     const floorViews = model.floors.map((f) => pos(`f:${f.id}`));
+    const directViews = model.consumers.map((x) => pos(`d:${x.entity}`));
     sel.rooms.forEach((r) => this._lastRooms.set(r.id, r));
     const roomViews: RoomView[] = sel.rooms.map((r) => ({ room: r, p: pos(`r:${r.id}`), leaving: false }));
     // rooms of a floor that was just left fade out where they were
@@ -201,8 +207,9 @@ export class TreeView {
     this._lastShown = new Map([
       ...model.floors.map((f, i) => [`f:${f.id}`, floorViews[i]] as const),
       ...roomViews.map((v) => [`r:${v.room.id}`, v.p] as const),
+      ...model.consumers.map((x, i) => [`d:${x.entity}`, directViews[i]] as const),
     ]);
-    this._frame = { floorViews, roomViews };
+    this._frame = { floorViews, roomViews, directViews };
   }
 
   render(c: TreeContext): TemplateResult | typeof nothing {
@@ -213,21 +220,22 @@ export class TreeView {
     const allFloors = model.floors.length > 0 && sel.floor === undefined;
     // No single room selected: all rooms of the visible row count as selected.
     const allRooms = sel.rooms.length > 0 && sel.room === undefined;
-    const { floorViews, roomViews } = frame;
+    const { floorViews, roomViews, directViews } = frame;
     return html`
       <div class="scroll">
         <div class="graph ${c.compact ? "compact" : ""}" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px` })}>
-          ${this._renderLines(c, layout, floorViews, roomViews, allRooms, allFloors)}
+          ${this._renderLines(c, layout, floorViews, roomViews, directViews, allRooms, allFloors)}
           ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
           ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity, this._stackFloors(c)))}
+          ${model.consumers.map((x, i) => this._renderDirect(c, x, directViews[i], layout, !model.floors.length))}
           ${roomViews.map((v) => this._renderRoom(c, v.room, v.p, layout.roomColW, !v.leaving && v.room.id === sel.rooms[sel.room ?? -1]?.id, allRooms, v.leaving))}
         </div>
       </div>
     `;
   }
 
-  private _renderLines(c: TreeContext, l: Layout, floorViews: Pos[], roomViews: RoomView[], allRooms: boolean, allFloors: boolean): TemplateResult {
+  private _renderLines(c: TreeContext, l: Layout, floorViews: Pos[], roomViews: RoomView[], directViews: Pos[], allRooms: boolean, allFloors: boolean): TemplateResult {
     const { model, energy, thresholds } = c;
     const floorIdx = c.sel.floor;
     const roomIdx = c.sel.room;
@@ -267,6 +275,12 @@ export class TreeView {
         roomFromX = p.x;
         roomFromY = p.y + l.floorH;
       }
+    });
+    // consumers directly under the home: lines like those of the floors (or of the rooms without floors)
+    model.consumers.forEach((x, i) => {
+      const p = directViews[i];
+      const d = model.floors.length ? curve(l.homeX, homeBottom, p.x, p.y) : roomPath(l.homeX, homeBottom, p.x, p.y, l.yRoom);
+      parts.push(line("consumer", x.thresholds, d, x.watts, model.floors.length ? allFloors : allRooms, false, p.o));
     });
     roomViews
       .filter((v) => !v.leaving)
@@ -354,6 +368,53 @@ export class TreeView {
         @contextmenu=${b.menu}
       >
         <span class="pill ${selected || allFloors ? "selected" : ""} ${stacked ? "stacked" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
+      </button>
+    `;
+  }
+
+  /**
+   * A consumer directly under the home: a pill like a floor in the row of the floors, a circle like a room without floors.
+   * It is not selected; a click does what a click on a consumer does (its dialog, or its configured actions).
+   */
+  private _renderDirect(c: TreeContext, x: ConsumerNode, p: Pos, l: Layout, circle: boolean): TemplateResult {
+    const b = press(c.bind(nodeKey.consumer(x.entity), x.actions, () => c.moreInfo(x.entity)));
+    const name = c.consumerName(x);
+    const hidden = p.o < 0.5;
+    const idle = isIdle(x.watts);
+    const attrs = {
+      class: `node ${idle || !x.valid ? "idle" : ""} ${hidden ? "ghost" : ""}`,
+      title: x.valid || x.noPower ? name : `${name}: ${c.t(x.noEnergy ? "no_energy" : "unavailable")}`,
+    };
+    const value = x.valid ? c.fmt(x.watts) : "–";
+    if (circle) {
+      const colW = Math.max(0, l.roomColW - 4);
+      return html`
+        <button
+          class="${attrs.class} ${l.roomColW < TIGHT_COL_W ? "tight" : ""}"
+          style=${styleMap({ left: `${p.x}px`, top: `${p.y}px`, width: `${colW}px`, opacity: fade(p.o, idle) })}
+          aria-hidden=${hidden ? "true" : nothing}
+          tabindex=${hidden ? "-1" : nothing}
+          title=${attrs.title}
+          @click=${b.click} @pointerdown=${b.down} @pointerup=${b.up} @pointerleave=${b.up} @pointercancel=${b.up} @contextmenu=${b.menu}
+        >
+          <span class="circle room"><ha-icon icon=${x.icon ?? "mdi:flash"}></ha-icon></span>
+          <span class="label">${name}</span>
+          <span class="value">${value}</span>
+          ${secondLine(c, nodeKey.consumer(x.entity))}
+        </button>
+      `;
+    }
+    const slot = l.width / l.floorXs.length;
+    return html`
+      <button
+        class=${attrs.class}
+        style=${styleMap({ left: `${p.x}px`, top: `${p.y}px`, opacity: fade(p.o, idle) })}
+        aria-hidden=${hidden ? "true" : nothing}
+        tabindex=${hidden ? "-1" : nothing}
+        title=${attrs.title}
+        @click=${b.click} @pointerdown=${b.down} @pointerup=${b.up} @pointerleave=${b.up} @pointercancel=${b.up} @contextmenu=${b.menu}
+      >
+        <span class="pill direct ${this._stackFloors(c) ? "stacked" : ""}" style=${styleMap({ maxWidth: `${Math.max(60, slot - 8)}px` })}><span class="dname">${name}</span><small>${value}</small>${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.consumer(x.entity)) ?? nothing}>${c.second(nodeKey.consumer(x.entity)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }

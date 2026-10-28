@@ -40,6 +40,8 @@ export interface ConsumerConfig extends ActionFields {
   switch_entity?: string;
   /** ask before the switch is turned off */
   confirm_switch?: boolean;
+  /** icon of the node of a consumer directly under the home (default mdi:flash) */
+  icon?: string;
 }
 
 /** Rooms are Home Assistant areas; name and icon are resolved from the area registry. */
@@ -151,6 +153,8 @@ export interface EnergyCardConfig {
   sources?: SourceConfig[];
   floors?: FloorConfig[];
   rooms?: RoomConfig[];
+  /** consumers that belong to no room or floor: they hang directly under the home */
+  consumers?: ConsumerConfig[];
   colors?: ColorsConfig;
   options?: OptionsConfig;
 }
@@ -210,21 +214,23 @@ function checkRoom(room: unknown, where: string): void {
   checkActions(room, where);
   if (room.entity) checkEntity(room.entity, `${where}.entity`);
   if (room.energy_entity) checkEntity(room.energy_entity, `${where}.energy_entity`);
-  list(room.consumers, `${where}.consumers`).forEach((c, i) => {
-    // a consumer needs a power sensor, an energy counter, or both
-    if (isObj(c) && (c.entity === undefined || c.entity === null || c.entity === "") && c.energy_entity) {
-      /* only an energy counter: fine */
-    } else if (isObj(c) && !c.entity && !c.energy_entity) {
-      throw new ConfigError(`${where}.consumers[${i}]: entity or energy_entity is required`);
-    } else {
-      checkEntity(isObj(c) ? c.entity : undefined, `${where}.consumers[${i}]`);
-    }
-    if (isObj(c) && c.energy_entity) checkEntity(c.energy_entity, `${where}.consumers[${i}].energy_entity`);
-    if (isObj(c)) checkThresholds(c.thresholds, `${where}.consumers[${i}].thresholds`);
-    if (isObj(c)) checkActions(c, `${where}.consumers[${i}]`);
-    if (isObj(c) && c.switch_entity !== undefined && c.switch_entity !== "") checkSwitch(c.switch_entity, `${where}.consumers[${i}].switch_entity`);
-    if (isObj(c)) checkBool(c.confirm_switch, `${where}.consumers[${i}].confirm_switch`);
-  });
+  list(room.consumers, `${where}.consumers`).forEach((c, i) => checkConsumer(c, `${where}.consumers[${i}]`));
+}
+
+function checkConsumer(c: unknown, where: string): void {
+  // a consumer needs a power sensor, an energy counter, or both
+  if (isObj(c) && (c.entity === undefined || c.entity === null || c.entity === "") && c.energy_entity) {
+    /* only an energy counter: fine */
+  } else if (isObj(c) && !c.entity && !c.energy_entity) {
+    throw new ConfigError(`${where}: entity or energy_entity is required`);
+  } else {
+    checkEntity(isObj(c) ? c.entity : undefined, where);
+  }
+  if (isObj(c) && c.energy_entity) checkEntity(c.energy_entity, `${where}.energy_entity`);
+  if (isObj(c)) checkThresholds(c.thresholds, `${where}.thresholds`);
+  if (isObj(c)) checkActions(c, where);
+  if (isObj(c) && c.switch_entity !== undefined && c.switch_entity !== "") checkSwitch(c.switch_entity, `${where}.switch_entity`);
+  if (isObj(c)) checkBool(c.confirm_switch, `${where}.confirm_switch`);
 }
 
 const UNITS = ["auto", "W", "kW"];
@@ -354,6 +360,11 @@ function checkUniqueConsumers(cfg: EnergyCardConfig): void {
       });
     });
   scan(cfg.rooms, "rooms");
+  (cfg.consumers ?? []).forEach((c, i) => {
+    const where = `consumers[${i}]`;
+    if (c.entity) claim(c.entity, where);
+    if (c.energy_entity) claim(c.energy_entity, `${where}.energy_entity`);
+  });
   (cfg.floors ?? []).forEach((f, i) => {
     meters(f, `floors[${i}]`);
     scan(f.rooms, `floors[${i}].rooms`);
@@ -411,6 +422,7 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
     list(f.rooms, `floors[${i}].rooms`).forEach((r, j) => checkRoom(r, `floors[${i}].rooms[${j}]`));
   });
   rooms.forEach((r, i) => checkRoom(r, `rooms[${i}]`));
+  list(raw.consumers, "consumers").forEach((c, i) => checkConsumer(c, `consumers[${i}]`));
 
   const cfg = raw as unknown as EnergyCardConfig;
   checkUniqueConsumers(cfg);
@@ -426,6 +438,10 @@ export function collectEntityIds(cfg: EnergyCardConfig): string[] {
     if (s.soc_entity) ids.add(s.soc_entity);
   }
   for (const f of cfg.floors ?? []) if (f.entity) ids.add(f.entity);
+  for (const c of cfg.consumers ?? []) {
+    if (c.entity) ids.add(c.entity);
+    if (c.switch_entity) ids.add(c.switch_entity);
+  }
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   for (const r of rooms) {
     if (r.entity) ids.add(r.entity);
@@ -445,6 +461,7 @@ export function hasEnergy(cfg: EnergyCardConfig): boolean {
     !!cfg.home?.total_energy_entity ||
     (cfg.sources ?? []).some((s) => !!s.energy_entity) ||
     (cfg.floors ?? []).some((f) => !!f.energy_entity) ||
+    (cfg.consumers ?? []).some((c) => !!c.energy_entity) ||
     rooms.some((r) => !!r.energy_entity || (r.consumers ?? []).some((c) => !!c.energy_entity))
   );
 }
@@ -458,6 +475,7 @@ export function collectEnergyIds(cfg: EnergyCardConfig): string[] {
     if (s.energy_entity_return) ids.add(s.energy_entity_return);
   }
   for (const f of cfg.floors ?? []) if (f.energy_entity) ids.add(f.energy_entity);
+  for (const c of cfg.consumers ?? []) if (c.energy_entity) ids.add(c.energy_entity);
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   for (const r of rooms) {
     if (r.energy_entity) ids.add(r.energy_entity);

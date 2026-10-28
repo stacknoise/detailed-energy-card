@@ -137,6 +137,7 @@ export function consumerEntitiesExcept(cfg: EnergyCardConfig | undefined, ptr: P
       (r.consumers ?? []).forEach((c, j) => add(c, [...base, i, "consumers", j]));
     });
   scan(cfg?.rooms, ["rooms"]);
+  (cfg?.consumers ?? []).forEach((c, j) => add(c, ["consumers", j]));
   (cfg?.floors ?? []).forEach((f, i) => {
     add(f, ["floors", i]);
     scan(f.rooms, ["floors", i, "rooms"]);
@@ -161,6 +162,10 @@ export function findDuplicates(cfg: EnergyCardConfig): Duplicate[] {
       });
     });
   rooms(cfg.rooms ?? [], "");
+  (cfg.consumers ?? []).forEach((c) => {
+    add(c.entity, c.name ?? "Home");
+    add(c.energy_entity, c.name ?? "Home");
+  });
   (cfg.floors ?? []).forEach((f) => {
     const name = f.name ?? f.floor_id;
     add(f.entity, name);

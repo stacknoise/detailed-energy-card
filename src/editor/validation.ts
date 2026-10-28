@@ -75,7 +75,8 @@ export function sumConflict(
   const rooms = model.floors.length
     ? model.floors.reduce((s, f) => s + f.watts, 0)
     : model.rooms.reduce((s, r) => s + r.watts, 0);
-  return rooms > model.homeWatts + 1 ? { rooms, total: model.homeWatts } : undefined;
+  const direct = model.consumers.reduce((s, c) => s + c.watts, 0);
+  return rooms + direct > model.homeWatts + 1 ? { rooms: rooms + direct, total: model.homeWatts } : undefined;
 }
 
 /** Parses #rgb, #rrggbb, #rrggbbaa, rgb() and rgba() into [r, g, b]. */

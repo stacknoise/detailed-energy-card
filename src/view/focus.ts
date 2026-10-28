@@ -29,6 +29,8 @@ export interface FocusInput {
   selRoom?: number;
   /** false: every node sits at its normal place */
   focus: boolean;
+  /** consumers directly under the home: with a selected floor (without floors: room) they fade out like the rest of the row */
+  direct?: number;
 }
 
 /**
@@ -36,11 +38,13 @@ export interface FocusInput {
  * middle under its parent and the other elements of that level are hidden behind it; the children
  * of the selected element are spread around the new middle as usual.
  */
-export function focusTargets(i: FocusInput): { floors: Pos[]; rooms: Pos[] } {
+export function focusTargets(i: FocusInput): { floors: Pos[]; rooms: Pos[]; direct: Pos[] } {
   const l = i.layout;
   const floorFocus = i.focus && i.selFloor !== undefined;
   const roomFocus = i.focus && i.selRoom !== undefined;
+  const directHidden = i.focus && (i.floors > 0 ? i.selFloor !== undefined : i.selRoom !== undefined);
   return {
+    direct: Array.from({ length: i.direct ?? 0 }, (_, k) => ({ x: l.directXs[k], y: l.directYs[k], o: directHidden ? 0 : 1 })),
     floors: Array.from({ length: i.floors }, (_, k) => ({
       x: floorFocus ? l.homeX : l.floorXs[k],
       y: l.yFloor,

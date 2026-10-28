@@ -4,6 +4,7 @@
 
 ### Added
 
+- Consumers directly under the home: `consumers` on the top level takes consumers that belong to no floor and no room (lights outside the house). They are nodes under the home (pills in the row of the floors, circles in the row of the rooms), count in the home, the list of the whole home, the Sankey diagram and the timeline, and have an `icon`. The editor has a section *Consumers directly under the home*.
 - Editor: *+ Custom room* and *+ Custom floor* add a room or a floor that is not in Home Assistant (e.g. for an off-grid system). They have a name and an icon instead of the picker. Custom rooms stay out of the floor layout, like areas without a floor.
 - `options.show_entity_ids` (default on): `false` hides the entity id under the name of a consumer in the list. Warnings such as "No power sensor configured" stay.
 - A floor or room whose id is not in the Home Assistant registry (a custom room, e.g. for an off-grid system) shows its `name` from the configuration instead of the id.
