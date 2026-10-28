@@ -1,4 +1,4 @@
-import { collectEnergyIds, collectEntityIds, type EnergyCardConfig, type RoomConfig } from "../model/config";
+import { collectEnergyIds, collectEntityIds, type EnergyCardConfig, type FloorConfig, type RoomConfig } from "../model/config";
 
 export type Pointer = Array<string | number>;
 type Obj = Record<string, unknown>;
@@ -140,6 +140,38 @@ export function consumerEntitiesExcept(cfg: EnergyCardConfig | undefined, ptr: P
   (cfg?.consumers ?? []).forEach((c, j) => add(c, ["consumers", j]));
   (cfg?.floors ?? []).forEach((f, i) => {
     add(f, ["floors", i]);
+    scan(f.rooms, ["floors", i, "rooms"]);
+  });
+  return taken;
+}
+
+/**
+ * Where each sensor that is taken by a slot other than `ptr` is assigned, by sensor: the name of the room or floor
+ * (a consumer of a room, or the meter of a room or floor) or `home` (a consumer directly under the home). The editor
+ * says so at a field whose sensor is taken: Home Assistant's picker is told to hide such sensors, but not every
+ * version does.
+ */
+export function takenWhere(
+  cfg: EnergyCardConfig | undefined,
+  ptr: Pointer,
+  names: { room(r: RoomConfig): string; floor(f: FloorConfig): string; home: string },
+): Map<string, string> {
+  const own = ptr.join(".");
+  const taken = new Map<string, string>();
+  const add = (slot: { entity?: string; energy_entity?: string }, at: Pointer, place: string) => {
+    if (at.join(".") === own) return;
+    for (const id of [slot.entity, slot.energy_entity]) if (id && !taken.has(id)) taken.set(id, place);
+  };
+  const scan = (rooms: RoomConfig[] | undefined, base: Pointer) =>
+    (rooms ?? []).forEach((r, i) => {
+      const place = names.room(r);
+      add(r, [...base, i], place);
+      (r.consumers ?? []).forEach((c, j) => add(c, [...base, i, "consumers", j], place));
+    });
+  scan(cfg?.rooms, ["rooms"]);
+  (cfg?.consumers ?? []).forEach((c, j) => add(c, ["consumers", j], names.home));
+  (cfg?.floors ?? []).forEach((f, i) => {
+    add(f, ["floors", i], names.floor(f));
     scan(f.rooms, ["floors", i, "rooms"]);
   });
   return taken;

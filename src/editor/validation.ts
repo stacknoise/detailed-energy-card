@@ -47,15 +47,19 @@ export function fieldErrors(
   states: Record<string, StateLike | undefined>,
   get: (o: unknown, path: string) => unknown,
   tr: Tr = DE,
+  taken?: Map<string, string>,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const f of fields) {
     const value = get(obj, f.path);
-    const msg = f.check
-      ? checkSensor(states, value, f.check, tr)
-      : f.kind === "color"
-        ? colorError(value, tr)
-        : undefined;
+    const place = f.check && typeof value === "string" ? taken?.get(value) : undefined;
+    const msg = place
+      ? tr("err_taken", place)
+      : f.check
+        ? checkSensor(states, value, f.check, tr)
+        : f.kind === "color"
+          ? colorError(value, tr)
+          : undefined;
     if (msg) errors[f.path] = msg;
   }
   return errors;

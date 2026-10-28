@@ -215,6 +215,7 @@ const de = {
   warn_rooms_hidden:
     "Räume ohne Etage wurden ausgeblendet: {0}. Etagen wieder auszuschalten stellt sie wieder her.",
   warn_duplicate_entity: "{0} ist mehrfach zugeordnet: {1}",
+  err_taken: "Schon vergeben bei: {0}. Ein Sensor kann nur einmal vergeben werden.",
   warn_sum_conflict:
     "Die Räume verbrauchen zusammen {0} W, mehr als der Gesamt-Sensor ({1} W). „Nicht erfasst“ wird nicht angezeigt.",
   warn_low_contrast: "Geringer Kontrast zwischen Text und Hintergrund ({0} : 1, empfohlen ab 4.5 : 1)",
@@ -437,6 +438,7 @@ const en: typeof de = {
   warn_no_more_floors: "No more floors defined in Home Assistant.",
   warn_rooms_hidden: "Rooms without a floor were hidden: {0}. Turning floors off again restores them.",
   warn_duplicate_entity: "{0} is assigned more than once: {1}",
+  err_taken: "Already assigned to: {0}. A sensor can be assigned only once.",
   warn_sum_conflict:
     "The rooms use {0} W together, more than the total sensor ({1} W). \"Unassigned\" is not shown.",
   warn_low_contrast: "Low contrast between text and background ({0} : 1, 4.5 : 1 recommended)",

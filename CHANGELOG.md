@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Editor: the help texts under the sensor fields of consumers and meters say that a sensor can be assigned only once and that sensors already assigned are not offered, so a missing sensor in the picker is explained.
+- Editor: a sensor that is already assigned elsewhere (a consumer or meter in a room or floor, or a consumer directly under the home) gets an error at its field, "Already assigned to: <place>". Before, the editor relied on Home Assistant's picker to hide such sensors, which not every version does. The help texts under the sensor fields say that a sensor can be assigned only once.
 
 ## 1.3.0
 
