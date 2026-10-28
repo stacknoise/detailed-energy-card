@@ -15,6 +15,11 @@ describe("resolveNames", () => {
     const cfg = resolveNames({ type: "x", rooms: [{ area_id: "weg" }] }, reg);
     expect(cfg.rooms![0].name).toBe("weg");
   });
+  it("uses the configured name for an id that is not in the registry, never over the registry name", () => {
+    const cfg = resolveNames({ type: "x", rooms: [{ area_id: "offgrid", name: "Off-Grid" }, { area_id: "kueche", name: "Mine" }] }, reg);
+    expect(cfg.rooms![0].name).toBe("Off-Grid");
+    expect(cfg.rooms![1].name).toBe("Küche");
+  });
 });
 
 describe("RegistrySource", () => {

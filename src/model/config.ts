@@ -45,7 +45,7 @@ export interface ConsumerConfig extends ActionFields {
 /** Rooms are Home Assistant areas; name and icon are resolved from the area registry. */
 export interface RoomConfig extends ActionFields {
   area_id: string;
-  /** resolved at runtime, not user configurable */
+  /** from the Home Assistant registry; for an id that is not in it (a custom room), the name shown instead of the id */
   name?: string;
   icon?: string;
   color?: string;
@@ -61,7 +61,7 @@ export interface RoomConfig extends ActionFields {
 /** Floors are Home Assistant floors; name and icon are resolved from the floor registry. */
 export interface FloorConfig extends ActionFields {
   floor_id: string;
-  /** resolved at runtime, not user configurable */
+  /** from the Home Assistant registry; for an id that is not in it (a custom room), the name shown instead of the id */
   name?: string;
   icon?: string;
   color?: string;
@@ -97,6 +97,8 @@ export interface OptionsConfig {
   show_consumers?: boolean;
   /** list only consumers that draw power (1 W or more); sensors that cannot be read stay listed as warnings */
   only_active_consumers?: boolean;
+  /** show the entity id under the name of a consumer in the list (default true); warnings like "No power sensor" stay */
+  show_entity_ids?: boolean;
   remember_selection?: boolean;
   /** tells cards with the same floors and rooms apart in the remembered selection (default: none) */
   storage_id?: string;
@@ -272,7 +274,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;

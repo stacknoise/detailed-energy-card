@@ -110,6 +110,7 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Animation | `options.animation` | `true` | Moving dashes on the lines (not in the energy mode). |
 | Show the list of consumers | `options.show_consumers` | `true` | Show the list of consumers under the diagram. |
 | Show only active consumers (1 W or more) | `options.only_active_consumers` | `false` | List only consumers that draw 1 W or more. |
+| Show entity IDs | `options.show_entity_ids` | `true` | Show the entity id under the name of a consumer in the list. |
 | Show "Unassigned" | `options.show_unassigned` | `true` | Show "Unassigned" (what the consumers do not explain). |
 | Show self-consumption (when solar and feed-in are measured) | `options.show_self_consumption` | `true` | Badge *Self-consumption* when it can be computed. |
 | Remember selection | `options.remember_selection` | `true` | Remember the selected floor, room, mode, period and view in the browser. |

@@ -46,9 +46,9 @@ export function resolveNames(cfg: EnergyCardConfig, reg: Registries): EnergyCard
   const floors = new Map(reg.floors.map((f) => [f.floor_id, f]));
   const area = (id: string) => areas.get(id);
   const floor = (id: string) => floors.get(id);
-  const room = <R extends { area_id: string; icon?: string }>(r: R) => ({
+  const room = <R extends { area_id: string; name?: string; icon?: string }>(r: R) => ({
     ...r,
-    name: area(r.area_id)?.name ?? r.area_id,
+    name: area(r.area_id)?.name ?? r.name ?? r.area_id,
     icon: r.icon ?? area(r.area_id)?.icon ?? undefined,
   });
   return {
@@ -56,7 +56,7 @@ export function resolveNames(cfg: EnergyCardConfig, reg: Registries): EnergyCard
     rooms: cfg.rooms?.map(room),
     floors: cfg.floors?.map((f) => ({
       ...f,
-      name: floor(f.floor_id)?.name ?? f.floor_id,
+      name: floor(f.floor_id)?.name ?? f.name ?? f.floor_id,
       icon: f.icon ?? floor(f.floor_id)?.icon ?? undefined,
       rooms: f.rooms?.map(room),
     })),
