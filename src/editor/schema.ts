@@ -306,17 +306,21 @@ const meterFields = (exclude: string[]): Field[] => [
   { path: "energy_entity", selector: { entity: { ...energy.entity, exclude_entities: exclude } }, label: "field_meter_energy", check: "energy" },
 ];
 
-/** Floors can only be picked from the Home Assistant floor registry. */
-export const floorFields = (choices: Choice[] = [], exclude: string[] = []): Field[] => [
-  { path: "floor_id", selector: dropdown(choices), label: "field_floor", required: true },
+/** Floors are picked from the Home Assistant floor registry; a custom floor (an id that is no floor) gets a name and an icon instead. */
+export const floorFields = (choices: Choice[] = [], exclude: string[] = [], custom = false): Field[] => [
+  ...(custom
+    ? ([{ path: "name", selector: text, label: "field_floor_name", required: true }, { path: "icon", selector: icon, label: "field_icon" }] as Field[])
+    : ([{ path: "floor_id", selector: dropdown(choices), label: "field_floor", required: true }] as Field[])),
   ...meterFields(exclude),
   color("color", "field_color"),
   ...actionFields,
 ];
 
-/** Rooms can only be picked from the Home Assistant area registry. */
-export const roomFields = (choices: Choice[] = [], exclude: string[] = []): Field[] => [
-  { path: "area_id", selector: dropdown(choices), label: "field_area", required: true },
+/** Rooms are picked from the Home Assistant area registry; a custom room (an id that is no area) gets a name and an icon instead. */
+export const roomFields = (choices: Choice[] = [], exclude: string[] = [], custom = false): Field[] => [
+  ...(custom
+    ? ([{ path: "name", selector: text, label: "field_room_name", required: true }, { path: "icon", selector: icon, label: "field_icon" }] as Field[])
+    : ([{ path: "area_id", selector: dropdown(choices), label: "field_area", required: true }] as Field[])),
   ...meterFields(exclude),
   color("color", "field_color"),
   ...actionFields,

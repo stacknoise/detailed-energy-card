@@ -143,6 +143,9 @@ describe("meters in the editor", () => {
     const paths = (fields: { path: string }[]) => fields.map((f) => f.path);
     expect(paths(floorFields())).toEqual(["floor_id", "entity", "energy_entity", "color", "tap_action", "hold_action", "double_tap_action"]);
     expect(paths(roomFields())).toEqual(["area_id", "entity", "energy_entity", "color", "tap_action", "hold_action", "double_tap_action"]);
+    // a custom room has a name and an icon instead of the area
+    expect(paths(roomFields([], [], true))).toEqual(["name", "icon", "entity", "energy_entity", "color", "tap_action", "hold_action", "double_tap_action"]);
+    expect(paths(floorFields([], [], true))).toEqual(["name", "icon", "entity", "energy_entity", "color", "tap_action", "hold_action", "double_tap_action"]);
     const [, power] = roomFields([], ["sensor.taken"]);
     expect(power.selector).toEqual({ entity: { domain: "sensor", device_class: "power", exclude_entities: ["sensor.taken"] } });
   });

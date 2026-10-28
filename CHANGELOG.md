@@ -4,6 +4,7 @@
 
 ### Added
 
+- Editor: *+ Custom room* and *+ Custom floor* add a room or a floor that is not in Home Assistant (e.g. for an off-grid system). They have a name and an icon instead of the picker. Custom rooms stay out of the floor layout, like areas without a floor.
 - `options.show_entity_ids` (default on): `false` hides the entity id under the name of a consumer in the list. Warnings such as "No power sensor configured" stay.
 - A floor or room whose id is not in the Home Assistant registry (a custom room, e.g. for an off-grid system) shows its `name` from the configuration instead of the id.
 
