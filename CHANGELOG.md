@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Editor: the warning of a consumer without a sensor sits directly under the section *Sensors* and no longer under *Actions*.
+
 ## 1.3.1
 
 ### Changed
