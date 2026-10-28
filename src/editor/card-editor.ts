@@ -768,7 +768,6 @@ export class DetailedEnergyCardEditor extends LitElement {
           ${this._form(ptr, pick(CONSUMER_SWITCH))}
           ${this._section(`${key}.sensors`, this._tr("section_sensors"), this._form(ptr, pick(CONSUMER_SENSORS)))}
           ${this._section(`${key}.actions`, this._tr("section_actions"), this._form(ptr, pick([...ACTION_PATHS])))}
-          ${!c?.entity && !c?.energy_entity ? html`<div class="warn">⚠ ${this._tr("consumer_no_sensor")}</div>` : nothing}
           ${this._elementThresholds(ptr, "consumer")}
         </div>`;
       })}

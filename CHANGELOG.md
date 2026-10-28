@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Editor: the text under the section *Actions* that warned about a consumer without a sensor is gone (the warning symbol in the card says it already).
+
 ## 1.3.1
 
 ### Changed
