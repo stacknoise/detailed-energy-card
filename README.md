@@ -150,8 +150,9 @@ All options are optional unless marked *required*. Everything can be set in the 
 
 | Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
-| Floor | `floor_id` | – | *Required for a floor.* A floor of Home Assistant; name and icon come from there. |
-| Area (room) | `area_id` | – | *Required for a room.* An area of Home Assistant. |
+| Floor | `floor_id` | – | *Required for a floor.* A floor of Home Assistant; name and icon come from there. An id that is not in Home Assistant is a custom floor: it shows `name` and `icon`. |
+| Area (room) | `area_id` | – | *Required for a room.* An area of Home Assistant. An id that is not in Home Assistant is a custom room (`name`, `icon`). |
+| Name, Icon (custom floor or room) | `name`, `icon` | id | Only for an id that does not exist in Home Assistant, for example `custom_1`; the editor creates them with *+ Custom room* / *+ Custom floor*. |
 | Structure | `rooms` | none | The rooms of a floor. |
 | Power sensor (optional) | `entity` | none | Own power meter of the floor or room. Without it the node shows the sum of its children. |
 | Energy sensor (optional) | `energy_entity` | none | Own energy counter (kWh) of the floor or room. |
@@ -166,6 +167,7 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Power sensor (optional when an energy sensor is set) | `entity` | – | Power sensor. A consumer needs `entity` **or** `energy_entity`, or both. |
 | Energy sensor (kWh, optional) | `energy_entity` | none | Energy counter (kWh). Without `entity` the consumer only shows in the energy mode. |
 | Name (optional) | `name` | friendly name | Own name. |
+| Icon (only directly under the home) | `icon` | `mdi:flash` | Icon of the node of a consumer that hangs directly under the home. |
 | Switch of the consumer | `switch_entity` | none | A `switch`, `input_boolean`, `light` or `fan`: the list shows a toggle at the end of the row. |
 | Ask before turning it off | `confirm_switch` | `false` | Ask before the switch is turned off. |
 | Tap action (default: select, or details) | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions, see *Actions*; `thresholds` sets own thresholds. |

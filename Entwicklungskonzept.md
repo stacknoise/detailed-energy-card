@@ -83,6 +83,10 @@ floors:                    # optional – weglassen = Räume direkt am Zuhause
             confirm_switch: false                # true: vor dem Ausschalten nachfragen
           # Quellen, Etagen, Räume und Verbraucher: tap_action, hold_action, double_tap_action (HA-Standard, Abschnitt 7)
 rooms: []                  # alternativ zu floors (Wohnung ohne Etagen)
+consumers:                 # optional – Verbraucher direkt unter Zuhause, ohne Etage und Raum (z. B. Lampen außen am Haus)
+  - entity: sensor.aussenlicht_power   # wie ein Verbraucher im Raum (entity und/oder energy_entity, name, switch_entity, Aktionen, thresholds)
+    name: Außenlampen
+    icon: mdi:lamp                     # nur hier: Icon des Knotens (Standard mdi:flash)
 colors:                    # optional – leer = HA-Theme
   preset: theme            # theme | nocturne | custom
   accent: "#9184d9"        # Auswahl, Glow, Hervorhebung
@@ -107,6 +111,7 @@ options:
   show_self_consumption: true # Badge „Eigenverbrauch“, wenn berechenbar
   show_consumers: true        # false: Verbraucher-Liste ausblenden
   only_active_consumers: false # true: nur Verbraucher ab 1 W listen
+  show_entity_ids: true       # false: die Entity-ID unter dem Namen eines Verbrauchers in der Liste ausblenden (Warnungen bleiben)
   remember_selection: true
   storage_id: ""              # optional, trennt Karten mit gleicher Struktur (z. B. Leistung und Energie)
   mode: power                 # power | energy (Startansicht, Energie-Modus siehe Abschnitt 15)
@@ -125,7 +130,9 @@ options:
 
 **Regeln**
 
-- **Etagen und Räume kommen ausschließlich aus Home Assistant.** Die Config speichert nur `floor_id` und `area_id`. Name und Icon werden zur Laufzeit aus der Floor- bzw. Area-Registry gelesen: bevorzugt aus `hass.areas` und `hass.floors`, wenn beide vorhanden sind (so erscheinen Umbenennungen ohne Reload). Fehlen sie (ältere HA-Frontends), lädt die Card per WebSocket (`config/floor_registry/list`, `config/area_registry/list`); nach einem Fehler wird frühestens nach 30 s erneut versucht. Freie Namen sind nicht möglich; ein Eintrag ohne ID ist ein Validierungsfehler. Ist eine ID in HA nicht mehr vorhanden, zeigt die Card die ID.
+- **Etagen und Räume kommen aus Home Assistant** (Ausnahme: eigene Räume und Etagen, nächster Punkt). Die Config speichert nur `floor_id` und `area_id`. Name und Icon werden zur Laufzeit aus der Floor- bzw. Area-Registry gelesen: bevorzugt aus `hass.areas` und `hass.floors`, wenn beide vorhanden sind (so erscheinen Umbenennungen ohne Reload). Fehlen sie (ältere HA-Frontends), lädt die Card per WebSocket (`config/floor_registry/list`, `config/area_registry/list`); nach einem Fehler wird frühestens nach 30 s erneut versucht. Freie Namen sind nicht möglich; ein Eintrag ohne ID ist ein Validierungsfehler. Ist eine ID in HA nicht mehr vorhanden, zeigt die Card die ID.
+- **Eigene Räume und Etagen:** Eine `area_id` oder `floor_id`, die es in der Registry nicht gibt (Beispiel `custom_1`), ist ein eigener Raum bzw. eine eigene Etage, z. B. für eine Inselanlage. Sie zeigen den `name` und das `icon` aus der Config statt der Registry-Werte (`resolveNames`: Registry-Name vor `name` vor ID, also gewinnt immer die Registry, wenn es den Eintrag gibt). Die Validierung prüft nur, dass die ID ein nicht leerer Text ist. Im Editor legen *+ Eigener Raum* und *+ Eigene Etage* sie mit erzeugter ID an. Ein gelöschter HA-Bereich verhält sich wie ein eigener Raum.
+- **Verbraucher direkt unter Zuhause:** `consumers` auf oberster Ebene gilt neben `floors` und `rooms` (kein Entweder-oder) und nimmt dieselben Felder wie ein Verbraucher im Raum, dazu `icon`. Der Eintrag ist ein Knoten unter dem Zuhause (Abschnitt 6), kein virtueller Raum. Die Sensoren zählen für die Regel „ein Sensor, ein Platz“ mit.
 - Ein Sensor kann nur einem einzigen Platz zugewiesen werden: einem Verbraucher oder dem Zähler einer Etage bzw. eines Raums (Validierungsfehler in YAML). Der Editor blendet bereits vergebene Sensoren in der Auswahl aus (`exclude_entities`) und lehnt eine doppelte Eingabe ab.
 - Etagen und Räume können einen eigenen Zähler haben (`entity` für die Leistung, `energy_entity` für den Energie-Modus, beide optional). Mit Zähler zeigt der Knoten den gemessenen Wert, sonst die Summe seiner Kinder (Abschnitt 5). Ein Raum mit Zähler darf ganz ohne Verbraucher auskommen.
 - Jede Etage und jeder Bereich kann nur einmal vorkommen. Unter einer Etage sind nur Bereiche wählbar, die in HA dieser Etage zugeordnet sind.
@@ -160,7 +167,7 @@ Nur **Sensoren** sind zulässig. Die Validierung erfolgt im Editor und zur Laufz
 - Domain `sensor.*`
 - `device_class: power`, Einheit `W`, `kW` oder `MW`
 - `device_class: energy` (`Wh`/`kWh`/`MWh`) als `energy_entity` für den Energie-Modus (Abschnitt 15)
-- Dieselben Regeln gelten für die Zähler von Etagen und Räumen: `entity` ist ein Leistungssensor, `energy_entity` ein Energiezähler.
+- Dieselben Regeln gelten für die Zähler von Etagen und Räumen: `entity` ist ein Leistungssensor, `energy_entity` ein Energiezähler. Ebenso für `consumers` auf oberster Ebene (Verbraucher direkt unter Zuhause; `consumers[i]: entity or energy_entity is required`).
 - Ein Verbraucher braucht `entity`, `energy_entity` oder beide (`consumers[i]: entity or energy_entity is required`). Nur mit Zähler zeigt er im Modus *Jetzt* „Kein Leistungssensor konfiguriert“ (ausgegraut, 0 W, kein Warnsymbol; mit `only_active_consumers` ausgeblendet), im Energiemodus zählt er. Schlüssel für Auswahl, Duplikatprüfung und Verlauf ist `entity ?? energy_entity`.
 - `energy_entity_return` einer Quelle (Gegenrichtung) ist wie `energy_entity` ein Energiezähler; bei Quellen vom Typ `solar` ist er ein Validierungsfehler.
 
@@ -179,8 +186,8 @@ Raum         = eigener Zähler   falls gesetzt und lesbar
 Etage        = eigener Zähler   falls gesetzt und lesbar
              = Σ Räume          sonst
 Zuhause      = total_entity     falls gesetzt
-             = Σ Etagen bzw. Räume   sonst
-Nicht erfasst (Haus)   = max(0, total_entity − Σ Etagen bzw. Räume)
+             = Σ Etagen bzw. Räume + Σ Verbraucher unter Zuhause   sonst
+Nicht erfasst (Haus)   = max(0, total_entity − Σ Etagen bzw. Räume − Σ Verbraucher unter Zuhause)
 Nicht erfasst im Raum  = max(0, Raumzähler − Σ Verbraucher)
 Nicht erfasst der Etage = max(0, Etagenzähler − Σ Räume)
 ```
@@ -252,6 +259,8 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 - **„Nicht erfasst“ in der Liste:** genau eine Zeile, passend zur Auswahl. Raum gewählt: „Nicht erfasst in <Raum>“, nur mit Raumzähler. Etage mit allen Räumen: „Nicht erfasst in <Etage>“ = Etagenwert minus alle Verbraucher der Etage, nur wenn die Etage oder einer ihrer Räume einen Zähler hat. Zuhause (alle Etagen bzw. alle Räume): „Nicht erfasst“ = Hauswert minus alle Verbraucher. Ohne Zähler erscheint die Zeile nur in der Ansicht des Hauses. Alle Zeilen folgen `options.show_unassigned`.
 - **Auswahl in die Mitte (`options.focus_selected`, Standard aus):** Die Karte startet mit allen Etagen sichtbar und ohne Raumzeile (ohne die Option ist die größte Etage vorgewählt), damit die erste Ebene immer vollständig zu sehen ist. Wählt man eine Etage, gleiten alle Etagen mittig unter das Zuhause, nur die gewählte bleibt sichtbar, die übrigen blenden dahinter aus. Ihre Räume verteilen sich wie bisher, jetzt um die neue Mitte. Bei einem gewählten Raum gilt dasselbe eine Ebene tiefer. Ein Klick auf ein Element zeigt immer dessen Kinder: Das Zuhause zeigt alle Etagen, eine Etage (auch die gewählte) alle ihre Räume. Ausgeblendete Elemente sind nicht anklickbar und nicht per Tastatur erreichbar. Bei reduzierter Bewegung (`prefers-reduced-motion`) wird nur ein- und ausgeblendet, nichts gleitet. Die Bewegung dauert 380 ms.
 - **Viele Räume:** Ab 7 Räumen in einer Ebene wird die Raumzeile horizontal scrollbar, mit fester Spaltenbreite von 64 px. Alternativ lässt sich per Option auf zwei Reihen umbrechen; das geschieht nur bei mehr als 6 Räumen und nur, wenn eine Reihe zu schmal wäre (unter 80 px je Raum). Auf einer breiten Karte bleiben alle Räume in einer Reihe. Namen werden an der Spaltenbreite mit einer Ellipse gekürzt, schmale Spalten (unter 90 px) nutzen eine kleinere Schrift.
+- **Verbraucher direkt unter Zuhause (`consumers`):** Knoten wie die Etagen und Räume, aber nicht wählbar. Mit Etagen stehen sie als gestrichelte Pillen in der Etagenreihe hinter den Etagen (`floorXs` hat dann `Etagen + Verbraucher` Plätze, `directXs`/`directYs` die der Verbraucher), ohne Etagen als Kreise mit Icon (Standard `mdi:flash`) in der Raumreihe hinter den Räumen. Die Linie läuft vom Zuhause zum Knoten und hat die Ebene „consumer“ der Schwellwerte; sie ist nur aktiv, wenn nichts gewählt ist (alle Etagen bzw. alle Räume). Jeder Knoten braucht mindestens `DIRECT_SLOT_W` = 96 px Breite, sonst wird die Karte breiter und scrollt waagerecht wie bei vielen Räumen; zu lange Namen bekommen eine Ellipsis. Mit `focus_selected` blenden sie hinter einer gewählten Etage (ohne Etagen: gewähltem Raum) aus (`focusTargets`, Feld `direct`). Die Liste des ganzen Zuhauses enthält sie, die Liste einer gewählten Etage nicht; Sankey (erste Spalte) und Verlauf (Stapel des Zuhauses) zeigen sie auch.
+- **Etagen-Pillen bei wenig Platz:** Passen die Etagen (und die Verbraucher unter Zuhause) nicht nebeneinander, steht der Wert unter dem Namen wie in der kompakten Ansicht und die Zeilen darunter rücken um 12 px nach unten. Entscheidung in `floorsStacked(width, names)`: geschätzte Pillenbreite `104 + 6,5 · längster Name` gegen die Breite je Platz (eine Schätzung, keine Messung).
 - **Responsive:** Die SVG-Breite folgt der Kartenbreite (`ResizeObserver`). Knoten werden absolut über dem SVG positioniert.
 - **Barrierefreiheit:** `prefers-reduced-motion` schaltet die Animation ab. Knoten sind `<button>` mit `aria-pressed` und `title`. Die Liste ist tastaturbedienbar. Icon-Buttons, Farbfelder und Farbwähler im Editor haben ein `aria-label`. Lighthouse (Barrierefreiheit) liegt in der Dev-Vorschau bei 100.
 
@@ -265,6 +274,7 @@ Die Berechnung liegt als reine Funktion in `src/model/compute.ts`, ohne DOM. So 
 | Klick auf Raum | Die Liste zeigt die Verbraucher des Raums, absteigend nach Leistung. |
 | Klick auf Verbraucher | Öffnet den HA-More-Info-Dialog (`hass-more-info`). |
 | Klick auf Quelle | Öffnet ebenfalls den More-Info-Dialog. |
+| Klick auf einen Verbraucher unter Zuhause (Baum) | Öffnet den More-Info-Dialog oder führt seine Aktionen aus; es wird nichts gewählt. |
 | `tap_action`, `hold_action`, `double_tap_action` | An Quellen, Etagen, Räumen und Verbrauchern (Baum und Liste, nicht im Sankey): Aktionen des HA-Standards `more-info`, `toggle`, `navigate`, `url`, `perform-action` / `call-service`, `none`, mit `confirmation`. Ohne `tap_action` bleibt der Klick wie in den Zeilen darüber; `hold_action` und `double_tap_action` sind standardmäßig leer. Halten = 500 ms, Doppeltipp = zweiter Klick innerhalb von 250 ms (mit Doppeltipp-Aktion wartet der einfache Tipp so lange). `entity` der Aktion, sonst der Sensor des Elements (Verbraucher mit Schalter: der Schalter). |
 | Kippschalter am Zeilenende eines Verbrauchers (`switch_entity`) | `homeassistant.turn_on` / `turn_off`, ohne den More-Info-Dialog der Zeile zu öffnen; mit `confirm_switch` fragt die Karte vor dem Ausschalten (Dialog des Browsers). Nicht verfügbar → ausgegraut. |
 | Pfeile ‹ › (Energiemodus, neben den Zeiträumen) | Blättern um einen Zeitraum zurück bzw. vor; › endet beim laufenden Zeitraum. Der Kopf nennt den Zeitraum („Gestern“, „Mo 19.10.“, „KW 43“, „September“). Nicht gemerkt; Wechsel von Zeitraum oder Modus setzt zurück. |
@@ -317,10 +327,10 @@ src/
     costs.ts                  // Stundenpreise (hourlyPrices), Kosten je Knoten über den Netzanteil (computeCosts)
     energy-store.ts           // EnergyStore: lädt die gezeigten Abfragen, merkt sie 5 Minuten, Token gegen veraltete Antworten, Pause bei unsichtbarer Card
   view/
-    layout.ts                 // Geometrie: Positionen, Kurven, Linienstärke, Animationsdauer
+    layout.ts                 // Geometrie: Positionen, Kurven, Linienstärke, Animationsdauer, Verbraucher unter Zuhause (direct), floorsStacked
     focus.ts                  // Zielpositionen und Gleiten bei focus_selected
     gesture.ts                // Gesture: Tipp, Halten (500 ms) und Doppeltipp (250 ms) eines Elements
-    tree.ts                   // TreeView: das Baum-Diagramm (Quellen, Haus, Etagen, Räume, Linien) samt Gleiten
+    tree.ts                   // TreeView: das Baum-Diagramm (Quellen, Haus, Etagen, Räume, Verbraucher unter Zuhause, Linien) samt Gleiten
     views.ts                  // Ansichten (tree, sankey, timeline), welche angeboten werden, gemerkter Modus/Zeitraum/Ansicht
     timeline.ts               // renderTimeline: gestapelte Balken, Vorperiode gestrichelt, Kennzahlen, Legende
     sankey-layout.ts          // layoutSankey: reine Layout-Funktion (Spalten, Skala, Bänder), bandPath
@@ -418,7 +428,7 @@ Die Heatmap-Karte hat einen eigenen kleinen Editor (`HEATMAP` in `schema.ts`, di
 
 | Bereich | Felder |
 |---|---|
-| Allgemein | Titel, Einheit (auto/W/kW), Nachkommastellen, Animation, Eigenverbrauch anzeigen, „Nicht erfasst“ anzeigen, Auswahl merken; mit Energiesensor zusätzlich Startansicht, Zeiträume, Zweitwert (Aus, Automatisch, Heute, Jetzt, Kosten), Diagramm-Ansichten, Strompreis (fest oder Sensor), Einspeisevergütung (fest oder Sensor) und Währung |
+| Allgemein | Titel, Einheit (auto/W/kW), Nachkommastellen, Animation, Eigenverbrauch anzeigen, „Nicht erfasst“ anzeigen, Entity-IDs der Verbraucher anzeigen, Auswahl merken; mit Energiesensor zusätzlich Startansicht, Zeiträume, Zweitwert (Aus, Automatisch, Heute, Jetzt, Kosten), Diagramm-Ansichten, Strompreis (fest oder Sensor), Einspeisevergütung (fest oder Sensor) und Währung |
 | Farben | Voreinstellung (HA-Theme / Nocturne / Eigene), Akzent, Fluss-Linien, inaktive Linien, Verbraucher-Balken, Hintergrund, Text |
 | Zuhause | Gesamt-Sensor (optional). Der Name ist fest (Standortname der Instanz). |
 | Stromquellen | Liste; je Quelle: Sensor, Energiesensor, Energiesensor Gegenrichtung (nicht bei PV), Typ, Name, Icon, Farbe, Invertieren, SoC-Sensor (nur Batterie) |
@@ -430,6 +440,8 @@ Die Heatmap-Karte hat einen eigenen kleinen Editor (`HEATMAP` in `schema.ts`, di
 - **Struktur:** Baum Zuhause → (Etage) → Raum → Verbraucher.
   - Umschalter „Etagen verwenden“. Beim Ausschalten werden die Räume flach übernommen und die beim Einschalten ausgeblendeten Räume wiederhergestellt, beim Einschalten nach der HA-Etage ihres Bereichs gruppiert. Bereiche ohne Etage werden dabei ausgeblendet; ein Hinweis nennt sie. Der Schalter ist gesperrt, solange Etagen und Bereiche nicht geladen sind.
   - Drag-and-drop zum Sortieren und zum Verschieben von Räumen zwischen Etagen.
+- **Eigene Räume und Etagen:** Unter den Listen stehen *+ Eigener Raum* und *+ Eigene Etage* (immer, auch wenn die Registry keine freien Einträge mehr hat). Sie legen `custom_N` mit dem nächsten freien N an. Für einen Eintrag, dessen ID nicht in der Registry steht (nur bei geladener Registry), zeigt das Formular *Name* und *Icon* statt der Auswahl von Etage bzw. Bereich (`roomFields(…, custom)`, `floorFields(…, custom)`). Unter einer eigenen Etage lassen sich nur eigene Räume anlegen.
+- **Verbraucher direkt unter Zuhause:** Der Abschnitt steht am Ende der Struktur (*Verbraucher direkt unter Zuhause*, mit Hinweistext); die Einträge sind die Verbraucher aus Räumen (Name, Icon, Schalter, Sensoren, Aktionen, Schwellwerte), das Icon-Feld gibt es nur hier (`consumerFields(…, direct)`). Sensoren, Duplikat-Prüfung und Summenwarnung (`sumConflict`) beziehen sie ein.
 - **Entitätsauswahl:** `ha-entity-picker` mit `include-domains: ["sensor"]` und einem `entity-filter` auf `device_class === "power"`. Bereits vergebene Sensoren (Verbraucher und Zähler von Etagen und Räumen) werden in der Auswahl ausgeblendet, eine doppelte Zuordnung wird abgelehnt (in YAML ein Validierungsfehler, siehe Abschnitt 3).
 - **Validierung live im Editor:** ungültige Sensoren, ungültige Farben, doppelte Zuordnung und Summenkonflikte werden am Feld angezeigt, nicht erst in der Card.
 - **Hinweis Energiemodus:** Ohne Energiesensor zeigt „Allgemein“ einen Hinweis, dass der Schalter *Jetzt | Heute | Woche | Monat* erst mit einem Energiesensor (Zuhause, Quelle oder Verbraucher) erscheint (Details in Abschnitt 15).
@@ -486,6 +498,10 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 - Sehr kleine Werte (< 1 W): Anzeige „0 W“, keine Animation.
 - Grundlast und Dauerlast ohne Statistik (Sensor ohne `state_class`, noch keine Nacht aufgezeichnet): kein Badge, kein Symbol, keine Warnung.
 - Lange Namen werden mit Ellipsis gekürzt. Der volle Name steht im `title`.
+- Vier oder mehr Etagen (oder lange Etagennamen) auf einer schmalen Karte: Wert unter dem Namen (Abschnitt 6, `floorsStacked`). Auch dann wird es bei sehr vielen Etagen (etwa 6 auf einem Handy) eng; einen Umbruch wie `wrap_rooms` gibt es für Etagen nicht.
+- Viele Verbraucher unter Zuhause (etwa 10 und mehr): die Reihe scrollt waagerecht (mindestens 96 px je Knoten); es gibt kein Zusammenfassen und keinen Umbruch. In der Liste sind sie immer vollständig.
+- Verbraucher unter Zuhause bei gewählter Etage: nur im Baum (blass, bei `focus_selected` ausgeblendet), nicht in der Liste dieser Etage. Die Heatmap-Karte und der Import-Assistent kennen sie nicht (der Assistent behält sie und vergibt ihre Sensoren nicht doppelt).
+- Eine Etage oder ein Raum mit einer ID, die nicht in der Registry steht, zeigt `name`/`icon` aus der Config; fehlt `name`, steht die ID.
 
 ---
 
