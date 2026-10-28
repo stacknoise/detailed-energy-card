@@ -282,7 +282,7 @@ describe("apply: replace and merge", () => {
   });
 
   it("reports what the card would refuse", () => {
-    const bad: EnergyCardConfig = { type: "x", rooms: [{ area_id: "a", consumers: [{}] }] };
-    expect(checkedConfig(bad).error).toMatch(/entity or energy_entity is required/);
+    const bad: EnergyCardConfig = { type: "x", rooms: [{ area_id: "a", consumers: [{ energy_entity: "light.x" }] }] };
+    expect(checkedConfig(bad).error).toMatch(/energy_entity/);
   });
 });

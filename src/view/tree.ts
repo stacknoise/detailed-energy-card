@@ -377,13 +377,16 @@ export class TreeView {
    * It is not selected; a click does what a click on a consumer does (its dialog, or its configured actions).
    */
   private _renderDirect(c: TreeContext, x: ConsumerNode, p: Pos, l: Layout, circle: boolean): TemplateResult {
-    const b = press(c.bind(nodeKey.consumer(x.entity), x.actions, () => c.moreInfo(x.entity)));
+    const b = press(c.bind(nodeKey.consumer(x.entity), x.actions, () => (x.noSensor ? undefined : c.moreInfo(x.entity))));
     const name = c.consumerName(x);
+    // a sensor that cannot be read (or none at all) gets the warning symbol of the meters
+    const reason = x.noSensor ? "no_sensor" : x.noEnergy ? "no_energy" : !x.valid && !x.noPower ? "unavailable" : undefined;
+    const mark = reason ? html`<ha-icon class="meter warn" icon="mdi:alert-outline" title=${c.t(reason)}></ha-icon>` : nothing;
     const hidden = p.o < 0.5;
     const idle = isIdle(x.watts);
     const attrs = {
       class: `node ${idle || !x.valid ? "idle" : ""} ${hidden ? "ghost" : ""}`,
-      title: x.valid || x.noPower ? name : `${name}: ${c.t(x.noEnergy ? "no_energy" : "unavailable")}`,
+      title: reason ? `${name}: ${c.t(reason)}` : name,
     };
     const value = x.valid ? c.fmt(x.watts) : "–";
     if (circle) {
@@ -397,7 +400,7 @@ export class TreeView {
           title=${attrs.title}
           @click=${b.click} @pointerdown=${b.down} @pointerup=${b.up} @pointerleave=${b.up} @pointercancel=${b.up} @contextmenu=${b.menu}
         >
-          <span class="circle room"><ha-icon icon=${x.icon ?? "mdi:flash"}></ha-icon></span>
+          <span class="circle room"><ha-icon icon=${x.icon ?? "mdi:flash"}></ha-icon>${mark}</span>
           <span class="label">${name}</span>
           <span class="value">${value}</span>
           ${secondLine(c, nodeKey.consumer(x.entity))}
@@ -414,7 +417,7 @@ export class TreeView {
         title=${attrs.title}
         @click=${b.click} @pointerdown=${b.down} @pointerup=${b.up} @pointerleave=${b.up} @pointercancel=${b.up} @contextmenu=${b.menu}
       >
-        <span class="pill direct ${this._stackFloors(c) ? "stacked" : ""}" style=${styleMap({ maxWidth: `${Math.max(60, slot - 8)}px` })}><span class="dname">${name}</span><small>${value}</small>${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.consumer(x.entity)) ?? nothing}>${c.second(nodeKey.consumer(x.entity)) ?? ""}</span>` : nothing}</span>
+        <span class="pill direct ${this._stackFloors(c) ? "stacked" : ""}" style=${styleMap({ maxWidth: `${Math.max(60, slot - 8)}px` })}><span class="dname">${name}</span><small>${value}</small>${mark}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.consumer(x.entity)) ?? nothing}>${c.second(nodeKey.consumer(x.entity)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }
