@@ -231,12 +231,14 @@ export const cardStyles = css`
     height: 48px;
   }
   /* the value goes under the name: three floors fit on a phone */
-  .compact .pill {
+  .compact .pill,
+  .pill.stacked {
     line-height: 1.25;
     padding: 5px 10px;
     text-align: center;
   }
-  .compact .pill small {
+  .compact .pill small,
+  .pill.stacked small {
     display: block;
     margin: 0;
   }

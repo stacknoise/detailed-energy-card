@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Four or more floors (or long floor names) no longer run into each other on a narrow card: when they do not fit side by side, the value goes under the name, as in the compact view, and the diagram gets a little taller.
+
+## Unreleased
+
 ### Added
 
 - Editor: *+ Custom room* and *+ Custom floor* add a room or a floor that is not in Home Assistant (e.g. for an off-grid system). They have a name and an icon instead of the picker. Custom rooms stay out of the floor layout, like areas without a floor.

@@ -14,6 +14,15 @@ export const MAX_ROOMS_PER_ROW = 6;
 /** ... and only when a single row would give each room less than this much width. */
 export const ROOM_FIT_W = 80;
 
+/** Estimated width of a floor pill with the value next to the name: padding, border and value (about 104 px), and 6.5 px per character of the name. */
+const floorInlineW = (nameLength: number) => 104 + nameLength * 6.5;
+
+/** The floors do not fit side by side with the value next to the name: the value then goes under the name. */
+export function floorsStacked(width: number, names: string[]): boolean {
+  if (names.length < 2) return false;
+  return width / names.length < floorInlineW(Math.max(...names.map((n) => n.length)));
+}
+
 export interface LayoutInput {
   width: number;
   sources: number;
@@ -28,6 +37,8 @@ export interface LayoutInput {
   returnLine?: boolean;
   /** the compact view: smaller circles and rows */
   compact?: boolean;
+  /** the floors show the value under the name (see `floorsStacked`) */
+  stackFloors?: boolean;
 }
 
 export interface Layout {
@@ -83,13 +94,15 @@ export function computeLayout(i: LayoutInput): Layout {
   const back = i.returnLine ? SECONDARY_H : 0;
   const c = !!i.compact;
   const sourceH = (c ? COMPACT.sourceH : SOURCE_H) + extra + back;
-  const floorH = (c ? COMPACT.floorH : FLOOR_H) + extra;
+  // a stacked pill has two lines, as in the compact view
+  const stackExtra = !c && i.stackFloors ? COMPACT.floorH - FLOOR_H : 0;
+  const floorH = (c ? COMPACT.floorH : FLOOR_H) + stackExtra + extra;
   const roomH = (c ? COMPACT.roomH : ROOM_H) + extra;
   const homeH = c ? COMPACT.homeH : HOME_H;
   const yHome = i.sources > 0 ? (c ? COMPACT.yHome : 124) + extra + back : 0;
   // Without a room row the floors sit closer to the home, and nothing is cut off below them.
   const yFloor = yHome + (c ? COMPACT.floorGap : i.floors > 0 && i.rooms === 0 ? 88 : 102);
-  const yRoom = i.floors > 0 ? yFloor + 74 + extra : yHome + (c ? COMPACT.roomGap : 102);
+  const yRoom = i.floors > 0 ? yFloor + 74 + stackExtra + extra : yHome + (c ? COMPACT.roomGap : 102);
   const rooms = roomPositions(i.rooms, width, wrapped);
   const roomRows = wrapped ? 2 : 1;
   const bottom = i.rooms > 0 ? yRoom + roomH * roomRows : i.floors > 0 ? yFloor + floorH : yHome + homeH;
