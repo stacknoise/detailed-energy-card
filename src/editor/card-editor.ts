@@ -162,6 +162,8 @@ export class DetailedEnergyCardEditor extends LitElement {
 
   private _floorName = (id: string) => this._reg?.floors.find((f) => f.floor_id === id)?.name ?? id;
   private _areaName = (id: string) => this._reg?.areas.find((a) => a.area_id === id)?.name ?? id;
+  /** A custom floor: its id is no floor of Home Assistant. */
+  private _isCustomFloor = (f: FloorConfig): boolean => !!this._reg && !this._reg.floors.some((x) => x.floor_id === f.floor_id);
   /** A custom room: its id is no area of Home Assistant (needs the registry, else every room looks custom). */
   private _isCustomRoom = (r: RoomConfig): boolean => !!this._reg && !this._reg.areas.some((a) => a.area_id === r.area_id);
 
@@ -763,7 +765,7 @@ export class DetailedEnergyCardEditor extends LitElement {
     `;
   }
 
-  private _renderRooms(listPtr: Pointer, nested: boolean, floorId?: string): TemplateResult {
+  private _renderRooms(listPtr: Pointer, nested: boolean, floorId?: string, customFloor = false): TemplateResult {
     const rooms: RoomConfig[] = getIn(this._config, listPtr) ?? [];
     const free = this._areaOptions(floorId);
     return html`
@@ -779,7 +781,7 @@ export class DetailedEnergyCardEditor extends LitElement {
       })}
       <button class="add" ?disabled=${!free.length} @click=${() => this._addRoom(listPtr, free[0].value)}>${this._tr("add_room")}</button>
       <button class="add" @click=${() => this._addCustomRoom(listPtr)}>${this._tr("add_custom_room")}</button>
-      ${this._reg && !free.length
+      ${this._reg && !free.length && !customFloor
         ? html`<div class="warn">${this._tr("warn_no_more_areas")}</div>`
         : nothing}
     `;
@@ -799,6 +801,14 @@ export class DetailedEnergyCardEditor extends LitElement {
     const n2 = (getIn(this._config, listPtr) ?? []).length;
     this._open = new Set(this._open).add([...listPtr, n2].join("."));
     this._update(listPtr, (l) => [...(l ?? []), { area_id: `custom_${n}`, name: this._tr("custom_room_default"), consumers: [] }]);
+  }
+
+  /** A floor that is no Home Assistant floor: a fresh id, the name is set in the form. */
+  private _addCustomFloor(): void {
+    const used = this._usedFloorIds();
+    let n = 1;
+    while (used.includes(`custom_${n}`)) n++;
+    this._update(["floors"], (l) => [...(l ?? []), { floor_id: `custom_${n}`, name: this._tr("custom_floor_default"), rooms: [] }]);
   }
 
   private _renderStructure(): TemplateResult {
@@ -822,9 +832,9 @@ export class DetailedEnergyCardEditor extends LitElement {
                 const ptr: Pointer = ["floors", i];
                 const key = ptr.join(".");
                 return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, ["floors"])} @drop=${(e: DragEvent) => this._onDrop(e, ["floors"], i)}>
-                  ${this._itemHead(key, this._floorName(f.floor_id), this._tr("count_rooms", f.rooms?.length ?? 0), ptr, i, floors.length)}
+                  ${this._itemHead(key, this._isCustomFloor(f) ? f.name || this._tr("custom_floor_default") : this._floorName(f.floor_id), this._tr("count_rooms", f.rooms?.length ?? 0), ptr, i, floors.length)}
                   ${this._open.has(key)
-                    ? html`${this._meterForm(ptr, floorFields(this._floorChoices(f.floor_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "floor")}${this._renderRooms([...ptr, "rooms"], true, f.floor_id)}`
+                    ? html`${this._meterForm(ptr, floorFields(this._floorChoices(f.floor_id), consumerEntitiesExcept(this._config, ptr), this._isCustomFloor(f)))}${this._elementThresholds(ptr, "floor")}${this._renderRooms([...ptr, "rooms"], true, f.floor_id, this._isCustomFloor(f))}`
                     : nothing}
                 </div>`;
               })}
@@ -832,6 +842,7 @@ export class DetailedEnergyCardEditor extends LitElement {
                 @click=${() => this._update(["floors"], (l) => [...(l ?? []), { floor_id: freeFloors[0].value, rooms: [] }])}>
                 ${this._tr("add_floor")}
               </button>
+              <button class="add" @click=${() => this._addCustomFloor()}>${this._tr("add_custom_floor")}</button>
               ${this._reg && !freeFloors.length
                 ? html`<div class="warn">${this._tr("warn_no_more_floors")}</div>`
                 : nothing}`
