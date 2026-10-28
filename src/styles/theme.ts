@@ -298,6 +298,22 @@ export const cardStyles = css`
     font-weight: 600;
     white-space: nowrap;
   }
+  /* a consumer directly under the home: like a floor, but nothing to select and a name that is cut when the row is full */
+  .pill.direct {
+    display: block;
+    overflow: hidden;
+    border-style: dashed;
+  }
+  .pill.direct .dname {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pill.direct:not(.stacked) {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
   .pill.selected {
     border-color: var(--_accent);
     box-shadow: 0 0 14px color-mix(in srgb, var(--_accent) 45%, transparent);

@@ -32,6 +32,7 @@ const FULL: EnergyCardConfig = {
     },
   ],
   rooms: [{ area_id: "bad", entity: "sensor.bad", energy_entity: "sensor.bad_energy", color: "#fff", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.b", energy_entity: "sensor.b_energy", name: "Boiler", switch_entity: "switch.b", confirm_switch: false, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
+  consumers: [{ name: "Außenlampen", icon: "mdi:lamp", entity: "sensor.outdoor", energy_entity: "sensor.outdoor_energy", switch_entity: "switch.outdoor", confirm_switch: true, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }],
   colors: {
     preset: "custom",
     accent: "#111",

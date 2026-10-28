@@ -123,6 +123,11 @@ export function buildSankey(i: SankeyInput): SankeyGraph {
       if (r.watts > EPS) first.push({ id: `r:${r.id}`, col: 1, value: r.watts, name: r.name, color: r.color, ref: { kind: "room", id: r.id }, split: true });
     }
   }
+  // consumers directly under the home: nodes of the first column like the floors
+  for (const c of model.consumers) {
+    if (!c.valid || c.noEnergy || c.watts <= EPS) continue;
+    first.push({ id: `c:${c.entity}`, col: 1, value: c.watts, name: text.consumer(c), ref: { kind: "consumer", entity: c.entity }, split: true });
+  }
   if (i.showUnassigned && model.unassigned > EPS) {
     first.push({ id: "u:home", col: 1, value: model.unassigned, name: text.unassigned, ref: { kind: "unassigned" }, split: true });
   }

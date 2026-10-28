@@ -13,6 +13,8 @@ export const COMPACT = { sourceH: 84, homeH: 50, yHome: 100, floorGap: 76, floor
 export const MAX_ROOMS_PER_ROW = 6;
 /** ... and only when a single row would give each room less than this much width. */
 export const ROOM_FIT_W = 80;
+/** Width of a node of a consumer directly under the home when it shares the row of the floors: the diagram scrolls below this. */
+export const DIRECT_SLOT_W = 96;
 
 /** Estimated width of a floor pill with the value next to the name: padding, border and value (about 104 px), and 6.5 px per character of the name. */
 const floorInlineW = (nameLength: number) => 104 + nameLength * 6.5;
@@ -39,6 +41,8 @@ export interface LayoutInput {
   compact?: boolean;
   /** the floors show the value under the name (see `floorsStacked`) */
   stackFloors?: boolean;
+  /** consumers directly under the home: they share the row of the floors, without floors the row of the rooms */
+  direct?: number;
 }
 
 export interface Layout {
@@ -50,6 +54,9 @@ export interface Layout {
   yRoom: number;
   sourceXs: number[];
   floorXs: number[];
+  /** x and y of the consumers directly under the home */
+  directXs: number[];
+  directYs: number[];
   roomXs: number[];
   /** width available to one room node: the distance between neighbours in a row (labels are cut to it) */
   roomColW: number;
@@ -87,9 +94,12 @@ export function roomPositions(n: number, width: number, wrap: boolean): { xs: nu
 
 export function computeLayout(i: LayoutInput): Layout {
   // Rows keep a fixed minimum column width; too many rooms scroll horizontally.
-  const wrapped = !!i.wrap && i.rooms > MAX_ROOMS_PER_ROW && i.rooms * ROOM_FIT_W > i.width;
-  const perRow = wrapped ? wrapColumns(i.rooms) : i.rooms;
-  const width = Math.max(i.width, perRow * ROOM_COL_W);
+  const direct = i.direct ?? 0;
+  // with floors the consumers directly under the home sit in the row of the floors, else in the row of the rooms
+  const rowRooms = i.floors > 0 ? i.rooms : i.rooms + direct;
+  const wrapped = !!i.wrap && rowRooms > MAX_ROOMS_PER_ROW && rowRooms * ROOM_FIT_W > i.width;
+  const perRow = wrapped ? wrapColumns(rowRooms) : rowRooms;
+  const width = Math.max(i.width, perRow * ROOM_COL_W, i.floors > 0 && direct > 0 ? (i.floors + direct) * DIRECT_SLOT_W : 0);
   const extra = i.secondary ? SECONDARY_H : 0;
   const back = i.returnLine ? SECONDARY_H : 0;
   const c = !!i.compact;
@@ -103,9 +113,11 @@ export function computeLayout(i: LayoutInput): Layout {
   // Without a room row the floors sit closer to the home, and nothing is cut off below them.
   const yFloor = yHome + (c ? COMPACT.floorGap : i.floors > 0 && i.rooms === 0 ? 88 : 102);
   const yRoom = i.floors > 0 ? yFloor + 74 + stackExtra + extra : yHome + (c ? COMPACT.roomGap : 102);
-  const rooms = roomPositions(i.rooms, width, wrapped);
+  const rooms = roomPositions(rowRooms, width, wrapped);
   const roomRows = wrapped ? 2 : 1;
-  const bottom = i.rooms > 0 ? yRoom + roomH * roomRows : i.floors > 0 ? yFloor + floorH : yHome + homeH;
+  const floorXs = distribute(i.floors + (i.floors > 0 ? direct : 0), width);
+  const roomYs = rooms.row.map((r) => yRoom + r * roomH);
+  const bottom = rowRooms > 0 ? yRoom + roomH * roomRows : i.floors > 0 ? yFloor + floorH : yHome + homeH;
   return {
     width,
     height: bottom,
@@ -114,10 +126,12 @@ export function computeLayout(i: LayoutInput): Layout {
     yFloor,
     yRoom,
     sourceXs: distribute(i.sources, width),
-    floorXs: distribute(i.floors, width),
+    floorXs,
+    directXs: i.floors > 0 ? floorXs.slice(i.floors) : rooms.xs.slice(i.rooms),
+    directYs: i.floors > 0 ? Array(direct).fill(yFloor) : roomYs.slice(i.rooms),
     roomXs: rooms.xs,
     roomColW: perRow > 0 ? width / perRow : width,
-    roomYs: rooms.row.map((r) => yRoom + r * roomH),
+    roomYs,
     roomRows,
     sourceH,
     floorH,

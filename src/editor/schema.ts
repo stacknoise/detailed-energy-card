@@ -118,6 +118,7 @@ export const hasEnergySensor = (cfg: any): boolean => {
     !!cfg?.home?.total_energy_entity ||
     (cfg?.sources ?? []).some((s: any) => !!s?.energy_entity) ||
     (cfg?.floors ?? []).some((f: any) => !!f?.energy_entity) ||
+    (cfg?.consumers ?? []).some((c: any) => !!c?.energy_entity) ||
     rooms.some((r: any) => !!r?.energy_entity || (r?.consumers ?? []).some((c: any) => !!c?.energy_entity))
   );
 };
@@ -327,8 +328,10 @@ export const roomFields = (choices: Choice[] = [], exclude: string[] = [], custo
 ];
 
 /** Consumer sensors: power and energy sensors that are not yet assigned to another consumer. */
-export const consumerFields = (exclude: string[] = []): Field[] => [
+export const consumerFields = (exclude: string[] = [], direct = false): Field[] => [
   { path: "name", selector: text, label: "field_name_optional" },
+  // only a consumer directly under the home is a node of its own with an icon
+  ...(direct ? ([{ path: "icon", selector: icon, label: "field_icon" }] as Field[]) : []),
   {
     path: "entity",
     selector: { entity: { domain: "sensor", device_class: "power", exclude_entities: exclude } },
@@ -402,6 +405,8 @@ export function coveredPaths(): string[] {
     ...prefix("floors[].rooms[].consumers[].thresholds[].", THRESHOLD),
     ...prefix("rooms[].thresholds[].", THRESHOLD),
     ...prefix("rooms[].consumers[].thresholds[].", THRESHOLD),
+    ...prefix("consumers[].thresholds[].", THRESHOLD),
+    ...prefix("consumers[].", consumerFields([], true)),
     ...prefix("floors[].", floorFields()),
     ...prefix("floors[].rooms[].", roomFields()),
     ...prefix("floors[].rooms[].consumers[].", CONSUMER),

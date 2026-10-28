@@ -287,6 +287,23 @@
             room("bad", [c("sensor.bad", T("Bad", "Bathroom"))]),
           ],
         },
+        // consumers directly under the home, next to floors; ?many=1 for a long row
+        homeconsumers: {
+          title: T("Haus", "House"),
+          home: { total_entity: "sensor.total" },
+          sources,
+          colors: { thresholds },
+          options: { unit: "kW" },
+          consumers: [
+            c("sensor.herd", T("Außenlampen", "Outdoor lights")),
+            c("sensor.spuel2", T("Wallbox", "Wallbox")),
+            ...(new URLSearchParams(location.search).get("many") ? [c("sensor.kuehl2", T("Gartenpumpe", "Garden pump")), c("sensor.bad", T("Terrassenstrahler Süd", "Patio heater south")), c("sensor.buero", T("Pool", "Pool"))] : []),
+          ],
+          floors: [
+            { floor_id: "eg", rooms: [room("kueche", [c("sensor.backofen", T("Backofen", "Oven"))]), room("wohnzimmer", [c("sensor.wz", T("Fernseher", "TV"))])] },
+            { floor_id: "og", rooms: [room("bad", [c("sensor.og", T("Fußbodenheizung", "Underfloor heating"))])] },
+          ],
+        },
         long: {
           title: T("Lange Namen", "Long names"),
           sources,

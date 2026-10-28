@@ -731,13 +731,15 @@ export class DetailedEnergyCardEditor extends LitElement {
     this._update(["sources"], (l) => [...(l ?? []), { entity: "", type: "generic" }]);
   }
 
+  /** The consumers of a room; with an empty pointer the ones that hang directly under the home. */
   private _renderConsumers(roomPtr: Pointer): TemplateResult {
     const consumers = getIn(this._config, [...roomPtr, "consumers"]) ?? [];
     return html`
-      <h3>${this._tr("section_consumers", consumers.length)}</h3>
+      <h3>${this._tr(roomPtr.length === 0 ? "section_home_consumers" : "section_consumers", consumers.length)}</h3>
+      ${roomPtr.length === 0 ? html`<div class="hint">${this._tr("home_consumers_hint")}</div>` : nothing}
       ${consumers.map((c: { entity?: string; energy_entity?: string }, i: number) => {
         const ptr: Pointer = [...roomPtr, "consumers", i];
-        const fields = consumerFields(consumerEntitiesExcept(this._config, ptr));
+        const fields = consumerFields(consumerEntitiesExcept(this._config, ptr), roomPtr.length === 0);
         const pick = (paths: string[]) => fields.filter((f) => paths.includes(f.path));
         const key = ptr.join(".");
         return html`<div class="item" @dragover=${(e: DragEvent) => this._onOver(e, [...roomPtr, "consumers"])} @drop=${(e: DragEvent) => this._onDrop(e, [...roomPtr, "consumers"], i)}>
@@ -751,6 +753,7 @@ export class DetailedEnergyCardEditor extends LitElement {
             <button class="icon" title=${this._tr("remove")} aria-label=${this._tr("remove")}
               @click=${() => this._update([...roomPtr, "consumers"], (l) => removeItem(l, i))}>✕</button>
           </div>
+          ${this._form(ptr, pick(["icon"]))}
           ${this._form(ptr, pick(CONSUMER_SWITCH))}
           ${this._section(`${key}.sensors`, this._tr("section_sensors"), this._form(ptr, pick(CONSUMER_SENSORS)))}
           ${this._section(`${key}.actions`, this._tr("section_actions"), this._form(ptr, pick([...ACTION_PATHS])))}
@@ -847,6 +850,7 @@ export class DetailedEnergyCardEditor extends LitElement {
                 ? html`<div class="warn">${this._tr("warn_no_more_floors")}</div>`
                 : nothing}`
           : this._renderRooms(["rooms"], false)}
+        ${this._renderConsumers([])}
       </section>
     `;
   }
