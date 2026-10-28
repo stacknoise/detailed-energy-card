@@ -7,7 +7,7 @@ import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
 import type { Key } from "../localize";
 import { Tween, focusTargets, type Pos } from "./focus";
-import { computeLayout, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
+import { computeLayout, floorsStacked, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
 
 /** More ranges than this do not get any thicker. */
 export const MAX_LEVEL = 3;
@@ -139,6 +139,11 @@ export class TreeView {
     this._raf = requestAnimationFrame(step);
   }
 
+  /** The value goes under the name of a floor when the floors do not fit side by side (always in the compact view). */
+  private _stackFloors(c: TreeContext): boolean {
+    return c.compact || floorsStacked(c.width || 320, c.model.floors.map((f) => f.name));
+  }
+
   /** What the selection and the width of the card make of the diagram: pure, nothing is stored. */
   private _geometry(c: TreeContext) {
     const { model, sel } = c;
@@ -151,6 +156,7 @@ export class TreeView {
       secondary: c.secondary,
       returnLine: c.energy && model.sources.some((s) => s.returnCounter),
       compact: c.compact,
+      stackFloors: this._stackFloors(c),
     });
     // Positions of the floors and rooms. With options.focus_selected the selected element of a level
     // slides to the middle under its parent and the rest of that level fades out behind it.
@@ -214,7 +220,7 @@ export class TreeView {
           ${this._renderLines(c, layout, floorViews, roomViews, allRooms, allFloors)}
           ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
-          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity))}
+          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity, this._stackFloors(c)))}
           ${roomViews.map((v) => this._renderRoom(c, v.room, v.p, layout.roomColW, !v.leaving && v.room.id === sel.rooms[sel.room ?? -1]?.id, allRooms, v.leaving))}
         </div>
       </div>
@@ -330,7 +336,7 @@ export class TreeView {
     `;
   }
 
-  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo, actions?: NodeActions, meterEntity?: string): TemplateResult {
+  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo, actions?: NodeActions, meterEntity?: string, stacked = false): TemplateResult {
     const b = press(c.bind(nodeKey.floor(id), actions, () => (c.compact ? meterEntity && c.moreInfo(meterEntity) : c.select(selected && !c.focus ? { floor: null } : { floor: id }))));
     return html`
       <button
@@ -347,7 +353,7 @@ export class TreeView {
         @pointercancel=${b.up}
         @contextmenu=${b.menu}
       >
-        <span class="pill ${selected || allFloors ? "selected" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
+        <span class="pill ${selected || allFloors ? "selected" : ""} ${stacked ? "stacked" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }

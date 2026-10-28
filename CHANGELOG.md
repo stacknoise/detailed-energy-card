@@ -8,6 +8,10 @@
 - `options.show_entity_ids` (default on): `false` hides the entity id under the name of a consumer in the list. Warnings such as "No power sensor configured" stay.
 - A floor or room whose id is not in the Home Assistant registry (a custom room, e.g. for an off-grid system) shows its `name` from the configuration instead of the id.
 
+### Fixed
+
+- Four or more floors (or long floor names) no longer run into each other on a narrow card: when they do not fit side by side, the value goes under the name, as in the compact view, and the diagram gets a little taller.
+
 ## 1.2.3
 
 ### Fixed
