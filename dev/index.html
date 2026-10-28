@@ -273,6 +273,20 @@
             room("schlafen", [c("sensor.schlafen", T("Schlafen", "Bedroom"))]),
           ],
         },
+        // #115: a room that is not a Home Assistant area (shown with its name) and no entity ids under the consumers
+        offgrid: {
+          title: T("Inselanlage", "Off-grid"),
+          sources: [
+            { entity: "sensor.balkon", type: "solar", name: T("Solar", "Solar") },
+            { entity: "sensor.akku", type: "battery", soc_entity: "sensor.soc" },
+          ],
+          colors: { thresholds },
+          options: { unit: "kW", show_entity_ids: new URLSearchParams(location.search).get("ids") !== "0" },
+          rooms: [
+            { ...room("inselanlage", [c("sensor.herd", T("Herd", "Cooker")), c("sensor.spuel2", T("Spülmaschine", "Dishwasher")), c("sensor.kuehl2", T("Kühlschrank", "Fridge"))]), name: T("Inselanlage", "Off-grid") },
+            room("bad", [c("sensor.bad", T("Bad", "Bathroom"))]),
+          ],
+        },
         long: {
           title: T("Lange Namen", "Long names"),
           sources,

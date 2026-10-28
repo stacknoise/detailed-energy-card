@@ -1072,6 +1072,7 @@ export class DetailedEnergyCard extends LitElement {
       return html`<div class="detail empty">${this._t("no_rooms")}</div>`;
     }
     const onlyActive = this._config?.options?.only_active_consumers === true;
+    const showIds = this._config?.options?.show_entity_ids !== false;
     const sorted = [...listedConsumers(room.consumers, onlyActive)].sort((a, b) => b.watts - a.watts);
     const max = Math.max(1, ...sorted.map((c) => c.watts));
     const thresholds = this._thresholds;
@@ -1100,7 +1101,7 @@ export class DetailedEnergyCard extends LitElement {
           return html`
             <button class="row ${c.valid || c.noPower ? "" : "warn"} ${c.noPower || (c.valid && isIdle(c.watts)) ? "idle" : ""}"
               @click=${() => b.click()} @pointerdown=${() => b.down()} @pointerup=${() => b.up()} @pointerleave=${() => b.up()} @pointercancel=${() => b.up()} @contextmenu=${(e: Event) => b.contextmenu(e)}>
-              <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}<small>${c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small></span>
+              <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}${c.noEnergy || c.noPower || showIds ? html`<small>${c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small>` : nothing}</span>
               <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
               ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}
