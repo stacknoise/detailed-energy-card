@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Editor: the warning of a consumer without a sensor sits directly under the section *Sensors* and no longer under *Actions*.
+- Editor: the text under the section *Actions* that warned about a consumer without a sensor is gone (the warning symbol in the card says it already).
 
 ## 1.3.1
 
