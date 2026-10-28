@@ -162,6 +162,8 @@ export class DetailedEnergyCardEditor extends LitElement {
 
   private _floorName = (id: string) => this._reg?.floors.find((f) => f.floor_id === id)?.name ?? id;
   private _areaName = (id: string) => this._reg?.areas.find((a) => a.area_id === id)?.name ?? id;
+  /** A custom room: its id is no area of Home Assistant (needs the registry, else every room looks custom). */
+  private _isCustomRoom = (r: RoomConfig): boolean => !!this._reg && !this._reg.areas.some((a) => a.area_id === r.area_id);
 
   static styles = css`
     :host {
@@ -769,13 +771,14 @@ export class DetailedEnergyCardEditor extends LitElement {
         const ptr: Pointer = [...listPtr, i];
         const key = ptr.join(".");
         return html`<div class="item ${nested ? "nested" : ""}" @dragover=${(e: DragEvent) => this._onOver(e, listPtr)} @drop=${(e: DragEvent) => this._onDrop(e, listPtr, i)}>
-          ${this._itemHead(key, this._areaName(r.area_id), this._tr("count_consumers", r.consumers?.length ?? 0), ptr, i, rooms.length)}
+          ${this._itemHead(key, this._isCustomRoom(r) ? r.name || this._tr("custom_room_default") : this._areaName(r.area_id), this._tr("count_consumers", r.consumers?.length ?? 0), ptr, i, rooms.length)}
           ${this._open.has(key)
-            ? html`${this._meterForm(ptr, roomFields(this._areaOptions(floorId, r.area_id), consumerEntitiesExcept(this._config, ptr)))}${this._elementThresholds(ptr, "room")}${this._renderConsumers(ptr)}`
+            ? html`${this._meterForm(ptr, roomFields(this._areaOptions(floorId, r.area_id), consumerEntitiesExcept(this._config, ptr), this._isCustomRoom(r)))}${this._elementThresholds(ptr, "room")}${this._renderConsumers(ptr)}`
             : nothing}
         </div>`;
       })}
       <button class="add" ?disabled=${!free.length} @click=${() => this._addRoom(listPtr, free[0].value)}>${this._tr("add_room")}</button>
+      <button class="add" @click=${() => this._addCustomRoom(listPtr)}>${this._tr("add_custom_room")}</button>
       ${this._reg && !free.length
         ? html`<div class="warn">${this._tr("warn_no_more_areas")}</div>`
         : nothing}
@@ -786,6 +789,16 @@ export class DetailedEnergyCardEditor extends LitElement {
     const n = (getIn(this._config, listPtr) ?? []).length;
     this._open = new Set(this._open).add([...listPtr, n].join("."));
     this._update(listPtr, (l) => [...(l ?? []), { area_id: areaId, consumers: [] }]);
+  }
+
+  /** A room that is no Home Assistant area (e.g. an off-grid system): a fresh id, the name is set in the form. */
+  private _addCustomRoom(listPtr: Pointer): void {
+    const used = this._usedAreaIds();
+    let n = 1;
+    while (used.includes(`custom_${n}`)) n++;
+    const n2 = (getIn(this._config, listPtr) ?? []).length;
+    this._open = new Set(this._open).add([...listPtr, n2].join("."));
+    this._update(listPtr, (l) => [...(l ?? []), { area_id: `custom_${n}`, name: this._tr("custom_room_default"), consumers: [] }]);
   }
 
   private _renderStructure(): TemplateResult {

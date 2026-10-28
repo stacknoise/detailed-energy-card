@@ -314,9 +314,11 @@ export const floorFields = (choices: Choice[] = [], exclude: string[] = []): Fie
   ...actionFields,
 ];
 
-/** Rooms can only be picked from the Home Assistant area registry. */
-export const roomFields = (choices: Choice[] = [], exclude: string[] = []): Field[] => [
-  { path: "area_id", selector: dropdown(choices), label: "field_area", required: true },
+/** Rooms are picked from the Home Assistant area registry; a custom room (an id that is no area) gets a name and an icon instead. */
+export const roomFields = (choices: Choice[] = [], exclude: string[] = [], custom = false): Field[] => [
+  ...(custom
+    ? ([{ path: "name", selector: text, label: "field_room_name", required: true }, { path: "icon", selector: icon, label: "field_icon" }] as Field[])
+    : ([{ path: "area_id", selector: dropdown(choices), label: "field_area", required: true }] as Field[])),
   ...meterFields(exclude),
   color("color", "field_color"),
   ...actionFields,
