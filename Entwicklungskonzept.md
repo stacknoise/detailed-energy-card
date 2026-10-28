@@ -167,8 +167,8 @@ Nur **Sensoren** sind zulässig. Die Validierung erfolgt im Editor und zur Laufz
 - Domain `sensor.*`
 - `device_class: power`, Einheit `W`, `kW` oder `MW`
 - `device_class: energy` (`Wh`/`kWh`/`MWh`) als `energy_entity` für den Energie-Modus (Abschnitt 15)
-- Dieselben Regeln gelten für die Zähler von Etagen und Räumen: `entity` ist ein Leistungssensor, `energy_entity` ein Energiezähler. Ebenso für `consumers` auf oberster Ebene (Verbraucher direkt unter Zuhause; `consumers[i]: entity or energy_entity is required`).
-- Ein Verbraucher braucht `entity`, `energy_entity` oder beide (`consumers[i]: entity or energy_entity is required`). Nur mit Zähler zeigt er im Modus *Jetzt* „Kein Leistungssensor konfiguriert“ (ausgegraut, 0 W, kein Warnsymbol; mit `only_active_consumers` ausgeblendet), im Energiemodus zählt er. Schlüssel für Auswahl, Duplikatprüfung und Verlauf ist `entity ?? energy_entity`.
+- Dieselben Regeln gelten für die Zähler von Etagen und Räumen: `entity` ist ein Leistungssensor, `energy_entity` ein Energiezähler. Ebenso für `consumers` auf oberster Ebene (Verbraucher direkt unter Zuhause).
+- Ein Verbraucher braucht `entity`, `energy_entity` oder beide. Ohne beide ist es kein Konfigurationsfehler (der Editor legt neue Verbraucher leer an): die Karte zeigt ihn mit Warnsymbol, „Kein Sensor konfiguriert“ und ohne Wert, mit einem eigenen Schlüssel `nosensor:<Ort>` statt der Entität (`ConsumerNode.noSensor`). Nur mit Zähler zeigt er im Modus *Jetzt* „Kein Leistungssensor konfiguriert“ (ausgegraut, 0 W, kein Warnsymbol; mit `only_active_consumers` ausgeblendet), im Energiemodus zählt er. Schlüssel für Auswahl, Duplikatprüfung und Verlauf ist `entity ?? energy_entity`.
 - `energy_entity_return` einer Quelle (Gegenrichtung) ist wie `energy_entity` ein Energiezähler; bei Quellen vom Typ `solar` ist er ein Validierungsfehler.
 
 Nicht passende Entitäten werden im Editor ausgefiltert. Kommen sie per YAML trotzdem in die Konfiguration, zeigt die Card eine Warnung am Knoten statt abzustürzen. Eine unbekannte Einheit (z. B. `kWh`, `V`) wird nie als Watt gezählt, sondern gilt als ungültig; der SoC-Sensor einer Batterie wird getrennt gelesen und muss `%` liefern (Wert auf 0…100 begrenzt).
@@ -493,7 +493,8 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 - Summe der Räume ist größer als `total_entity`: „Nicht erfasst“ wird nicht angezeigt, dafür eine Hinweis-Warnung im Editor.
 - Verbraucher messen mehr als der Zähler ihres Raums (bzw. Räume mehr als der Zähler ihrer Etage): Warnsymbol am Knoten und Hinweiszeile in der Liste, ab 5 % und mindestens 10 W / 50 Wh (Abschnitt 5).
 - Verbraucher nur mit Energiezähler im Modus *Jetzt*: ausgegraut mit „Kein Leistungssensor konfiguriert“, 0 W, ohne Warnsymbol (anders als ein nicht lesbarer Sensor).
-- Zähler einer Etage oder eines Raums nicht lesbar: Der Knoten zeigt die Summe seiner Kinder mit Warnsymbol.
+- Verbraucher ohne Sensor (neu im Editor angelegt oder in YAML ohne `entity`/`energy_entity`): Warnsymbol am Knoten (unter Zuhause) und in der Liste „Kein Sensor konfiguriert“, 0 W, kein Eintrag in Sankey, Verlauf und Zweitwerten, Klick ohne Wirkung. Dasselbe Warnsymbol bekommt ein Verbraucher unter Zuhause mit nicht lesbarem Sensor.
+- Eine Etage oder ein Raum mit einer ID, die nicht in der Registry steht, Der Knoten zeigt die Summe seiner Kinder mit Warnsymbol.
 - Netz speist ein und Batterie lädt gleichzeitig: Pfeile werden umgekehrt, die Werte korrekt gezeigt.
 - Sehr kleine Werte (< 1 W): Anzeige „0 W“, keine Animation.
 - Grundlast und Dauerlast ohne Statistik (Sensor ohne `state_class`, noch keine Nacht aufgezeichnet): kein Badge, kein Symbol, keine Warnung.

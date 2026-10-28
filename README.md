@@ -164,7 +164,7 @@ All options are optional unless marked *required*. Everything can be set in the 
 
 | Editor field | YAML key | Default | What it does |
 | --- | --- | --- | --- |
-| Power sensor (optional when an energy sensor is set) | `entity` | – | Power sensor. A consumer needs `entity` **or** `energy_entity`, or both. |
+| Power sensor (optional when an energy sensor is set) | `entity` | – | Power sensor. A consumer wants `entity` **or** `energy_entity`, or both; one without any is shown with a warning symbol and "No sensor configured" until you choose a sensor. |
 | Energy sensor (kWh, optional) | `energy_entity` | none | Energy counter (kWh). Without `entity` the consumer only shows in the energy mode. |
 | Name (optional) | `name` | friendly name | Own name. |
 | Icon (only directly under the home) | `icon` | `mdi:flash` | Icon of the node of a consumer that hangs directly under the home. |

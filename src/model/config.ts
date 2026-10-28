@@ -218,14 +218,10 @@ function checkRoom(room: unknown, where: string): void {
 }
 
 function checkConsumer(c: unknown, where: string): void {
-  // a consumer needs a power sensor, an energy counter, or both
-  if (isObj(c) && (c.entity === undefined || c.entity === null || c.entity === "") && c.energy_entity) {
-    /* only an energy counter: fine */
-  } else if (isObj(c) && !c.entity && !c.energy_entity) {
-    throw new ConfigError(`${where}: entity or energy_entity is required`);
-  } else {
-    checkEntity(isObj(c) ? c.entity : undefined, where);
-  }
+  // A consumer wants a power sensor, an energy counter, or both. One without any is no error: the editor
+  // creates it empty, and the card shows it with a warning until a sensor is chosen.
+  if (!isObj(c)) checkEntity(undefined, where);
+  else if (c.entity) checkEntity(c.entity, where);
   if (isObj(c) && c.energy_entity) checkEntity(c.energy_entity, `${where}.energy_entity`);
   if (isObj(c)) checkThresholds(c.thresholds, `${where}.thresholds`);
   if (isObj(c)) checkActions(c, where);

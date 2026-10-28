@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A new consumer without a sensor no longer turns the whole card into an error message while you edit. The card shows it with a warning symbol (a consumer directly under the home gets it on its node, in the list it says "No sensor configured") and counts it as 0 W. This applies to consumers in rooms too. Sensors that are set are still checked.
+- A consumer directly under the home whose sensor cannot be read gets the same warning symbol.
+
 ## 1.3.0
 
 ### Added
