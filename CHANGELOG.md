@@ -2,10 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- Editor: a sensor that is already assigned elsewhere (a consumer or meter in a room or floor, or a consumer directly under the home) gets an error at its field, "Already assigned to: <place>". Before, the editor relied on Home Assistant's picker to hide such sensors, which not every version does. The help texts under the sensor fields say that a sensor can be assigned only once.
+
 ### Fixed
 
 - A new consumer without a sensor no longer turns the whole card into an error message while you edit. The card shows it with a warning symbol (a consumer directly under the home gets it on its node, in the list it says "No sensor configured") and counts it as 0 W. This applies to consumers in rooms too. Sensors that are set are still checked.
 - A consumer directly under the home whose sensor cannot be read gets the same warning symbol.
+
 
 ## 1.3.0
 

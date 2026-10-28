@@ -3,6 +3,7 @@ import { property, state } from "lit/decorators.js";
 import type { EnergyCardConfig, FloorConfig, RoomConfig, SourceConfig } from "../model/config";
 import {
   consumerEntitiesExcept,
+  takenWhere,
   observedEntityIds,
   findDuplicates,
   getIn,
@@ -450,6 +451,16 @@ export class DetailedEnergyCardEditor extends LitElement {
 
   // ---------- rendering ----------
 
+  /** The sensors the slot at `ptr` may not use because another slot has them, with where (not for sources, which may share one). */
+  private _takenFor(ptr: Pointer): Map<string, string> | undefined {
+    if (!["consumers", "rooms", "floors"].includes(String(ptr[0]))) return undefined;
+    return takenWhere(this._config, ptr, {
+      room: (r) => (this._isCustomRoom(r) ? r.name || this._tr("custom_room_default") : this._areaName(r.area_id)),
+      floor: (f) => (this._isCustomFloor(f) ? f.name || this._tr("custom_floor_default") : this._floorName(f.floor_id)),
+      home: this._tr("section_home"),
+    });
+  }
+
   private _form(ptr: Pointer, fields: Field[]): TemplateResult {
     const obj = ptr.length ? getIn(this._config, ptr) : this._config;
     const data: Record<string, unknown> = {};
@@ -461,7 +472,7 @@ export class DetailedEnergyCardEditor extends LitElement {
         .hass=${this.hass}
         .data=${data}
         .schema=${toSchema(plain, obj, this._tr)}
-        .error=${fieldErrors(obj, plain, states, getPath, this._tr)}
+        .error=${fieldErrors(obj, plain, states, getPath, this._tr, this._takenFor(ptr))}
         .computeLabel=${(s: { name: string }) => labelFor(fields, s.name, this._tr)}
         .computeHelper=${(s: { name: string }) => helperFor(fields, s.name, this._tr)}
         @value-changed=${(ev: CustomEvent) => this._onForm(ptr, fields, ev)}
