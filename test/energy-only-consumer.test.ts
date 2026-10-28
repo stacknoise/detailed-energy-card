@@ -20,12 +20,22 @@ const cfg: EnergyCardConfig = {
 const reader = (m: Record<string, number>): Reader => (id) => (id in m ? { watts: m[id], valid: true } : { watts: 0, valid: false });
 
 describe("consumers with only an energy counter", () => {
-  it("accepts a consumer with a power sensor, an energy counter or both, and names the field when both are missing", () => {
+  it("accepts a consumer with a power sensor, an energy counter or both, and one without any (the editor creates it empty)", () => {
     expect(() => validateConfig(cfg)).not.toThrow();
-    const bad = { ...base, rooms: [{ area_id: "a", consumers: [{ name: "x" }] }] };
-    expect(() => validateConfig(bad)).toThrow(ConfigError);
-    expect(() => validateConfig(bad)).toThrow(/rooms\[0\]\.consumers\[0\]: entity or energy_entity is required/);
-    expect(() => validateConfig({ ...base, rooms: [{ area_id: "a", consumers: [{ entity: "", energy_entity: "" }] }] })).toThrow(/entity or energy_entity/);
+    expect(() => validateConfig({ ...base, rooms: [{ area_id: "a", consumers: [{ name: "x" }] }] })).not.toThrow();
+    expect(() => validateConfig({ ...base, rooms: [{ area_id: "a", consumers: [{ entity: "", energy_entity: "" }] }] })).not.toThrow();
+    expect(() => validateConfig({ ...base, rooms: [{ area_id: "a", consumers: ["x"] }] })).toThrow(ConfigError);
+  });
+
+  it("shows a consumer without any sensor as a warning that counts nothing, with a key of its own", () => {
+    const m = computeModel({ ...base, rooms: [{ area_id: "a", consumers: [{ name: "x" }, { entity: "" }, { entity: "sensor.ofen" }] }], consumers: [{ name: "y" }] }, reader({ "sensor.ofen": 100 }));
+    const [a, b, ofen] = m.rooms[0].consumers;
+    expect([a.noSensor, b.noSensor, ofen.noSensor]).toEqual([true, true, undefined]);
+    expect(a.valid).toBe(false);
+    expect(a.watts).toBe(0);
+    expect(new Set([a.entity, b.entity, m.consumers[0].entity]).size).toBe(3);
+    expect(m.consumers[0].noSensor).toBe(true);
+    expect(m.rooms[0].watts).toBe(100);
   });
 
   it("still checks the sensors that are set", () => {

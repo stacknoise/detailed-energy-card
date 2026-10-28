@@ -57,8 +57,9 @@ describe("the config", () => {
   it("is valid", () => {
     expect(() => validateConfig(floors)).not.toThrow();
   });
-  it("needs a sensor for every consumer", () => {
-    expect(() => validateConfig({ ...floors, consumers: [{ name: "x" }] })).toThrow(/consumers\[0\]: entity or energy_entity is required/);
+  it("lets a consumer without a sensor through: the card warns instead of breaking", () => {
+    expect(() => validateConfig({ ...floors, consumers: [{ name: "x" }] })).not.toThrow();
+    expect(() => validateConfig({ ...floors, consumers: [{ energy_entity: "light.x" }] })).toThrow(/consumers\[0\]/);
   });
   it("must be a list", () => {
     expect(() => validateConfig({ ...floors, consumers: "x" })).toThrow(ConfigError);

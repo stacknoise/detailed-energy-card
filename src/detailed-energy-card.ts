@@ -9,7 +9,7 @@ import { BASE_LOAD_NIGHTS, STANDBY_HOURS, baseLoad, homePowerIds, homePowerRows,
 import { computeCosts, type CostResult } from "./model/costs";
 import { energyReader, firstWeekdayIndex, loadStatSeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
-import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
+import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type ConsumerNode, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
@@ -510,6 +510,13 @@ export class DetailedEnergyCard extends LitElement {
     return out;
   }
 
+  /** The name of a consumer: its own, the friendly name of its sensor, or a stand-in while it has no sensor yet. */
+  private _consumerName(c: ConsumerNode): string {
+    if (c.name) return c.name;
+    if (c.noSensor) return this._t("consumer_unnamed");
+    return String(this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity);
+  }
+
   private _consumerIds(): string[] {
     const cfg = this._config;
     const rooms = [...(cfg?.rooms ?? []), ...(cfg?.floors ?? []).flatMap((f) => f.rooms ?? [])];
@@ -578,7 +585,7 @@ export class DetailedEnergyCard extends LitElement {
         unassignedIn: (name) => this._t("unassigned_in").replace("{0}", name),
         feedIn: this._t("sankey_feed_in"),
         charge: this._t("sankey_charge"),
-        consumer: (c) => String(c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity),
+        consumer: (c) => this._consumerName(c),
       },
     });
     const selected = new Set<string>();
@@ -666,9 +673,10 @@ export class DetailedEnergyCard extends LitElement {
     let shown: (s: TimelineSeries | undefined) => number[] | undefined;
     if (room) {
       stacks = room.consumers.flatMap((c) => {
+        if (c.noSensor) return [];
         const v = series?.consumers.get(c.entity);
         if (!v && series) return [];
-        const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
+        const name = this._consumerName(c);
         return [{ id: c.entity, name: String(name), values: v ?? zeros, pick: () => this._moreInfo(c.entity) }];
       });
       shown = (s) => s?.rooms.get(room.id);
@@ -689,9 +697,10 @@ export class DetailedEnergyCard extends LitElement {
       });
       // consumers directly under the home are part of the stack of the home
       for (const c of model.consumers) {
+        if (c.noSensor) continue;
         const v = series?.consumers.get(c.entity);
         if (!v && series) continue;
-        const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
+        const name = this._consumerName(c);
         stacks.push({ id: c.entity, name: String(name), values: v ?? zeros, pick: () => this._moreInfo(c.entity) });
       }
       shown = (s) => s?.home;
@@ -927,7 +936,7 @@ export class DetailedEnergyCard extends LitElement {
       thresholds: this._thresholds,
       home,
       fmt: (w) => this._fmt(w),
-      consumerName: (c) => String(c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity),
+      consumerName: (c) => this._consumerName(c),
       secondary: this._secondKind() !== undefined,
       second: (key) => this._secondLabel(key),
       secondTitle: (key) => this._secondTitle(key),
@@ -1102,16 +1111,16 @@ export class DetailedEnergyCard extends LitElement {
           : nothing}
         <div class="list ${second ? "second" : ""} ${switches ? "switches" : ""}">
         ${sorted.map((c) => {
-          const name = c.name ?? this._hass?.states[c.entity]?.attributes.friendly_name ?? c.entity;
+          const name = this._consumerName(c);
           const list = elementThresholds(c.thresholds, thresholds.consumer);
           const barColor = this._mode === "energy" ? undefined : thresholdColor(list, c.watts);
           const level = barColor ? Math.min(thresholdLevel(list, c.watts), MAX_LEVEL) : 0;
           const barWidth = barColor ? thresholdWidth(list, c.watts) : undefined;
-          const b = this._bind(nodeKey.consumer(c.entity), c.actions, () => this._moreInfo(c.entity));
+          const b = this._bind(nodeKey.consumer(c.entity), c.actions, () => (c.noSensor ? undefined : this._moreInfo(c.entity)));
           return html`
             <button class="row ${c.valid || c.noPower ? "" : "warn"} ${c.noPower || (c.valid && isIdle(c.watts)) ? "idle" : ""}"
               @click=${() => b.click()} @pointerdown=${() => b.down()} @pointerup=${() => b.up()} @pointerleave=${() => b.up()} @pointercancel=${() => b.up()} @contextmenu=${(e: Event) => b.contextmenu(e)}>
-              <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}${c.noEnergy || c.noPower || showIds ? html`<small>${c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small>` : nothing}</span>
+              <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}${c.noSensor || c.noEnergy || c.noPower || showIds ? html`<small>${c.noSensor ? this._t("no_sensor") : c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small>` : nothing}</span>
               <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
               ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}

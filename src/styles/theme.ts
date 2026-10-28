@@ -277,6 +277,16 @@ export const cardStyles = css`
     margin-left: 6px;
     vertical-align: -2px;
   }
+  /* a stacked pill has no room after the value: the mark sits in its corner */
+  .pill.stacked {
+    position: relative;
+  }
+  .pill.stacked .meter {
+    position: absolute;
+    right: 3px;
+    top: 3px;
+    margin: 0;
+  }
   .meter.warn,
   .row.excess .name {
     color: var(--warning-color, #ffb74d);

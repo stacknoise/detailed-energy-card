@@ -18,6 +18,8 @@ export interface ConsumerNode {
   noEnergy?: boolean;
   /** power mode: the consumer has no power sensor, only an energy counter */
   noPower?: boolean;
+  /** neither a power sensor nor an energy counter: shown with a warning, `entity` is a made-up key */
+  noSensor?: boolean;
   /** tap, hold and double tap actions of the config; undefined: the click does what it always did */
   actions?: NodeActions;
   /** the switch of the consumer: a toggle in the list */
@@ -159,12 +161,14 @@ export function metered(
   return { watts, meter: { metered: true, unassigned: Math.max(0, -over), excess } };
 }
 
-function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean): ConsumerNode {
-  const noEnergy = energy && !c.energy_entity;
-  const noPower = !energy && !c.entity;
-  const r = noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
+/** `place` keeps the key of a consumer without any sensor apart from the others. */
+function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean, place: string): ConsumerNode {
+  const noSensor = !c.entity && !c.energy_entity;
+  const noEnergy = !noSensor && energy && !c.energy_entity;
+  const noPower = !noSensor && !energy && !c.entity;
+  const r = noSensor || noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
   // `entity` is the key of the consumer: its power sensor, else its energy counter
-  const key = (c.entity ?? c.energy_entity)!;
+  const key = c.entity || c.energy_entity || `nosensor:${place}`;
   return {
     entity: key,
     name: c.name,
@@ -172,6 +176,7 @@ function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean): Cons
     valid: r.valid,
     noEnergy: noEnergy || undefined,
     noPower: noPower || undefined,
+    noSensor: noSensor || undefined,
     thresholds: c.thresholds,
     actions: actionsOf(c, c.switch_entity ?? key),
     switchEntity: c.switch_entity || undefined,
@@ -181,7 +186,7 @@ function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean): Cons
 }
 
 function computeRoom(room: RoomConfig, read: Reader, energy: boolean): RoomNode {
-  const consumers = (room.consumers ?? []).map((c) => computeConsumer(c, read, energy));
+  const consumers = (room.consumers ?? []).map((c, i) => computeConsumer(c, read, energy, `${room.area_id}:${i}`));
   const sum = consumers.reduce((s, c) => s + c.watts, 0);
   const { watts, meter } = metered(energy ? room.energy_entity : room.entity, sum, read, energy);
   return {
@@ -254,7 +259,7 @@ export function computeModel(
   });
   const rooms = (cfg.rooms ?? []).map((r) => computeRoom(r, read, energy));
 
-  const consumers = (cfg.consumers ?? []).map((c) => computeConsumer(c, read, energy));
+  const consumers = (cfg.consumers ?? []).map((c, i) => computeConsumer(c, read, energy, `home:${i}`));
   const roomSum =
     (floors.length ? floors.reduce((s, f) => s + f.watts, 0) : rooms.reduce((s, r) => s + r.watts, 0)) +
     consumers.reduce((s, c) => s + c.watts, 0);
