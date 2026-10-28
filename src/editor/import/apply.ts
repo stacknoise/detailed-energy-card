@@ -95,6 +95,7 @@ function usedSensors(cfg: EnergyCardConfig): Set<string> {
   (cfg.sources ?? []).forEach(add);
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   (cfg.floors ?? []).forEach(add);
+  (cfg.consumers ?? []).forEach(add);
   for (const r of rooms) {
     add(r);
     (r.consumers ?? []).forEach(add);
