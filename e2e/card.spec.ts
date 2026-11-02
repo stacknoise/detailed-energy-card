@@ -955,6 +955,15 @@ test.describe("consumer list on small screens", () => {
   });
 });
 
+test("all pills of the floor row are as wide as the widest one", async ({ page }) => {
+  for (const scenario of ["floors", "homeconsumers", "compact"]) {
+    await open(page, scenario);
+    const widths = await page.locator("detailed-energy-card .pill").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+    expect(widths.length).toBeGreaterThan(1);
+    expect(Math.max(...widths) - Math.min(...widths), scenario).toBeLessThanOrEqual(1);
+  }
+});
+
 test("floors are fully visible when no rooms are shown", async ({ page }) => {
   await open(page, "floors");
   await node(page, "Zuhause").click();

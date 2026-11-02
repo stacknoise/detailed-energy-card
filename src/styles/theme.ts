@@ -300,7 +300,10 @@ export const cardStyles = css`
     height: 42px;
     --mdc-icon-size: 20px;
   }
+  /* all pills of the floor row are as wide as the widest one (--pill-w, set by equalizePills) */
   .pill {
+    box-sizing: border-box;
+    min-width: var(--pill-w, 0px);
     padding: 9px 20px;
     border: 1.5px solid var(--_line);
     border-radius: 10px;
@@ -322,11 +325,19 @@ export const cardStyles = css`
   .pill.direct:not(.stacked) {
     display: flex;
     align-items: baseline;
+    justify-content: center;
     gap: 4px;
   }
   .pill.selected {
     border-color: var(--_accent);
     box-shadow: 0 0 14px color-mix(in srgb, var(--_accent) 45%, transparent);
+  }
+  /* the icon of the floor before the name */
+  .pill .picon {
+    --mdc-icon-size: 16px;
+    margin-right: 6px;
+    vertical-align: -2px;
+    color: var(--node-color, var(--_muted));
   }
   .pill small {
     font-weight: 400;

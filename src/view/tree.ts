@@ -14,6 +14,21 @@ export const MAX_LEVEL = 3;
 /** Room columns narrower than this get a smaller label font, so that more of the name stays readable. */
 const TIGHT_COL_W = 90;
 
+/**
+ * Gives every pill of the floor row (floors and consumers directly under the home) the width of the widest one,
+ * so the row looks even. Runs after every render: the widths follow the names and the values, which change.
+ * The width is measured without the previous one, so the row also shrinks again when the widest value gets shorter.
+ */
+export function equalizePills(root: ParentNode): void {
+  const graph = root.querySelector<HTMLElement>(".graph");
+  if (!graph) return;
+  graph.style.removeProperty("--pill-w");
+  const pills = [...graph.querySelectorAll<HTMLElement>(".pill")];
+  if (pills.length < 2) return;
+  const widest = Math.max(...pills.map((p) => p.offsetWidth));
+  if (widest > 0) graph.style.setProperty("--pill-w", `${widest}px`);
+}
+
 /** A room with where it is shown; rooms of a floor that was just left are still drawn while they fade out. */
 interface RoomView {
   room: RoomNode;
@@ -227,7 +242,7 @@ export class TreeView {
           ${this._renderLines(c, layout, floorViews, roomViews, directViews, allRooms, allFloors)}
           ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
-          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity, this._stackFloors(c)))}
+          ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.icon, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity, this._stackFloors(c)))}
           ${model.consumers.map((x, i) => this._renderDirect(c, x, directViews[i], layout, !model.floors.length))}
           ${roomViews.map((v) => this._renderRoom(c, v.room, v.p, layout.roomColW, !v.leaving && v.room.id === sel.rooms[sel.room ?? -1]?.id, allRooms, v.leaving))}
         </div>
@@ -350,7 +365,7 @@ export class TreeView {
     `;
   }
 
-  private _renderFloor(c: TreeContext, id: string, name: string, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo, actions?: NodeActions, meterEntity?: string, stacked = false): TemplateResult {
+  private _renderFloor(c: TreeContext, id: string, name: string, icon: string | undefined, watts: number, color: string | undefined, p: Pos, selected: boolean, allFloors = false, meter?: MeterInfo, actions?: NodeActions, meterEntity?: string, stacked = false): TemplateResult {
     const b = press(c.bind(nodeKey.floor(id), actions, () => (c.compact ? meterEntity && c.moreInfo(meterEntity) : c.select(selected && !c.focus ? { floor: null } : { floor: id }))));
     return html`
       <button
@@ -367,7 +382,7 @@ export class TreeView {
         @pointercancel=${b.up}
         @contextmenu=${b.menu}
       >
-        <span class="pill ${selected || allFloors ? "selected" : ""} ${stacked ? "stacked" : ""}">${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
+        <span class="pill ${selected || allFloors ? "selected" : ""} ${stacked ? "stacked" : ""}"><ha-icon class="picon" icon=${icon ?? "mdi:home"}></ha-icon>${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }
@@ -408,6 +423,8 @@ export class TreeView {
       `;
     }
     const slot = l.width / l.floorXs.length;
+    // as wide as the other pills of the row (equalizePills), but never wider than its slot
+    const max = Math.max(60, slot - 6);
     return html`
       <button
         class=${attrs.class}
@@ -417,7 +434,7 @@ export class TreeView {
         title=${attrs.title}
         @click=${b.click} @pointerdown=${b.down} @pointerup=${b.up} @pointerleave=${b.up} @pointercancel=${b.up} @contextmenu=${b.menu}
       >
-        <span class="pill direct ${this._stackFloors(c) ? "stacked" : ""}" style=${styleMap({ maxWidth: `${Math.max(60, slot - 8)}px` })}><span class="dname">${name}</span><small>${value}</small>${mark}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.consumer(x.entity)) ?? nothing}>${c.second(nodeKey.consumer(x.entity)) ?? ""}</span>` : nothing}</span>
+        <span class="pill direct ${this._stackFloors(c) ? "stacked" : ""}" style=${styleMap({ maxWidth: `${max}px`, minWidth: `min(var(--pill-w, 0px), ${max}px)` })}><span class="dname">${name}</span><small>${value}</small>${mark}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.consumer(x.entity)) ?? nothing}>${c.second(nodeKey.consumer(x.entity)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }

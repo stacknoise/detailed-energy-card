@@ -20,7 +20,7 @@ import "./heatmap-card";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { Gesture } from "./view/gesture";
-import { MAX_LEVEL, TreeView, type ActionBinding, type ResolvedSelection, type TreeContext } from "./view/tree";
+import { MAX_LEVEL, TreeView, equalizePills, type ActionBinding, type ResolvedSelection, type TreeContext } from "./view/tree";
 import { SankeyView, type SankeyContext } from "./view/sankey";
 import { buildSankey, type SankeyGraphNode } from "./model/sankey";
 import { renderTimeline, type TimelineContext, type TimelineKpi, type TimelineStack } from "./view/timeline";
@@ -189,6 +189,7 @@ export class DetailedEnergyCard extends LitElement {
       this._ro?.observe(el);
       this._observed = el;
     }
+    equalizePills(this.renderRoot);
   }
 
   // ---------- state ----------
