@@ -16,13 +16,21 @@ export const ROOM_FIT_W = 80;
 /** Width of a node of a consumer directly under the home when it shares the row of the floors: the diagram scrolls below this. */
 export const DIRECT_SLOT_W = 96;
 
+/**
+ * Widest slot a node of a row gets: on a wide card the nodes of a row stay this close together
+ * and the row is centred, instead of spreading over the whole width.
+ */
+export const MAX_SOURCE_SLOT_W = 160;
+export const MAX_FLOOR_SLOT_W = 200;
+export const MAX_ROOM_SLOT_W = 120;
+
 /** Estimated width of a floor pill with the value next to the name: padding, border and value (about 104 px), and 6.5 px per character of the name. */
 const floorInlineW = (nameLength: number) => 104 + nameLength * 6.5;
 
 /** The floors do not fit side by side with the value next to the name: the value then goes under the name. */
 export function floorsStacked(width: number, names: string[]): boolean {
   if (names.length < 2) return false;
-  return width / names.length < floorInlineW(Math.max(...names.map((n) => n.length)));
+  return Math.min(width / names.length, MAX_FLOOR_SLOT_W) < floorInlineW(Math.max(...names.map((n) => n.length)));
 }
 
 export interface LayoutInput {
@@ -70,9 +78,17 @@ export interface Layout {
   homeH: number;
 }
 
-/** Evenly distributes n nodes over width: x = W * (i + 0.5) / n. */
-export function distribute(n: number, width: number): number[] {
-  return Array.from({ length: n }, (_, i) => (width * (i + 0.5)) / n);
+/** Width of one slot when n nodes share width, at most maxSlot. */
+export const slotWidth = (n: number, width: number, maxSlot = Infinity): number => (n > 0 ? Math.min(width / n, maxSlot) : width);
+
+/**
+ * Evenly distributes n nodes over width: x = W * (i + 0.5) / n. With maxSlot, no node gets a wider
+ * slot than that, and the row is centred in width.
+ */
+export function distribute(n: number, width: number, maxSlot = Infinity): number[] {
+  const slot = slotWidth(n, width, maxSlot);
+  const start = (width - slot * n) / 2;
+  return Array.from({ length: n }, (_, i) => start + slot * (i + 0.5));
 }
 
 /**
@@ -83,12 +99,14 @@ export function distribute(n: number, width: number): number[] {
 /** Nodes in the first row of a wrapped layout. */
 export const wrapColumns = (n: number): number => Math.floor(n / 2) + 1;
 
-export function roomPositions(n: number, width: number, wrap: boolean): { xs: number[]; row: number[] } {
-  if (!wrap || n <= MAX_ROOMS_PER_ROW) return { xs: distribute(n, width), row: Array(n).fill(0) };
+export function roomPositions(n: number, width: number, wrap: boolean, maxSlot = Infinity): { xs: number[]; row: number[] } {
+  if (!wrap || n <= MAX_ROOMS_PER_ROW) return { xs: distribute(n, width, maxSlot), row: Array(n).fill(0) };
   const cols = wrapColumns(n);
   const rest = n - cols;
-  const first = distribute(cols, width);
-  const second = Array.from({ length: rest }, (_, c) => (width * (c + 1)) / cols);
+  const slot = slotWidth(cols, width, maxSlot);
+  const start = (width - slot * cols) / 2;
+  const first = distribute(cols, width, maxSlot);
+  const second = Array.from({ length: rest }, (_, c) => start + slot * (c + 1));
   return { xs: [...first, ...second], row: [...Array(cols).fill(0), ...Array(rest).fill(1)] };
 }
 
@@ -113,9 +131,9 @@ export function computeLayout(i: LayoutInput): Layout {
   // Without a room row the floors sit closer to the home, and nothing is cut off below them.
   const yFloor = yHome + (c ? COMPACT.floorGap : i.floors > 0 && i.rooms === 0 ? 88 : 102);
   const yRoom = i.floors > 0 ? yFloor + 74 + stackExtra + extra : yHome + (c ? COMPACT.roomGap : 102);
-  const rooms = roomPositions(rowRooms, width, wrapped);
+  const rooms = roomPositions(rowRooms, width, wrapped, MAX_ROOM_SLOT_W);
   const roomRows = wrapped ? 2 : 1;
-  const floorXs = distribute(i.floors + (i.floors > 0 ? direct : 0), width);
+  const floorXs = distribute(i.floors + (i.floors > 0 ? direct : 0), width, MAX_FLOOR_SLOT_W);
   const roomYs = rooms.row.map((r) => yRoom + r * roomH);
   const bottom = rowRooms > 0 ? yRoom + roomH * roomRows : i.floors > 0 ? yFloor + floorH : yHome + homeH;
   return {
@@ -125,12 +143,12 @@ export function computeLayout(i: LayoutInput): Layout {
     yHome,
     yFloor,
     yRoom,
-    sourceXs: distribute(i.sources, width),
+    sourceXs: distribute(i.sources, width, MAX_SOURCE_SLOT_W),
     floorXs,
     directXs: i.floors > 0 ? floorXs.slice(i.floors) : rooms.xs.slice(i.rooms),
     directYs: i.floors > 0 ? Array(direct).fill(yFloor) : roomYs.slice(i.rooms),
     roomXs: rooms.xs,
-    roomColW: perRow > 0 ? width / perRow : width,
+    roomColW: perRow > 0 ? slotWidth(perRow, width, MAX_ROOM_SLOT_W) : width,
     roomYs,
     roomRows,
     sourceH,
