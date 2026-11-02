@@ -110,6 +110,14 @@ export function roomPositions(n: number, width: number, wrap: boolean, maxSlot =
   return { xs: [...first, ...second], row: [...Array(cols).fill(0), ...Array(rest).fill(1)] };
 }
 
+/**
+ * Widest a pill of the floor row may get without running into its neighbour: its slot less a small gap.
+ * Consumer pills are cut to it; the equal width of the row (equalizePills) never grows a pill beyond it.
+ */
+export function pillMaxWidth(l: Pick<Layout, "width" | "floorXs">): number {
+  return Math.max(60, slotWidth(l.floorXs.length, l.width, MAX_FLOOR_SLOT_W) - 6);
+}
+
 export function computeLayout(i: LayoutInput): Layout {
   // Rows keep a fixed minimum column width; too many rooms scroll horizontally.
   const direct = i.direct ?? 0;
