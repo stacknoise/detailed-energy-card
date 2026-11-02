@@ -24,8 +24,8 @@ export const MAX_SOURCE_SLOT_W = 160;
 export const MAX_FLOOR_SLOT_W = 200;
 export const MAX_ROOM_SLOT_W = 120;
 
-/** Estimated width of a floor pill with the value next to the name: padding, border and value (about 104 px), and 6.5 px per character of the name. */
-const floorInlineW = (nameLength: number) => 104 + nameLength * 6.5;
+/** Estimated width of a floor pill with the value next to the name: padding, border, icon and value (about 126 px), and 6.5 px per character of the name. */
+const floorInlineW = (nameLength: number) => 126 + nameLength * 6.5;
 
 /** The floors do not fit side by side with the value next to the name: the value then goes under the name. */
 export function floorsStacked(width: number, names: string[]): boolean {

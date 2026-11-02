@@ -11,6 +11,18 @@ describe("resolveNames", () => {
     expect(cfg.floors![0]).toMatchObject({ name: "Erdgeschoss", icon: "mdi:home-floor-0" });
     expect(cfg.floors![0].rooms![0]).toMatchObject({ name: "Küche", icon: "mdi:stove" });
   });
+  it("gives a floor without an own icon the icon Home Assistant shows for its level", () => {
+    const floors = [
+      { floor_id: "k", name: "Keller", level: -1 },
+      { floor_id: "og", name: "OG", level: 1, icon: null },
+      { floor_id: "dach", name: "Dach", level: 7 },
+      { floor_id: "x", name: "X" },
+    ];
+    const cfg = resolveNames({ type: "x", floors: ["k", "og", "dach", "x", "weg"].map((floor_id) => ({ floor_id })) }, { floors, areas: [] });
+    expect(cfg.floors!.map((f) => f.icon)).toEqual(["mdi:home-floor-negative-1", "mdi:home-floor-1", "mdi:home", "mdi:home", "mdi:home"]);
+    // an icon in the card config wins over the registry
+    expect(resolveNames({ type: "x", floors: [{ floor_id: "k", icon: "mdi:stairs" }] }, { floors, areas: [] }).floors![0].icon).toBe("mdi:stairs");
+  });
   it("falls back to the id for deleted floors and areas", () => {
     const cfg = resolveNames({ type: "x", rooms: [{ area_id: "weg" }] }, reg);
     expect(cfg.rooms![0].name).toBe("weg");

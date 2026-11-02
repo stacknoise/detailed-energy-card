@@ -40,6 +40,20 @@ export async function loadRegistries(hass: WsHass): Promise<Registries> {
   return { floors, areas };
 }
 
+/** The icon Home Assistant shows for a floor without an own icon: one after its level, else a house. */
+export function floorDefaultIcon(level: number | null | undefined): string {
+  switch (level) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+      return `mdi:home-floor-${level}`;
+    case -1:
+      return "mdi:home-floor-negative-1";
+  }
+  return "mdi:home";
+}
+
 /** Fills name and icon of floors and rooms from the registries (ids stay the source of truth). */
 export function resolveNames(cfg: EnergyCardConfig, reg: Registries): EnergyCardConfig {
   const areas = new Map(reg.areas.map((a) => [a.area_id, a]));
@@ -57,7 +71,7 @@ export function resolveNames(cfg: EnergyCardConfig, reg: Registries): EnergyCard
     floors: cfg.floors?.map((f) => ({
       ...f,
       name: floor(f.floor_id)?.name ?? f.name ?? f.floor_id,
-      icon: f.icon ?? floor(f.floor_id)?.icon ?? undefined,
+      icon: f.icon ?? floor(f.floor_id)?.icon ?? floorDefaultIcon(floor(f.floor_id)?.level),
       rooms: f.rooms?.map(room),
     })),
   };

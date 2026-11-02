@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- The pills of the floor row (floors and consumers directly under the home) are all as wide as the widest one, so the row looks even instead of ragged. A consumer pill still never gets wider than its slot.
+- Floor pills show the icon of the floor before the name: the icon set in the card or in Home Assistant, else the icon Home Assistant shows for the floor's level (`mdi:home-floor-0` … `-3`, `mdi:home-floor-negative-1`, otherwise `mdi:home`).
+
 ## 1.3.3
 
 ### Changed
