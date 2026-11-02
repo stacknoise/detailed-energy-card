@@ -7,7 +7,7 @@ import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
 import type { Key } from "../localize";
 import { Tween, focusTargets, type Pos } from "./focus";
-import { computeLayout, floorsStacked, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
+import { computeLayout, floorsStacked, pillMaxWidth, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
 
 /** More ranges than this do not get any thicker. */
 export const MAX_LEVEL = 3;
@@ -238,7 +238,7 @@ export class TreeView {
     const { floorViews, roomViews, directViews } = frame;
     return html`
       <div class="scroll">
-        <div class="graph ${c.compact ? "compact" : ""}" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px` })}>
+        <div class="graph ${c.compact ? "compact" : ""}" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px`, "--pill-max": `${pillMaxWidth(layout)}px` })}>
           ${this._renderLines(c, layout, floorViews, roomViews, directViews, allRooms, allFloors)}
           ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
@@ -369,7 +369,7 @@ export class TreeView {
     const b = press(c.bind(nodeKey.floor(id), actions, () => (c.compact ? meterEntity && c.moreInfo(meterEntity) : c.select(selected && !c.focus ? { floor: null } : { floor: id }))));
     return html`
       <button
-        class="node ${isIdle(watts) ? "idle" : ""} ${p.o < 0.5 ? "ghost" : ""}"
+        class="node pillnode ${isIdle(watts) ? "idle" : ""} ${p.o < 0.5 ? "ghost" : ""}"
         style=${styleMap({ left: `${p.x}px`, top: `${p.y}px`, opacity: fade(p.o, isIdle(watts)), "--node-color": color ?? "" })}
         aria-pressed=${selected}
         aria-hidden=${p.o < 0.5 ? "true" : nothing}
@@ -382,7 +382,7 @@ export class TreeView {
         @pointercancel=${b.up}
         @contextmenu=${b.menu}
       >
-        <span class="pill ${selected || allFloors ? "selected" : ""} ${stacked ? "stacked" : ""}"><ha-icon class="picon" icon=${icon ?? "mdi:home"}></ha-icon>${name}<small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
+        <span class="pill ${selected || allFloors ? "selected" : ""} ${stacked ? "stacked" : c.secondary ? "" : "inline"}"><span class="pname"><ha-icon class="picon" icon=${icon ?? "mdi:home"}></ha-icon>${name}</span><small>${c.fmt(watts)}</small>${meterMark(c, meter, "rooms")}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.floor(id)) ?? nothing}>${c.second(nodeKey.floor(id)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }
@@ -422,19 +422,18 @@ export class TreeView {
         </button>
       `;
     }
-    const slot = l.width / l.floorXs.length;
     // as wide as the other pills of the row (equalizePills), but never wider than its slot
-    const max = Math.max(60, slot - 6);
+    const max = pillMaxWidth(l);
     return html`
       <button
-        class=${attrs.class}
+        class="${attrs.class} pillnode"
         style=${styleMap({ left: `${p.x}px`, top: `${p.y}px`, opacity: fade(p.o, idle) })}
         aria-hidden=${hidden ? "true" : nothing}
         tabindex=${hidden ? "-1" : nothing}
         title=${attrs.title}
         @click=${b.click} @pointerdown=${b.down} @pointerup=${b.up} @pointerleave=${b.up} @pointercancel=${b.up} @contextmenu=${b.menu}
       >
-        <span class="pill direct ${this._stackFloors(c) ? "stacked" : ""}" style=${styleMap({ maxWidth: `${max}px`, minWidth: `min(var(--pill-w, 0px), ${max}px)` })}><span class="dname">${name}</span><small>${value}</small>${mark}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.consumer(x.entity)) ?? nothing}>${c.second(nodeKey.consumer(x.entity)) ?? ""}</span>` : nothing}</span>
+        <span class="pill direct ${this._stackFloors(c) ? "stacked" : ""}" style=${styleMap({ maxWidth: `${max}px` })}><span class="dname">${name}</span><small>${value}</small>${mark}${c.secondary ? html`<span class="second" title=${c.secondTitle?.(nodeKey.consumer(x.entity)) ?? nothing}>${c.second(nodeKey.consumer(x.entity)) ?? ""}</span>` : nothing}</span>
       </button>
     `;
   }

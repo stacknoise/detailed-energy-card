@@ -203,6 +203,10 @@ export const cardStyles = css`
     text-align: center;
     max-width: 120px;
   }
+  /* a pill is as wide as its name and value (a consumer pill is capped at its slot), not at the 120 px of a circle's label */
+  .node.pillnode {
+    max-width: none;
+  }
   .node:focus-visible {
     outline: 2px solid var(--_accent);
     outline-offset: 2px;
@@ -303,7 +307,7 @@ export const cardStyles = css`
   /* all pills of the floor row are as wide as the widest one (--pill-w, set by equalizePills) */
   .pill {
     box-sizing: border-box;
-    min-width: var(--pill-w, 0px);
+    min-width: min(var(--pill-w, 0px), var(--pill-max, 100vw));
     padding: 9px 20px;
     border: 1.5px solid var(--_line);
     border-radius: 10px;
@@ -332,11 +336,30 @@ export const cardStyles = css`
     border-color: var(--_accent);
     box-shadow: 0 0 14px color-mix(in srgb, var(--_accent) 45%, transparent);
   }
-  /* the icon of the floor before the name */
+  /*
+   * Icon and name of a floor: centred against each other in a flex box, whatever baseline Home Assistant's
+   * <ha-icon> has. A pill with the value next to the name (and no second value under it) is itself a centred
+   * flex row instead: name and value share their baseline, the icon and the meter mark sit in the middle.
+   */
+  .pill .pname {
+    display: inline-flex;
+    align-items: center;
+  }
+  .pill.inline {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+  }
+  .pill.inline > .pname {
+    display: contents;
+  }
+  .pill.inline ha-icon {
+    align-self: center;
+  }
   .pill .picon {
     --mdc-icon-size: 16px;
+    display: inline-flex;
     margin-right: 6px;
-    vertical-align: -2px;
     color: var(--node-color, var(--_muted));
   }
   .pill small {

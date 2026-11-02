@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Floor pills: the icon sits in the middle of the name line instead of below it, and name and value are centred in the pill. Pills of the floor row are no longer limited to the 120 px of a circle's label, and the equal width never pushes a pill beyond its slot.
+
 ## 1.4.0
 
 ### Changed
