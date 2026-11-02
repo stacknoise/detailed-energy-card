@@ -181,12 +181,39 @@ describe("wrapped rooms", () => {
     expect(computeLayout({ width: 200, sources: 0, floors: 0, rooms: MAX_ROOMS_PER_ROW, wrap: true }).roomRows).toBe(1);
   });
   it("computeLayout gives every room node the distance between neighbours as its width", () => {
-    expect(computeLayout({ width: 600, sources: 0, floors: 0, rooms: 4 }).roomColW).toBe(150);
+    expect(computeLayout({ width: 400, sources: 0, floors: 0, rooms: 4 }).roomColW).toBe(100);
+    // on a wide card the distance is capped
+    expect(computeLayout({ width: 1800, sources: 0, floors: 0, rooms: 8 }).roomColW).toBe(MAX_ROOM_SLOT_W);
     // wrapped: 10 rooms use 6 columns in the first row, the second row sits in the gaps between them
     const wrapped = computeLayout({ width: 600, sources: 0, floors: 0, rooms: 10, wrap: true });
     expect(wrapped.roomColW).toBe(wrapped.width / 6);
     // never narrower than the minimum column width, the graph scrolls instead
     expect(computeLayout({ width: 100, sources: 0, floors: 0, rooms: 10 }).roomColW).toBe(64);
+  });
+});
+
+import { distribute, MAX_ROOM_SLOT_W, MAX_FLOOR_SLOT_W, MAX_SOURCE_SLOT_W } from "../src/view/layout";
+
+describe("compact spacing on wide cards", () => {
+  it("caps the slot of a node and centres the row", () => {
+    expect(distribute(2, 1000, 200)).toEqual([400, 600]);
+    expect(distribute(3, 300, 200)).toEqual([50, 150, 250]);
+    expect(distribute(1, 1000, 200)).toEqual([500]);
+  });
+  it("keeps sources, floors and rooms close together around the home", () => {
+    const l = computeLayout({ width: 1800, sources: 2, floors: 2, rooms: 8 });
+    expect(l.homeX).toBe(900);
+    expect(l.sourceXs).toEqual([900 - MAX_SOURCE_SLOT_W / 2, 900 + MAX_SOURCE_SLOT_W / 2]);
+    expect(l.floorXs).toEqual([900 - MAX_FLOOR_SLOT_W / 2, 900 + MAX_FLOOR_SLOT_W / 2]);
+    expect(l.roomXs[1] - l.roomXs[0]).toBe(MAX_ROOM_SLOT_W);
+    expect((l.roomXs[0] + l.roomXs[7]) / 2).toBe(900);
+  });
+  it("puts the second row of wrapped rooms into the gaps of the capped first row", () => {
+    const { xs, row } = roomPositions(7, 2000, true, 100);
+    const first = xs.filter((_, i) => row[i] === 0);
+    const second = xs.filter((_, i) => row[i] === 1);
+    expect(first).toEqual([850, 950, 1050, 1150]);
+    expect(second).toEqual([900, 1000, 1100]);
   });
 });
 
