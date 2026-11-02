@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3
+
+### Changed
+
+- The diagram stays compact on wide cards: sources, floors and rooms no longer spread over the whole width. Each node gets at most 160 px (sources), 200 px (floors) or 120 px (rooms), and the row is centred under the home. Narrow cards are unchanged, and many rooms still fill a wide row before they wrap or scroll.
+
 ## 1.3.2
 
 ### Fixed
