@@ -15,6 +15,8 @@ jobs:
         with: { node-version: 22, cache: npm }
       # No dependency needs install scripts; skipping them keeps a compromised package from running code at install time.
       - run: npm ci --ignore-scripts
+      - name: Code documentation is up to date
+        run: python3 docs/code-doku/generate.py --check
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
