@@ -342,6 +342,11 @@ src/
   localize/editor.ts        // Texte des Editors (DE/EN, typisierte Schlüssel)
 ```
 
+**Code-Dokumentation**
+
+- `docs/code-doku/index.html` wird aus dem Quelltext erzeugt (`python3 docs/code-doku/generate.py`): Explorer (Schicht → Modul → Deklaration → Methode, Kennzahlen, Abhängigkeiten, Quelltext) und Karte der Modul-Abhängigkeiten. Aufbau wie die Holzbedarf-Code-Dokumentation.
+- Jede Code-Änderung aktualisiert die Doku im selben PR; der Build prüft das (`--check`). Details in `CLAUDE.md`.
+
 **Ansichten**
 
 - Die Card zeichnet ihr Diagramm über eine Ansicht: den Baum (`TreeView` in `view/tree.ts`), das Sankey-Diagramm (`SankeyView` in `view/sankey.ts`, Graph aus `model/sankey.ts`) oder den Verlauf (`renderTimeline` in `view/timeline.ts`, Daten aus `model/timeline.ts`). Die Card behält Konfiguration, Modus, Auswahl, Energie-Store, Kopfzeile und Verbraucherliste und gibt der Ansicht pro Frame einen `TreeContext` bzw. `SankeyContext`. `prepare()` läuft in `willUpdate()`, `render()` liest nur.

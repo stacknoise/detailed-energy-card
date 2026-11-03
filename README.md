@@ -344,6 +344,8 @@ npm run screenshots # re-render docs/screenshots/*.png
 npm run icon        # re-render docs/icon.png and docs/social-preview.png
 ```
 
+Code documentation: `docs/code-doku/index.html` is generated from the source by `python3 docs/code-doku/generate.py` (explorer of modules, functions, classes and methods with metrics and source, plus a dependency map). **Every code change must regenerate it in the same pull request**; the build fails when it is out of date (`--check`). See [CLAUDE.md](CLAUDE.md).
+
 Releases: raise `version` in `package.json`, merge, then push the tag `v<version>`; the release workflow refuses a tag that does not match. Add the changes to [CHANGELOG.md](CHANGELOG.md) first.
 
 Texts: card and editor look up their texts by key in `src/localize/index.ts` and `src/localize/editor.ts`. Each file has a German table `de` and an English table `en: typeof de`, so a new text needs a key in both, and the type check fails when one is missing. Do not write German text directly in `src/editor/`; a test checks that.
