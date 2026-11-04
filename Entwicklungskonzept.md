@@ -540,6 +540,7 @@ Alle Farben sind anpassbar, im visuellen Editor (Bereich „Farben“) und per Y
 | **1.3.3** | Kompaktere Diagramme auf breiten Karten: Quellen, Etagen und Räume rücken zusammen (höchstens 160/200/120 px pro Knoten) und stehen zentriert unter dem Haus. Details in [CHANGELOG.md](CHANGELOG.md) |
 | **1.4.0** | Gleich breite Pillen in der Etagen-Zeile (so breit wie die breiteste) und Etagen-Icons vor dem Namen (aus Home Assistant, sonst passend zum Level). Details in [CHANGELOG.md](CHANGELOG.md) |
 | **1.4.1** | Etagen-Pillen: Icon mittig zum Namen, Inhalt zentriert, Breite nicht mehr auf 120 px begrenzt. Details in [CHANGELOG.md](CHANGELOG.md) |
+| **1.4.2** | Doku: README für HACS-Nutzer neu geschrieben (Highlights, Installation, Schnellstart über den Import aus dem Energie-Dashboard, Screenshots nach Themen); Optionen und Details in `docs/configuration.md`, Entwicklung in `docs/development.md`. Details in [CHANGELOG.md](CHANGELOG.md) |
 | **1.3.1** | Ein Verbraucher ohne Sensor ist kein Konfigurationsfehler mehr, sondern eine Warnung (Warnsymbol am Knoten, „Kein Sensor konfiguriert“ in der Liste); Fehlermeldung am Feld, wenn ein Sensor schon vergeben ist. Details in [CHANGELOG.md](CHANGELOG.md) |
 | **1.3.0** | Verbraucher direkt unter Zuhause (`consumers` auf oberster Ebene, eigene Knoten im Baum), eigene Räume und Etagen im Editor, `options.show_entity_ids`, Namen für Räume und Etagen ohne Home-Assistant-Bereich, Fix für sich überlagernde Etagen-Pillen. Details in [CHANGELOG.md](CHANGELOG.md) |
 | **1.2.3** | Editor: Schalter des Verbrauchers wieder ein normales Feld unter dem Namen, Aktionen in einer einklappbaren Sektion bei Verbrauchern, Räumen und Etagen. Details in [CHANGELOG.md](CHANGELOG.md) |
@@ -557,7 +558,9 @@ detailed-energy-card/
   src/                       // siehe Abschnitt 8
   dist/detailed-energy-card.js        // Build-Artefakt (nicht eingecheckt, nur im Release)
   hacs.json
-  README.md                  // wird in HACS als Beschreibung angezeigt
+  README.md                  // wird in HACS als Beschreibung angezeigt (für Endnutzer)
+  docs/configuration.md      // alle Optionen und Details (aus der README verlinkt)
+  docs/development.md        // Build, Tests, Release
   LICENSE                    // z. B. MIT
   package.json
   vite.config.ts

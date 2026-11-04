@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.2
+
+### Changed
+
+- README rewritten for people who find the card in HACS: what the card shows and why, the highlights, install in three steps, the import from the Energy dashboard as the quick start, and the screenshots grouped by topic (the less common ones folded away). The links point to GitHub, so they also work inside HACS.
+- The option tables and the detailed descriptions moved from the README to [docs/configuration.md](docs/configuration.md), the build, test and release notes to [docs/development.md](docs/development.md). Their content is unchanged.
+
 ## 1.4.1
 
 ### Fixed
