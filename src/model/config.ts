@@ -145,6 +145,8 @@ export interface OptionsConfig {
   surplus_min_w?: number;
   /** a bar of today's values under the diagram: solar, grid, feed-in, battery, home and self-sufficiency (default off; needs energy sensors) */
   show_day_values?: boolean;
+  /** the heading "Today so far" above the tiles of today; default true */
+  show_day_title?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
@@ -304,7 +306,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values", "show_day_title"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;

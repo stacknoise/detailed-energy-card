@@ -49,6 +49,7 @@ export const HELP: Record<string, EditorKey> = {
   "options.show_surplus": "help_show_surplus",
   "options.surplus_min_w": "help_surplus_min_w",
   "options.show_day_values": "help_show_day_values",
+  "options.show_day_title": "help_show_day_title",
   capacity_kwh: "help_capacity_kwh",
   reserve_percent: "help_reserve_percent",
   max_percent: "help_max_percent",
@@ -113,6 +114,7 @@ export const GENERAL: Field[] = [
   { path: "options.show_surplus", selector: { boolean: {} }, label: "field_show_surplus", default: false },
   { path: "options.surplus_min_w", selector: { number: { min: 1, step: 50, mode: "box", unit_of_measurement: "W" } }, label: "field_surplus_min_w", when: (cfg: any) => !!cfg?.options?.show_surplus },
   { path: "options.show_day_values", selector: { boolean: {} }, label: "field_show_day_values", default: false },
+  { path: "options.show_day_title", selector: { boolean: {} }, label: "field_show_day_title", default: true },
   { path: "options.show_consumers", selector: { boolean: {} }, label: "field_show_consumers", default: true },
   {
     path: "options.only_active_consumers",

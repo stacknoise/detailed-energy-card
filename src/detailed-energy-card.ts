@@ -1061,7 +1061,7 @@ export class DetailedEnergyCard extends LitElement {
     const label = (t: DayTile): string => (t.kind === "autarky" ? `${Math.round((t.share ?? 0) * 100)} %` : t.kind === "battery" ? `+${this._fmtAs("energy", t.wh)} / −${this._fmtAs("energy", t.whOut ?? 0)}` : this._fmtAs("energy", t.wh));
     const color: Record<DayTile["kind"], string> = { solar: SOURCE_COLORS.solar, import: SOURCE_COLORS.grid, export: SOURCE_COLORS.grid, battery: SOURCE_COLORS.battery, home: "var(--_accent)", autarky: "var(--_accent)" };
     return html`<div class="day">
-      <div class="day-title">${this._t("day_title")}</div>
+      ${this._config?.options?.show_day_title === false ? nothing : html`<div class="day-title">${this._t("day_title")}</div>`}
       <div class="day-tiles">
         ${tiles.map((t) => html`<div class="day-tile"><span class="day-name" style=${`color:${color[t.kind]}`}>● ${this._t(`day_${t.kind}` as Key)}</span><span class="day-value">${label(t)}</span></div>`)}
       </div>

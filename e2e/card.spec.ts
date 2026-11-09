@@ -628,6 +628,17 @@ test.describe("energy mode", () => {
       await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
     });
 
+    test("the heading of the tiles can be hidden", async ({ page }) => {
+      await open(page, "today");
+      await expect(page.locator("detailed-energy-card .day-title")).toHaveCount(1);
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, show_day_title: false } });
+      });
+      await expect(page.locator("detailed-energy-card .day-title")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .day-tile")).toHaveCount(6);
+    });
+
     test("the compact view leaves them out", async ({ page }) => {
       await page.goto("/dev/index.html?scenario=today&width=360");
       await page.evaluate(() => {

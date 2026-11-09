@@ -58,6 +58,7 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Surplus banner | `options.show_surplus` | `false` | A banner while more than `surplus_min_w` watts go into the grid, with what using it at home would save per hour. Mode *Now* only. |
 | Surplus from (W) | `options.surplus_min_w` | `500` | The feed-in from which the banner appears; it stays until 80 % of it. |
 | Today's values under the diagram | `options.show_day_values` | `false` | Tiles: solar, grid import, feed-in, battery ±, home and self-sufficiency of today. Needs energy counters. Mode *Now* only. |
+| Heading "Today so far" | `options.show_day_title` | `true` | `false` hides the heading above the tiles of today; the tiles stay. |
 
 ### Sources (`sources[]`)
 
@@ -193,6 +194,7 @@ options:
   show_surplus: true
   surplus_min_w: 800
   show_day_values: true
+  show_day_title: false   # optional: hide the heading "Today so far"
   price: 0.31
   feed_in_price: 0.08
 ```

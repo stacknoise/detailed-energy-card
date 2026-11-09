@@ -134,6 +134,7 @@ options:
   show_surplus: false         # true: Banner, solange mehr als surplus_min_w ins Netz geht (Abschnitt 6)
   surplus_min_w: 500          # optional: ab dieser Einspeisung (W) erscheint das Banner
   show_day_values: false      # true: Kacheln mit den Tageswerten unter dem Diagramm (braucht Energiezähler, Abschnitt 6)
+  show_day_title: true        # false: die Überschrift „Heute bis jetzt“ über den Kacheln ausblenden
   show_base_load: false       # true: Badge „Grundlast“ im Kopf (braucht die Statistik des Leistungssensors, Abschnitt 5)
   standby_watts: 5            # optional: Verbraucher, die 24 h lang nie darunter fielen, bekommen das Symbol „läuft dauerhaft“
   price: 0.32                 # optional, fester Strompreis pro kWh (schaltet die Kosten ein; braucht einen Energiezähler am Netz)
