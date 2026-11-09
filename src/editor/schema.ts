@@ -52,8 +52,15 @@ export const HELP: Record<string, EditorKey> = {
   "options.show_day_title": "help_show_day_title",
   "options.surplus_devices": "help_surplus_devices",
   "options.show_savings": "help_show_savings",
+  "options.show_hints": "help_show_hints",
+  "options.year_budget_kwh": "help_year_budget_kwh",
+  "options.compare_last_year": "help_compare_last_year",
   surplus_w: "help_surplus_w",
+  minus_entities: "help_minus_entities",
+  minus_energy_entities: "help_minus_energy_entities",
   capacity_kwh: "help_capacity_kwh",
+  price: "help_source_price",
+  price_entity: "help_source_price_entity",
   reserve_percent: "help_reserve_percent",
   max_percent: "help_max_percent",
   "options.show_battery_bar": "help_show_battery_bar",
@@ -118,6 +125,9 @@ export const GENERAL: Field[] = [
   { path: "options.surplus_min_w", selector: { number: { min: 1, step: 50, mode: "box", unit_of_measurement: "W" } }, label: "field_surplus_min_w", when: (cfg: any) => !!cfg?.options?.show_surplus },
   { path: "options.show_day_values", selector: { boolean: {} }, label: "field_show_day_values", default: false },
   { path: "options.surplus_devices", selector: { boolean: {} }, label: "field_surplus_devices", default: false, when: (c: any) => !!c?.options?.show_surplus },
+  { path: "options.compare_last_year", selector: { boolean: {} }, label: "field_compare_last_year", default: false },
+  { path: "options.year_budget_kwh", selector: { number: { min: 1, step: 100, mode: "box", unit_of_measurement: "kWh" } }, label: "field_year_budget_kwh", when: (cfg: any) => hasEnergySensor(cfg) },
+  { path: "options.show_hints", selector: { boolean: {} }, label: "field_show_hints", default: false },
   { path: "options.show_savings", selector: { boolean: {} }, label: "field_show_savings", default: false },
   { path: "options.show_day_title", selector: { boolean: {} }, label: "field_show_day_title", default: true },
   { path: "options.show_consumers", selector: { boolean: {} }, label: "field_show_consumers", default: true },
@@ -324,6 +334,19 @@ export const SOURCE: Field[] = [
     when: (s) => s?.type === "battery",
   },
   {
+    path: "price",
+    selector: { number: { min: 0, step: 0.001, mode: "box", unit_of_measurement: "/kWh" } },
+    label: "field_source_price",
+    when: (s) => s?.type === "grid" && !s?.price_entity,
+  },
+  {
+    path: "price_entity",
+    selector: { entity: { domain: "sensor" } },
+    label: "field_source_price_entity",
+    check: "price",
+    when: (s) => s?.type === "grid" && s?.price === undefined,
+  },
+  {
     path: "capacity_kwh",
     selector: { number: { min: 0.1, step: 0.1, mode: "box", unit_of_measurement: "kWh" } },
     label: "field_capacity_kwh",
@@ -399,6 +422,8 @@ export const consumerFields = (exclude: string[] = [], direct = false): Field[] 
   { path: "switch_entity", selector: { entity: { domain: ["switch", "input_boolean", "light", "fan"] } }, label: "field_switch_entity" },
   { path: "confirm_switch", selector: { boolean: {} }, label: "field_confirm_switch", default: false, when: (c: any) => !!c?.switch_entity },
   { path: "surplus_w", selector: { number: { min: 1, step: 10, mode: "box", unit_of_measurement: "W" } }, label: "field_surplus_w" },
+  { path: "minus_entities", selector: { entity: { multiple: true } }, label: "field_minus_entities", multi: true },
+  { path: "minus_energy_entities", selector: { entity: { multiple: true } }, label: "field_minus_energy_entities", multi: true },
   ...actionFields,
 ];
 
@@ -441,7 +466,7 @@ export function labelFor(fields: Field[], name: string, tr: Tr): string {
  * Used by the tests to prove that every config option has an editor field.
  */
 export function coveredPaths(): string[] {
-  const prefix = (p: string, fields: Field[]) => fields.map((f) => `${p}${f.path}`);
+  const prefix = (p: string, fields: Field[]) => fields.map((f) => `${p}${f.path}${f.multi ? "[]" : ""}`);
   return [
     ...prefix("", GENERAL),
     ...ENERGY_MODE.map((f) => `${f.path}${f.multi ? "[]" : ""}`),

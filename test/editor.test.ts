@@ -17,7 +17,7 @@ const FULL: EnergyCardConfig = {
   title: "Energiefluss",
   home: { total_entity: "sensor.total", total_energy_entity: "sensor.total_energy" },
   sources: [
-    { entity: "sensor.grid", energy_entity: "sensor.grid_import", energy_entity_return: "sensor.grid_export", type: "grid", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" } },
+    { entity: "sensor.grid", energy_entity: "sensor.grid_import", energy_entity_return: "sensor.grid_export", type: "grid", price: 0.28, price_entity: "sensor.grid_price", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" } },
     { entity: "sensor.pv", energy_entity: "sensor.pv_energy", name: "PV", type: "solar", icon: "mdi:solar-power", color: "#f2c94c", soc_entity: "sensor.soc", invert: false, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] },
     { entity: "sensor.battery", type: "battery", soc_entity: "sensor.battery_soc", capacity_kwh: 10, reserve_percent: 10, max_percent: 90 },
   ],
@@ -29,11 +29,11 @@ const FULL: EnergyCardConfig = {
       color: "#fff",
       tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" },
       thresholds: [{ from: 100, color: "#ff9800", width: 3 }],
-      rooms: [{ area_id: "kueche", entity: "sensor.kueche", energy_entity: "sensor.kueche_energy", color: "#fff", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.a", energy_entity: "sensor.a_energy", name: "Backofen", switch_entity: "switch.a", surplus_w: 1200, confirm_switch: true, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
+      rooms: [{ area_id: "kueche", entity: "sensor.kueche", energy_entity: "sensor.kueche_energy", color: "#fff", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.a", energy_entity: "sensor.a_energy", name: "Backofen", switch_entity: "switch.a", surplus_w: 1200, minus_entities: ["sensor.a_dev"], minus_energy_entities: ["sensor.a_dev_e"], confirm_switch: true, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
     },
   ],
-  rooms: [{ area_id: "bad", entity: "sensor.bad", energy_entity: "sensor.bad_energy", color: "#fff", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.b", energy_entity: "sensor.b_energy", name: "Boiler", switch_entity: "switch.b", surplus_w: 1200, confirm_switch: false, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
-  consumers: [{ name: "Außenlampen", icon: "mdi:lamp", entity: "sensor.outdoor", energy_entity: "sensor.outdoor_energy", switch_entity: "switch.outdoor", surplus_w: 1200, confirm_switch: true, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }],
+  rooms: [{ area_id: "bad", entity: "sensor.bad", energy_entity: "sensor.bad_energy", color: "#fff", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }], consumers: [{ entity: "sensor.b", energy_entity: "sensor.b_energy", name: "Boiler", switch_entity: "switch.b", surplus_w: 1200, minus_entities: ["sensor.a_dev"], minus_energy_entities: ["sensor.a_dev_e"], confirm_switch: false, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }] }],
+  consumers: [{ name: "Außenlampen", icon: "mdi:lamp", entity: "sensor.outdoor", energy_entity: "sensor.outdoor_energy", switch_entity: "switch.outdoor", surplus_w: 1200, minus_entities: ["sensor.a_dev"], minus_energy_entities: ["sensor.a_dev_e"], confirm_switch: true, tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" }, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] }],
   colors: {
     preset: "custom",
     accent: "#111",
@@ -50,7 +50,7 @@ const FULL: EnergyCardConfig = {
       consumer: [{ from: 300, color: "#ff9800", width: 3 }],
     },
   },
-  options: { unit: "auto", decimals: 2, animation: true, show_self_consumption: true, show_unassigned: true, show_consumers: true, only_active_consumers: false, show_entity_ids: true, remember_selection: true, storage_id: "main", wrap_rooms: false, focus_selected: false, mode: "power", energy_periods: ["today", "week"], secondary_value: "auto", view: "tree", views: ["tree", "timeline"], price: 0.32, price_entity: "sensor.price", currency: "EUR", feed_in_price: 0.08, feed_in_price_entity: "sensor.feed_in_price", show_base_load: true, standby_watts: 5, compact: false, show_source_mix: true, home_color_by_source: true, show_battery_forecast: true, show_solar_split: true, show_battery_bar: true, show_origin: true, show_pv_forecast: true, lines_by_source: true, show_surplus: true, surplus_min_w: 800, show_day_values: true, show_day_title: false, surplus_devices: true, show_savings: true },
+  options: { unit: "auto", decimals: 2, animation: true, show_self_consumption: true, show_unassigned: true, show_consumers: true, only_active_consumers: false, show_entity_ids: true, remember_selection: true, storage_id: "main", wrap_rooms: false, focus_selected: false, mode: "power", energy_periods: ["today", "week"], secondary_value: "auto", view: "tree", views: ["tree", "timeline"], price: 0.32, price_entity: "sensor.price", currency: "EUR", feed_in_price: 0.08, feed_in_price_entity: "sensor.feed_in_price", show_base_load: true, standby_watts: 5, compact: false, show_source_mix: true, home_color_by_source: true, show_battery_forecast: true, show_solar_split: true, show_battery_bar: true, show_origin: true, show_pv_forecast: true, lines_by_source: true, show_surplus: true, surplus_min_w: 800, show_day_values: true, show_day_title: false, surplus_devices: true, show_savings: true, show_hints: true, compare_last_year: true, year_budget_kwh: 4000 },
 };
 
 describe("editor coverage", () => {
@@ -66,8 +66,9 @@ describe("editor coverage", () => {
   it("full sample config is itself valid", () => {
     // a price is fixed or a sensor: the sample lists both forms for the coverage, a real config has one
     const { price_entity, feed_in_price_entity, ...options } = FULL.options!;
-    expect(() => validateConfig({ ...FULL, rooms: undefined, options })).not.toThrow();
-    expect(() => validateConfig({ ...FULL, rooms: undefined, options: { ...options, price: undefined, price_entity, feed_in_price: undefined, feed_in_price_entity } })).not.toThrow();
+    const sources = FULL.sources!.map(({ price_entity: _p, ...s }) => s);
+    expect(() => validateConfig({ ...FULL, sources, rooms: undefined, options })).not.toThrow();
+    expect(() => validateConfig({ ...FULL, sources, rooms: undefined, options: { ...options, price: undefined, price_entity, feed_in_price: undefined, feed_in_price_entity } })).not.toThrow();
     expect(() => validateConfig({ ...FULL, rooms: undefined })).toThrow(/use one of them, not both/);
   });
 });

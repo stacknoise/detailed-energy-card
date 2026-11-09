@@ -24,6 +24,8 @@ export interface EnergyQuery {
   incremental?: boolean;
   /** instead of the period: the last N hours until now, hourly rows, refreshed once an hour (`period` is then only a placeholder) */
   hours?: number;
+  /** instead of the period: from the first of January until now (daily rows); `period` is then only a placeholder */
+  year?: boolean;
 }
 
 /** Seconds between two loads of a query. */
@@ -77,7 +79,7 @@ const browserClock: StoreClock = {
 
 /** Key of a query: the same sensors, period, rows and kind share one entry, whatever order the ids come in. */
 export const queryKey = (q: EnergyQuery): string =>
-  `${q.period}|${q.offset ?? 0}|${q.hours ?? 0}|${q.stat ?? statPeriodFor(q.period)}|${q.kind ?? "energy"}|${[...q.ids].sort().join(",")}`;
+  `${q.period}|${q.offset ?? 0}|${q.hours ?? 0}|${q.year ? "y" : ""}|${q.stat ?? statPeriodFor(q.period)}|${q.kind ?? "energy"}|${[...q.ids].sort().join(",")}`;
 
 /**
  * Energy values of the queries the card currently shows. Every query is loaded once, kept for

@@ -504,6 +504,11 @@ export const cardStyles = css`
     stroke-dasharray: 2 2;
     stroke-width: 0.9;
   }
+  .chart .lastyear {
+    stroke: #f06292;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
   .chart .forecast {
     fill: none;
     stroke: #ff9800;
@@ -558,6 +563,16 @@ export const cardStyles = css`
     border-radius: 0;
     height: 0;
     margin-top: 5px;
+  }
+  .year-key i {
+    background: none !important;
+    border-top: 2px solid #f06292;
+    border-radius: 0;
+    height: 0;
+    margin-top: 5px;
+  }
+  .legend-item.year-key {
+    cursor: default;
   }
   .prev-key i {
     border: 1px dashed var(--_muted);
@@ -689,6 +704,22 @@ export const cardStyles = css`
     height: 100%;
   }
   /* options.show_surplus: banner while power is fed into the grid */
+  /* options.show_hints: readings that do not add up */
+  .hints {
+    color: var(--_muted);
+    font-size: 0.8em;
+    margin: 0 16px 8px;
+  }
+  .hint {
+    align-items: flex-start;
+    display: flex;
+    gap: 6px;
+  }
+  .hint ha-icon {
+    --mdc-icon-size: 16px;
+    color: var(--warning-color, #ffb74d);
+    flex: none;
+  }
   .surplus {
     align-items: center;
     background: color-mix(in srgb, #ff9800 18%, var(--_bg, transparent));
@@ -735,8 +766,53 @@ export const cardStyles = css`
   .surplus-w {
     color: var(--_muted);
   }
+  /* options.year_budget_kwh: the use since January against a yearly budget */
+  .budget {
+    border-top: 1px solid var(--_line, rgba(128, 128, 128, 0.25));
+    margin: 8px 16px 0;
+    padding-top: 8px;
+  }
+  .budget-bar {
+    background: color-mix(in srgb, var(--_text) 14%, transparent);
+    border-radius: 4px;
+    height: 8px;
+    margin: 6px 0 4px;
+    overflow: visible;
+    position: relative;
+  }
+  .budget-bar .used {
+    background: var(--_accent);
+    border-radius: 4px;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: var(--used);
+  }
+  .budget-bar.over .used {
+    background: var(--warning-color, #ffb74d);
+  }
+  .budget-bar .pace {
+    background: var(--_text);
+    border-radius: 1px;
+    bottom: -3px;
+    left: var(--pace);
+    position: absolute;
+    top: -3px;
+    width: 2px;
+  }
+  .budget-text {
+    font-size: 0.85em;
+  }
+  .budget-pace {
+    color: var(--_muted);
+    font-size: 0.75em;
+  }
+  .budget-pace.over {
+    color: var(--warning-color, #ffb74d);
+  }
   /* options.show_day_values: tiles of today's values */
-  .day {
+  .today-values {
     border-top: 1px solid var(--_line, rgba(128, 128, 128, 0.25));
     margin: 8px 16px 0;
     padding-top: 10px;

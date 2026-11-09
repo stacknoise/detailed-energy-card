@@ -41,6 +41,9 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Periods in the switch | `options.energy_periods` | all | Periods of the switch: `today`, `week`, `month`. |
 | Second value under the values | `options.secondary_value` | `none` | Small second value under every node: `none`, `auto`, `today`, `power`, `cost`. |
 | Savings next to the costs | `options.show_savings` | `false` | Shows what solar and battery saved next to the costs, in the badge and per node (see *Costs*). |
+| Hints for implausible values | `options.show_hints` | `false` | A hint under the header when readings do not add up (see *Hints*). Mode *Now*. |
+| Last year in the timeline | `options.compare_last_year` | `false` | Week and month: a marker per bar for the same day a year ago and the comparison in the head. |
+| Yearly budget (kWh) | `options.year_budget_kwh` | – | A bar with the use since January against the budget (see *Yearly budget*). Mode *Now*. |
 | Electricity price (fixed, per kWh) | `options.price` | none | Fixed price per kWh. Switches the costs on. Use `price` **or** `price_entity`. |
 | Electricity price sensor (dynamic tariff, per kWh) | `options.price_entity` | none | Price sensor per kWh (dynamic tariff, recorded as statistics). |
 | Feed-in compensation (fixed, per kWh) | `options.feed_in_price` | none | Fixed compensation per kWh fed in. Use it **or** `feed_in_price_entity`. |
@@ -212,6 +215,31 @@ options:
 **Costs:** set `options.price` (a fixed price per kWh) or `options.price_entity` (a price sensor of a dynamic tariff such as Tibber; it must be recorded as statistics, `state_class: measurement`), optionally `options.feed_in_price` or `options.feed_in_price_entity` for the compensation of the feed-in and `options.currency` (default the currency of Home Assistant). The costs need an energy counter on the grid. Only energy from the grid costs money: for every hour the card takes the grid import over the consumption of the home as the grid share, and every node pays its energy of that hour times that share times the price of that hour; solar and battery energy cost nothing, the feed-in is paid separately. A badge shows "Costs 3.84 € · Compensation 1.20 €" for the shown period (in the mode *Now* for today). When Home Assistant keeps the cost statistics of the Energy dashboard (`<grid counter>_cost`, `<export counter>_compensation`) the badge takes those amounts. Its tooltip names what the battery charged from the grid, and "≈" marks an amount when the price was missing for more than 3 hours (missing hours use the last known price). With `options.secondary_value: cost` every node shows its costs; the tooltip of that line gives the energy and the part from the grid. Prices are hourly means: with quarter-hour prices the amounts are close, not exact.
 
 **Savings:** `options.show_savings: true` adds, next to the costs, what solar and battery saved: the energy of a node that did not come from the grid, times the price of the hour. It shows in the cost badge (*Costs 3.84 € · Saved 2.10 €*) and, with `secondary_value: cost`, under every floor, room and consumer (*0.18 € · saved 0.32 €*); the tooltip explains it. Needs a price and a grid energy counter like the costs.
+
+**Own tariff per grid meter:** a grid source can have its own price, `price` (per kWh) or `price_entity` (a price sensor), for example a heat pump meter with a cheaper tariff. It replaces `options.price` for the energy of that meter; with a tariff on every grid meter the general price can be left out. The costs of a node use the mean price of an hour weighted by what each meter delivered in it, and the badge adds up the meters. Only for `type: grid`.
+
+```yaml
+sources:
+  - { entity: sensor.grid_power, energy_entity: sensor.grid_energy, type: grid, price_entity: sensor.tariff_household }
+  - { entity: sensor.hp_power, energy_entity: sensor.hp_energy, type: grid, price: 0.22 }   # heat pump tariff
+```
+
+**Difference consumers:** `minus_entities` (power sensors, W) and `minus_energy_entities` (energy counters, kWh) on a consumer take the listed sensors off its value: a power strip minus the devices on it, or a room meter minus the rooms with their own meter. The value is never below 0, a sensor that cannot be read is left out. The energy counters are taken off hour by hour in the timeline and in the costs.
+
+```yaml
+consumers:
+  - name: Rest of the workshop
+    entity: sensor.workshop_power
+    energy_entity: sensor.workshop_energy
+    minus_entities: [sensor.saw_power]
+    minus_energy_entities: [sensor.saw_energy]
+```
+
+**Hints:** `options.show_hints: true` shows a line under the header in the mode *Now* when readings do not add up: the sources deliver much more or less than the home uses (more than 400 W and 30 % off: a wrong sign or a missing source), rooms and consumers measure clearly more than the home meter (a device counted twice), or a source cannot be read.
+
+**Yearly budget:** `options.year_budget_kwh: 4000` shows under the diagram (mode *Now*, needs energy counters) a bar with the use since the first of January against the budget, a mark for the straight pace through the year, and a projection for the whole year. The bar turns orange when the use is more than 5 % above the pace.
+
+**Last year:** `options.compare_last_year: true` adds in the timeline of a week and a month a marker per bar for the same day a year ago (the same week or month), a legend entry and, in the head, the change of the days that are over against the same days of the last year. It needs statistics that reach back a year; without them it stays out.
 
 ```yaml
 home:

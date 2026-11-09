@@ -334,6 +334,29 @@ test.describe("energy mode", () => {
     await expect(legend).toHaveText(["EG", "OG", "Keller", "gestern"]);
   });
 
+  test("year_budget_kwh shows the use since January against the budget", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "today");
+    await expect(page.locator("detailed-energy-card .budget")).toHaveCount(0);
+    await open(page, "budget");
+    const budget = page.locator("detailed-energy-card .budget");
+    await expect(budget).toContainText("Jahresbudget");
+    await expect(budget.locator(".budget-text")).toContainText(/ von 6\.?000(,0)? kWh verbraucht \(\d+ %\)/);
+    await expect(budget.locator(".budget-pace")).toContainText("Hochgerechnet");
+  });
+
+  test("compare_last_year marks the same days of last year and compares with them", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "timeline");
+    await mode(page, "Monat").click();
+    await expect(page.locator("detailed-energy-card .chart line.lastyear")).toHaveCount(0);
+    await open(page, "lastyear");
+    await mode(page, "Monat").click();
+    await expect.poll(() => page.locator("detailed-energy-card .chart line.lastyear").count()).toBeGreaterThan(20);
+    await expect(page.locator("detailed-energy-card .legend-item.year-key")).toHaveText("gleicher Monat im Vorjahr");
+    await expect(page.locator("detailed-energy-card .kpi span", { hasText: "ggü. Vorjahr (gleiche Tage)" })).toHaveCount(1);
+  });
+
   test("the timeline of a week has a bar per day and compares with last week", async ({ page }) => {
     await fixClock(page);
     await open(page, "timeline");
@@ -604,7 +627,7 @@ test.describe("energy mode", () => {
     test("without the options nothing of it is drawn", async ({ page }) => {
       await open(page, "surplus");
       await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
-      await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .today-values")).toHaveCount(0);
     });
 
     test("the banner names the surplus and what using it saves, the tiles show today", async ({ page }) => {
@@ -612,8 +635,8 @@ test.describe("energy mode", () => {
       await expect(page.locator("detailed-energy-card .surplus")).toContainText("3,40 kW Überschuss");
       await expect(page.locator("detailed-energy-card .surplus")).toContainText("spart etwa");
       await expect(page.locator("detailed-energy-card .day-tile")).toHaveCount(6);
-      await expect(page.locator("detailed-energy-card .day")).toContainText("14,2 kWh");
-      await expect(page.locator("detailed-energy-card .day")).toContainText("Autarkie");
+      await expect(page.locator("detailed-energy-card .today-values")).toContainText("14,2 kWh");
+      await expect(page.locator("detailed-energy-card .today-values")).toContainText("Autarkie");
     });
 
     test("the line from the solar source has its color, and each option works on its own", async ({ page }) => {
@@ -625,7 +648,7 @@ test.describe("energy mode", () => {
         el.setConfig({ ...el._config, options: { unit: "kW", lines_by_source: true } });
       });
       await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
-      await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .today-values")).toHaveCount(0);
     });
 
     test("the banner suggests idle devices that fit, and a chip with a switch turns it on", async ({ page }) => {
@@ -635,6 +658,13 @@ test.describe("energy mode", () => {
       await expect(chips.first()).toContainText("Kaffeemaschine");
       await open(page, "today");
       await expect(page.locator("detailed-energy-card .surplus-chip")).toHaveCount(0);
+    });
+
+    test("show_hints names readings that do not add up, and only then", async ({ page }) => {
+      await open(page, "surplus");
+      await expect(page.locator("detailed-energy-card .hints")).toHaveCount(0);
+      await open(page, "hints");
+      await expect(page.locator("detailed-energy-card .hint")).toContainText("Räume und Verbraucher messen");
     });
 
     test("the heading of the tiles can be hidden", async ({ page }) => {
@@ -655,7 +685,7 @@ test.describe("energy mode", () => {
         el.setConfig({ ...el._config, options: { ...el._config.options, compact: true } });
       });
       await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
-      await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .today-values")).toHaveCount(0);
     });
   });
 

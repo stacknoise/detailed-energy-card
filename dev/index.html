@@ -417,6 +417,8 @@
       };
       // Costs with savings: next to the costs, what solar and battery saved.
       scenarios.savings = { ...scenarios.costs, options: { ...scenarios.costs.options, show_savings: true } };
+      // Last year in the timeline of a week and a month: a marker per bar and the comparison in the head.
+      scenarios.lastyear = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"], compare_last_year: true } };
       // Timeline (like mock B3): the energy of the day per hour, stacked by floor, yesterday dashed.
       scenarios.timeline = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"] } };
       // The solar forecast in the timeline of today (the dev data sends the forecast of the Energy dashboard).
@@ -497,6 +499,10 @@
         })),
         options: { ...scenarios.today.options, surplus_devices: true },
       };
+      // Hints: the consumers measure more than the meter of the home (and the sources do not match it).
+      scenarios.hints = { ...scenarios.surplus, options: { ...scenarios.surplus.options, show_hints: true } };
+      // Yearly budget: the use since January against a budget of 6000 kWh (the dev statistics give a plausible year).
+      scenarios.budget = { ...scenarios.surplus, options: { ...scenarios.surplus.options, year_budget_kwh: 6000 }, home: { total_entity: "sensor.total_s", total_energy_entity: "sensor.e_total_s" } };
       // Origin of the power in the list: the energy counters of solar, battery and grid with their hourly shapes.
       scenarios.origin = { ...scenarios.energy, options: { unit: "kW", mode: "power", show_origin: true } };
       // Strands: with several sources delivering, the lines below the home run side by side in the colors of the mix.

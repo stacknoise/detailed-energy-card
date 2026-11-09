@@ -34,6 +34,18 @@ Three more options for the overview, also off by default:
 - `options.show_day_values`: tiles under the diagram with today's solar, grid import, feed-in, battery charged and discharged, home consumption and self-sufficiency; needs energy counters. The mode *Now* only.
 - The editor has the switches (and the field *Surplus from (W)*) under *General*; the dev page has the scenarios `today` and `strands`.
 
+More options, all off by default and only for the ones who switch them on:
+
+- `options.year_budget_kwh`: a bar under the diagram with the use since January against a yearly budget, the straight pace and a projection.
+- `options.compare_last_year`: in the timeline of a week and a month a marker per bar for the same day a year ago and the change against the same days of the last year in the head.
+- Grid sources can have their own tariff (`price` / `price_entity`), for example a heat pump meter; the costs use each meter's price.
+- Difference consumers (`minus_entities`, `minus_energy_entities`): a consumer minus the sensors listed there, in the live value and hour by hour in the timeline.
+- `options.show_hints`: a hint under the header when readings do not add up (sources against home, rooms above the home meter, unreadable sources).
+
+Fixed:
+
+- The solar forecast was missing in the week and the month view (a day bar counted only when its first hour was in the forecast), the header badges ran out of the card at 320 px, and source labels and notes now stay inside their slot on narrow cards.
+
 ## 1.4.2
 
 ### Changed

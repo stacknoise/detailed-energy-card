@@ -94,6 +94,10 @@ One more switch: the timeline of today gets a dashed line with the forecast of t
 | --- |
 | ![Timeline of today with a dashed orange line for the solar forecast](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-pv-forecast.png?v=5) |
 
+### More options for the ones who want them
+
+All of them are off until you switch them on: a yearly budget as a bar with the use since January, the straight pace and a projection; the same day of the last year as a marker in the timeline of a week and a month; savings next to the costs; a hint when readings do not add up; and suggestions for idle devices in the surplus banner. Grid meters can have their own tariff, and a consumer can be the difference of a meter and the devices behind it. See [docs/configuration.md](docs/configuration.md).
+
 ### More ways to see it
 
 | Timeline of the day | Sankey diagram |

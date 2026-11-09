@@ -171,7 +171,10 @@ function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean, place
   const noSensor = !c.entity && !c.energy_entity;
   const noEnergy = !noSensor && energy && !c.energy_entity;
   const noPower = !noSensor && !energy && !c.entity;
-  const r = noSensor || noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
+  let r = noSensor || noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
+  // a difference consumer: the readable sensors in `minus_*` are taken off, the result is not below 0
+  const minus = (energy ? c.minus_energy_entities : c.minus_entities) ?? [];
+  if (r.valid && minus.length) r = { ...r, watts: Math.max(0, r.watts - minus.reduce((sum, id) => sum + (read(id).valid ? Math.max(0, read(id).watts) : 0), 0)) };
   // `entity` is the key of the consumer: its power sensor, else its energy counter
   const key = c.entity || c.energy_entity || `nosensor:${place}`;
   return {

@@ -32,6 +32,10 @@ export interface SourceConfig extends ActionFields {
   energy_entity_return?: string;
   /** own thresholds for the line of this source (replace the level thresholds) */
   thresholds?: ThresholdConfig[];
+  /** grid only: the own tariff of this meter (price per kWh); replaces `options.price` for the energy of this source */
+  price?: number;
+  /** grid only: price sensor of the own tariff of this meter (hourly means from the statistics) */
+  price_entity?: string;
 }
 
 export interface ConsumerConfig extends ActionFields {
@@ -50,6 +54,10 @@ export interface ConsumerConfig extends ActionFields {
   icon?: string;
   /** typical power (W) while it runs: with `options.surplus_devices` the surplus banner suggests it when it is idle and the surplus is enough */
   surplus_w?: number;
+  /** difference consumer: power sensors (W) that are taken off the value of `entity`, e.g. a meter minus the devices behind it; the result is never below 0 */
+  minus_entities?: string[];
+  /** the same for the energy counters (kWh): taken off `energy_entity`, hour by hour in the timeline */
+  minus_energy_entities?: string[];
 }
 
 /** Rooms are Home Assistant areas; name and icon are resolved from the area registry. */
@@ -153,6 +161,12 @@ export interface OptionsConfig {
   surplus_devices?: boolean;
   /** next to the costs (needs a price and `secondary_value: cost`): what solar and battery saved, per consumer and in the badge (default off) */
   show_savings?: boolean;
+  /** a hint under the header when readings do not add up: sources against home, rooms above the home meter, unavailable sources (default off) */
+  show_hints?: boolean;
+  /** timeline of a week or a month: the same week / month of the last year as a marker per bar, and its change in the head (default off) */
+  compare_last_year?: boolean;
+  /** a yearly budget in kWh: a bar under the diagram with the use since January against the straight pace (default off, needs energy sensors) */
+  year_budget_kwh?: number;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
@@ -263,6 +277,12 @@ function checkConsumer(c: unknown, where: string): void {
   if (isObj(c)) checkActions(c, where);
   if (isObj(c) && c.switch_entity !== undefined && c.switch_entity !== "") checkSwitch(c.switch_entity, `${where}.switch_entity`);
   if (isObj(c)) checkBool(c.confirm_switch, `${where}.confirm_switch`);
+  for (const key of ["minus_entities", "minus_energy_entities"] as const) {
+    const list = isObj(c) ? c[key] : undefined;
+    if (list === undefined) continue;
+    if (!Array.isArray(list)) throw new ConfigError(`${where}.${key} must be a list of entity ids`);
+    list.forEach((id, k) => checkEntity(id, `${where}.${key}[${k}]`));
+  }
   if (isObj(c) && c.surplus_w !== undefined && (typeof c.surplus_w !== "number" || !Number.isFinite(c.surplus_w) || c.surplus_w <= 0)) {
     throw new ConfigError(`${where}.surplus_w must be a number greater than 0 (W)`);
   }
@@ -315,7 +335,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values", "show_day_title", "surplus_devices", "show_savings"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values", "show_day_title", "surplus_devices", "show_savings", "show_hints", "compare_last_year"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;
@@ -335,6 +355,10 @@ function checkOptions(options: unknown): void {
     if (options[entity] !== undefined) checkEntity(options[entity], `options.${entity}`);
     if (v !== undefined && options[entity] !== undefined) throw new ConfigError(`options.${fixed} and options.${entity}: use one of them, not both`);
   }
+  const budget = options.year_budget_kwh;
+  if (budget !== undefined && (typeof budget !== "number" || !Number.isFinite(budget) || budget <= 0)) {
+    throw new ConfigError("options.year_budget_kwh must be a number greater than 0 (kWh per year)");
+  }
   const cur = options.currency;
   if (cur !== undefined && (typeof cur !== "string" || !/^[A-Z]{3}$/.test(cur))) {
     throw new ConfigError(`options.currency must be a three-letter currency code like EUR`);
@@ -342,7 +366,12 @@ function checkOptions(options: unknown): void {
 }
 
 /** The costs are configured: a fixed price or a price sensor. */
-export const hasPrice = (cfg: EnergyCardConfig): boolean => cfg.options?.price !== undefined || !!cfg.options?.price_entity;
+export const hasPrice = (cfg: EnergyCardConfig): boolean => {
+  if (cfg.options?.price !== undefined || !!cfg.options?.price_entity) return true;
+  // without a general price every grid meter needs a tariff of its own
+  const grids = (cfg.sources ?? []).filter((s) => s.type === "grid" && s.energy_entity);
+  return grids.length > 0 && grids.every((s) => s.price !== undefined || !!s.price_entity);
+};
 
 function checkColors(colors: unknown): void {
   if (colors === undefined || colors === null) return;
@@ -440,6 +469,12 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
       throw new ConfigError(`sources[${i}].type: unknown type "${String(s.type)}"`);
     }
     if (s.soc_entity) checkEntity(s.soc_entity, `sources[${i}].soc_entity`);
+    if (s.price !== undefined && (typeof s.price !== "number" || !Number.isFinite(s.price) || s.price < 0)) {
+      throw new ConfigError(`sources[${i}].price must be a number of 0 or more (price per kWh)`);
+    }
+    if (s.price_entity !== undefined) checkEntity(s.price_entity, `sources[${i}].price_entity`);
+    if (s.price !== undefined && s.price_entity !== undefined) throw new ConfigError(`sources[${i}].price and sources[${i}].price_entity: use one of them, not both`);
+    if ((s.price !== undefined || s.price_entity !== undefined) && s.type !== "grid") throw new ConfigError(`sources[${i}].price: only for the type grid`);
     if (s.capacity_kwh !== undefined) {
       if (typeof s.capacity_kwh !== "number" || !Number.isFinite(s.capacity_kwh) || s.capacity_kwh <= 0) {
         throw new ConfigError(`sources[${i}].capacity_kwh must be a number greater than 0 (kWh)`);
@@ -493,6 +528,7 @@ export function collectEntityIds(cfg: EnergyCardConfig): string[] {
   for (const c of cfg.consumers ?? []) {
     if (c.entity) ids.add(c.entity);
     if (c.switch_entity) ids.add(c.switch_entity);
+    for (const id of c.minus_entities ?? []) ids.add(id);
   }
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   for (const r of rooms) {
@@ -501,6 +537,7 @@ export function collectEntityIds(cfg: EnergyCardConfig): string[] {
       if (c.entity) ids.add(c.entity);
       // the state of a switch is shown, so a change of it has to render the card
       if (c.switch_entity) ids.add(c.switch_entity);
+      for (const id of c.minus_entities ?? []) ids.add(id);
     }
   }
   return [...ids];
@@ -527,11 +564,15 @@ export function collectEnergyIds(cfg: EnergyCardConfig): string[] {
     if (s.energy_entity_return) ids.add(s.energy_entity_return);
   }
   for (const f of cfg.floors ?? []) if (f.energy_entity) ids.add(f.energy_entity);
-  for (const c of cfg.consumers ?? []) if (c.energy_entity) ids.add(c.energy_entity);
+  const consumer = (c: ConsumerConfig) => {
+    if (c.energy_entity) ids.add(c.energy_entity);
+    for (const id of c.minus_energy_entities ?? []) ids.add(id);
+  };
+  for (const c of cfg.consumers ?? []) consumer(c);
   const rooms = [...(cfg.rooms ?? []), ...(cfg.floors ?? []).flatMap((f) => f.rooms ?? [])];
   for (const r of rooms) {
     if (r.energy_entity) ids.add(r.energy_entity);
-    for (const c of r.consumers ?? []) if (c.energy_entity) ids.add(c.energy_entity);
+    for (const c of r.consumers ?? []) consumer(c);
   }
   return [...ids];
 }

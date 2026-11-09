@@ -6,8 +6,8 @@ import { collectEnergyIds, collectEntityIds, hasEnergy, hasPrice, validateConfig
 import { runAction, type ActionConfig, type ActionDeps, type NodeActions } from "./model/actions";
 import { periodLabel } from "./model/browse";
 import { BASE_LOAD_NIGHTS, STANDBY_HOURS, baseLoad, homePowerIds, homePowerRows, runsContinuously } from "./model/standby";
-import { computeCosts, type CostResult } from "./model/costs";
-import { energyReader, firstWeekdayIndex, loadStatSeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
+import { computeCosts, type CostResult, type PriceInput } from "./model/costs";
+import { energyReader, firstWeekdayIndex, loadStatSeries, localDate, localMidnight, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
 import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type ConsumerNode, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
@@ -15,6 +15,8 @@ import { powerReader, socReader } from "./model/readers";
 import { SOURCE_COLORS, batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
 import { FORECAST_REFRESH_MS, forecastBars, parseSolarForecast } from "./model/forecast";
 import { ORIGIN_KINDS, computeOrigin, originKinds, BEST_HOURS, type OriginResult, type OriginKind } from "./model/origin";
+import { budgetStatus, yearPace } from "./model/budget";
+import { plausibilityHints } from "./model/hints";
 import { SURPLUS_DEFAULT_W, dayTiles, surplusDevices, surplusOf, type DayTile, type Surplus } from "./model/day";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
 import { localize, sourceNames, type Key } from "./localize";
@@ -479,7 +481,7 @@ export class DetailedEnergyCard extends LitElement {
     const period = this._costPeriod;
     const offset = this._off || undefined;
     const out: EnergyQuery[] = [this._hourlyQuery()];
-    const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity].filter((e): e is string => !!e);
+    const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity, ...(cfg.sources ?? []).map((s) => s.price_entity)].filter((e): e is string => !!e);
     if (prices.length) out.push({ ids: prices, period, offset, stat: "hour", kind: "mean", incremental: true });
     const ha = Object.values(this._haCostIds()).filter((e): e is string => !!e);
     if (ha.length) out.push({ ids: ha, period, offset, kind: "change" });
@@ -498,13 +500,19 @@ export class DetailedEnergyCard extends LitElement {
     const priceRows = priceQ ? this._energyStore.series(priceQ) : undefined;
     const now = new Date();
     const b = periodBounds(this._costPeriod, now, this._timeZone, this._firstWeekday, this._off);
+    const gridPrices = new Map<string, PriceInput>();
+    for (const s of cfg.sources ?? []) {
+      if (s.price !== undefined) gridPrices.set(s.entity, { fixed: s.price });
+      else if (s.price_entity) gridPrices.set(s.entity, { rows: priceRows?.get(s.price_entity) });
+    }
     const result = computeCosts({
       cfg,
       rows,
       starts: bucketStarts(b.start, b.end, "hour", this._timeZone),
       end: b.end.getTime(),
       until: this._off < 0 ? b.end.getTime() : now.getTime(),
-      price: o.price !== undefined ? { fixed: o.price } : { rows: o.price_entity ? priceRows?.get(o.price_entity) : undefined },
+      price: o.price !== undefined ? { fixed: o.price } : o.price_entity ? { rows: priceRows?.get(o.price_entity) } : undefined,
+      gridPrices,
       feedInPrice:
         o.feed_in_price !== undefined
           ? { fixed: o.feed_in_price }
@@ -543,6 +551,7 @@ export class DetailedEnergyCard extends LitElement {
     if (this._originOn && !this._costsOn) wanted.push(this._hourlyQuery());
     // base load and standby look at the hourly means of power sensors
     wanted.push(...this._powerStatQueries());
+    if (this._budgetOn) wanted.push(this._yearQuery());
     this._energyStore.want(wanted);
   }
 
@@ -633,7 +642,9 @@ export class DetailedEnergyCard extends LitElement {
     const now = new Date();
     const { start, end } = q.hours
       ? { start: new Date(Math.floor((now.getTime() - q.hours * 3_600_000) / 3_600_000) * 3_600_000), end: now }
-      : periodRange(q.period, now, this._timeZone, this._firstWeekday, q.offset);
+      : q.year
+        ? { start: localMidnight(localDate(now, this._timeZone)[0], 1, 1, this._timeZone), end: now }
+        : periodRange(q.period, now, this._timeZone, this._firstWeekday, q.offset);
     const from = since !== undefined && since >= start.getTime() ? since : undefined;
     const series = await loadStatSeries(this._hass!, q.ids, from !== undefined ? new Date(from) : start, end, q.stat ?? statPeriodFor(q.period), q.kind);
     return { series, since: from };
@@ -715,7 +726,14 @@ export class DetailedEnergyCard extends LitElement {
     ];
     // a period that is over is compared as a whole, only the running one needs the hours of the day
     if (period !== "today" && o === 0) out.push({ ids, period: "today", offset: -comparisonDayBack(period, new Date(), this._timeZone) });
+    if (this._yearOn) out.push({ ids, period, offset: o - (period === "week" ? 52 : 12) });
     return out;
+  }
+
+  /** options.compare_last_year and the timeline shows a week or a month. */
+  private get _yearOn(): boolean {
+    const p = this._timelinePeriod;
+    return !!this._config?.options?.compare_last_year && this._showsTimeline && (p === "week" || p === "month");
   }
 
   /** Values per bar of a period, or undefined while its rows are not there. */
@@ -732,7 +750,11 @@ export class DetailedEnergyCard extends LitElement {
     const now = new Date();
     const period = this._timelinePeriod;
     const unit = bucketUnitFor(period);
-    const [q, qPrev, qDay] = this._timelineQueries();
+    const queries = this._timelineQueries();
+    const [q, qPrev] = queries;
+    // the order is: running, previous, the day compared with (a running week or month), the year ago
+    const qDay = this._timelinePeriod !== "today" && this._off === 0 ? queries[2] : undefined;
+    const qYear = this._yearOn ? queries[queries.length - 1] : undefined;
     const o = this._off;
     const cur = periodBounds(period, now, tz, fw, o);
     const prev = periodBounds(period, now, tz, fw, o - 1);
@@ -740,6 +762,10 @@ export class DetailedEnergyCard extends LitElement {
     const prevStarts = bucketStarts(prev.start, prev.end, unit, tz);
     const series = this._series(q, starts, cur.end.getTime());
     const prevSeries = this._series(qPrev, prevStarts, prev.end.getTime());
+    // the same week / month a year ago: bars by position, so a month of another length just has more or fewer bars
+    const yearB = qYear ? periodBounds(period, now, tz, fw, qYear.offset ?? 0) : undefined;
+    const yearStarts = yearB ? bucketStarts(yearB.start, yearB.end, unit, tz) : undefined;
+    const yearSeries = qYear && yearStarts && yearB ? this._series(qYear, yearStarts, yearB.end.getTime()) : undefined;
     const zeros = starts.map(() => 0);
 
     // the stack follows the selection: the floors of the home, the rooms of a floor, the consumers of a room
@@ -820,6 +846,16 @@ export class DetailedEnergyCard extends LitElement {
         const vs = o < 0 ? this._t("tl_vs").replace("{0}", before) : period === "today" ? this._t("tl_vs_day").replace("{0}", fullHour) : this._t(period === "week" ? "tl_vs_week" : "tl_vs_month");
         kpis.push({ value: `${pct > 0 ? "+" : pct < 0 ? "−" : "±"}${Math.abs(pct)} %`, label: vs, tone: pct > 0 ? "up" : pct < 0 ? "down" : undefined });
       }
+      // against the same days of the last year: the days that are over (the running day only partly counts, so it is left out)
+      const yearValues = shown(yearSeries);
+      if (yearValues?.some((v) => v > 0)) {
+        const upTo = o < 0 ? values.length : Math.max(0, starts.findIndex((t, i) => nowMs >= t && nowMs < (starts[i + 1] ?? cur.end.getTime())));
+        const then = yearValues.slice(0, upTo).reduce((s, v) => s + v, 0);
+        if (upTo > 0 && then > 0) {
+          const pct = Math.round((values.slice(0, upTo).reduce((s, v) => s + v, 0) / then - 1) * 100);
+          kpis.push({ value: `${pct > 0 ? "+" : pct < 0 ? "−" : "±"}${Math.abs(pct)} %`, label: this._t(period === "week" ? "tl_vs_year_week" : "tl_vs_year_month"), tone: pct > 0 ? "up" : pct < 0 ? "down" : undefined });
+        }
+      }
       const peak = peakIndex(values);
       if (peak >= 0) kpis.push({ value: this._fmtAs("energy", values[peak]), label: this._t("tl_peak").replace("{0}", barTime(peak)) });
     }
@@ -832,6 +868,8 @@ export class DetailedEnergyCard extends LitElement {
       stacks,
       previous: shown(prevSeries),
       previousLabel: this._t(prevKey),
+      lastYear: shown(yearSeries)?.some((v) => v > 0) ? shown(yearSeries) : undefined,
+      lastYearLabel: this._t(period === "week" ? "tl_year_week" : "tl_year_month"),
       // only the running period: the forecast looks ahead from today
       forecast: cfg.options?.show_pv_forecast && o === 0 && this._forecast ? forecastBars(this._forecast, starts, cur.end.getTime()) : undefined,
       forecastLabel: this._t("tl_forecast"),
@@ -1038,6 +1076,41 @@ export class DetailedEnergyCard extends LitElement {
     return !!cfg?.options?.show_day_values && this._mode === "power" && !this._compact && hasEnergy(cfg);
   }
 
+  /** The yearly budget can be shown: the option is set, the mode is Now, the card is not compact and there are energy sensors. */
+  private get _budgetOn(): boolean {
+    const cfg = this._config;
+    return !!cfg?.options?.year_budget_kwh && this._mode === "power" && !this._compact && hasEnergy(cfg);
+  }
+
+  /** The daily rows from the first of January until now, for the yearly budget. */
+  private _yearQuery(): EnergyQuery {
+    return { ids: collectEnergyIds(this._config!), period: "month", stat: "day", year: true };
+  }
+
+  /** The bar of the yearly budget (options.year_budget_kwh): the use since January against the straight pace through the year. */
+  private _renderBudget(): TemplateResult | typeof nothing {
+    if (!this._budgetOn) return nothing;
+    const rows = this._energyStore.series(this._yearQuery());
+    if (!rows) return nothing;
+    const tz = this._timeZone;
+    const now = new Date();
+    const y = localDate(now, tz)[0];
+    const start = localMidnight(y, 1, 1, tz);
+    const starts = bucketStarts(start, now, "day", tz);
+    const used = treeSeries(this._config!, rows, starts, now.getTime()).home?.reduce((s, v) => s + v, 0);
+    if (used === undefined) return nothing;
+    const b = budgetStatus(used, this._config!.options!.year_budget_kwh!, yearPace(now, start, localMidnight(y + 1, 1, 1, tz)));
+    const pct = (v: number) => `${Math.round(v * 100)} %`;
+    const text = this._t("budget_text").replace("{0}", this._fmtAs("energy", b.usedKwh * 1000)).replace("{1}", this._fmtAs("energy", b.budgetKwh * 1000)).replace("{2}", pct(b.share));
+    const pace = this._t("budget_pace").replace("{0}", pct(b.pace)).replace("{1}", this._fmtAs("energy", b.projectedKwh * 1000));
+    return html`<div class="budget" role="status">
+      <div class="day-title">${this._t("budget_title")}</div>
+      <div class="budget-bar ${b.over ? "over" : ""}" style=${`--used:${Math.min(100, b.share * 100)}%;--pace:${b.pace * 100}%`}><i class="used"></i><i class="pace"></i></div>
+      <div class="budget-text">${text}</div>
+      <div class="budget-pace ${b.over ? "over" : ""}">${pace}</div>
+    </div>`;
+  }
+
   /** A price per kWh from the option (fixed or the state of the price sensor); undefined when it is not set or not readable. */
   private _priceNow(fixed: "price" | "feed_in_price", entity: "price_entity" | "feed_in_price_entity"): number | undefined {
     const o = this._config?.options;
@@ -1072,13 +1145,27 @@ export class DetailedEnergyCard extends LitElement {
     </div>`;
   }
 
+  /** Hints about readings that do not add up (options.show_hints): only in the mode Now and not in the compact view. */
+  private _renderHints(): TemplateResult | typeof nothing {
+    if (!this._config?.options?.show_hints || this._mode !== "power" || this._compact || !this._model) return nothing;
+    const hints = plausibilityHints(this._model);
+    if (!hints.length) return nothing;
+    const text = (h: (typeof hints)[number]): string =>
+      h.kind === "balance"
+        ? this._t(h.value > 0 ? "hint_balance_more" : "hint_balance_less").replace("{0}", this._fmt(Math.abs(h.value)))
+        : h.kind === "rooms"
+          ? this._t("hint_rooms").replace("{0}", this._fmt(h.value))
+          : this._t("hint_unavailable").replace("{0}", String(h.value));
+    return html`<div class="hints" role="status">${hints.map((h) => html`<div class="hint"><ha-icon icon=${"mdi:alert-outline"}></ha-icon><span>${text(h)}</span></div>`)}</div>`;
+  }
+
   /** The bar of today's values under the diagram (options.show_day_values). */
   private _renderDay(): TemplateResult | typeof nothing {
     const tiles = this._day;
     if (!this._dayOn || !tiles?.length) return nothing;
     const label = (t: DayTile): string => (t.kind === "autarky" ? `${Math.round((t.share ?? 0) * 100)} %` : t.kind === "battery" ? `+${this._fmtAs("energy", t.wh)} / −${this._fmtAs("energy", t.whOut ?? 0)}` : this._fmtAs("energy", t.wh));
     const color: Record<DayTile["kind"], string> = { solar: SOURCE_COLORS.solar, import: SOURCE_COLORS.grid, export: SOURCE_COLORS.grid, battery: SOURCE_COLORS.battery, home: "var(--_accent)", autarky: "var(--_accent)" };
-    return html`<div class="day">
+    return html`<div class="today-values">
       ${this._config?.options?.show_day_title === false ? nothing : html`<div class="day-title">${this._t("day_title")}</div>`}
       <div class="day-tiles">
         ${tiles.map((t) => html`<div class="day-tile"><span class="day-name" style=${`color:${color[t.kind]}`}>● ${this._t(`day_${t.kind}` as Key)}</span><span class="day-value">${label(t)}</span></div>`)}
@@ -1215,6 +1302,7 @@ export class DetailedEnergyCard extends LitElement {
           ${this._renderBadges(cfg, model)}
         </header>
         ${this._renderSwitches(cfg)}
+        ${this._renderHints()}
         ${this._renderSurplus()}
         ${this._showsTimeline
           ? renderTimeline(this._timelineContext(model, sel))
@@ -1222,6 +1310,7 @@ export class DetailedEnergyCard extends LitElement {
             ? this._sankey.render()
             : this._tree.render(this._treeContext(cfg, model, sel, home))}
         ${this._renderDay()}
+        ${this._renderBudget()}
         ${this._compact || this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room), room ? nodeKey.room(room.id) : allRooms && floor ? nodeKey.floor(floor.id) : nodeKey.home)}
       </ha-card>
     `;

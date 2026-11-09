@@ -1,4 +1,4 @@
-import type { EnergyCardConfig, RoomConfig } from "./config";
+import type { ConsumerConfig, EnergyCardConfig, RoomConfig } from "./config";
 import { localDate, localMidnight, periodRange, type EnergyPeriod, type EnergyRow } from "./energy";
 
 const HOUR = 3_600_000;
@@ -72,11 +72,17 @@ export function treeSeries(cfg: EnergyCardConfig, rows: Map<string, EnergyRow[]>
     const r = id ? rows.get(id) : undefined;
     return r ? bucketize(r, starts, end) : undefined;
   };
+  /** The hours of a consumer; a difference consumer has the hours of its `minus_energy_entities` taken off (not below 0). */
+  const consumerHours = (c: ConsumerConfig): number[] | undefined => {
+    const v = of(c.energy_entity);
+    const minus = (c.minus_energy_entities ?? []).map(of).filter((x): x is number[] => !!x);
+    return v && minus.length ? v.map((x, h) => Math.max(0, x - minus.reduce((s, m) => s + Math.max(0, m[h]), 0))) : v;
+  };
   const out: TimelineSeries = { floors: new Map(), rooms: new Map(), consumers: new Map() };
   const room = (r: RoomConfig): number[] | undefined => {
     let sum: number[] | undefined;
     for (const c of r.consumers ?? []) {
-      const v = of(c.energy_entity);
+      const v = consumerHours(c);
       const key = c.entity || c.energy_entity;
       if (key) out.consumers.set(key, v);
       sum = add(sum, v);
@@ -95,7 +101,7 @@ export function treeSeries(cfg: EnergyCardConfig, rows: Map<string, EnergyRow[]>
   }
   for (const r of cfg.rooms ?? []) total = add(total, room(r));
   for (const c of cfg.consumers ?? []) {
-    const v = of(c.energy_entity);
+    const v = consumerHours(c);
     const key = c.entity || c.energy_entity;
     if (key) out.consumers.set(key, v);
     total = add(total, v);
