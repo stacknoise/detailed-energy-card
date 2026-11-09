@@ -794,6 +794,17 @@ export const cardStyles = css`
   .second.note {
     margin-top: -3px;
   }
+  /* narrow card: a smaller bar and note, so neighbouring notes do not touch */
+  ha-card.narrow .soc-bar {
+    margin-right: 3px;
+    width: 26px;
+  }
+  ha-card.narrow .second.note {
+    font-size: 0.72em;
+  }
+  ha-card.narrow .second.note.split {
+    gap: 2px;
+  }
   .pill .second {
     display: block;
     font-weight: 400;

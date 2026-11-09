@@ -1188,7 +1188,7 @@ export class DetailedEnergyCard extends LitElement {
       : room;
 
     return html`
-      <ha-card style=${colorVars(cfg.colors)}>
+      <ha-card class=${this._width > 0 && this._width < 400 ? "narrow" : ""} style=${colorVars(cfg.colors)}>
         <header>
           <div>
             ${cfg.title ? html`<h2>${cfg.title}</h2>` : nothing}
