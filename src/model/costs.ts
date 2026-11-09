@@ -53,6 +53,8 @@ export interface CostResult {
   nodes: Map<string, number>;
   /** watt hours of every node that came from the grid, by nodeKey (for the tooltip) */
   fromGrid: Map<string, number>;
+  /** what the energy of every node from solar and battery saved against the grid price, by nodeKey (home, floors, rooms, consumers) */
+  saved: Map<string, number>;
   /** watt hours of every node in the period, by nodeKey (for the tooltip) */
   energy: Map<string, number>;
   /** the whole grid import */
@@ -69,7 +71,8 @@ export interface CostResult {
  * Costs of a period from hourly rows. Only energy from the grid costs money (solar and battery cost 0): every
  * hour has a grid share, the grid import over the consumption of the home (at most 1), and every node pays
  * its energy of that hour times the share times the price of that hour. Undefined without a grid energy
- * counter or without a price.
+ * counter or without a price. `saved` is the other side: what the part of a node that did not come from the grid
+ * would have cost at the price of the hour.
  */
 export function computeCosts(i: {
   cfg: EnergyCardConfig;
@@ -99,15 +102,19 @@ export function computeCosts(i: {
   const nodes = new Map<string, number>();
   const fromGrid = new Map<string, number>();
   const energy = new Map<string, number>();
+  const saved = new Map<string, number>();
   const put = (key: string, values: number[] | undefined) => {
     if (!values) return;
     let cost = 0;
     let wh = 0;
+    let free = 0;
     values.forEach((v, h) => {
       cost += (v / 1000) * share[h] * p.prices[h];
       wh += v * share[h];
+      free += (v / 1000) * (1 - share[h]) * p.prices[h];
     });
     nodes.set(key, cost);
+    saved.set(key, free);
     fromGrid.set(key, wh);
     energy.set(key, values.reduce((s, v) => s + v, 0));
   };
@@ -129,5 +136,5 @@ export function computeCosts(i: {
     feedIn = i.starts.reduce((s, _, h) => s + (back.reduce((t, b) => t + b[h], 0) / 1000) * fp.prices[h], 0);
     approx ||= fp.approx;
   }
-  return { nodes, fromGrid, energy, grid: total, battery, feedIn, approx };
+  return { nodes, fromGrid, energy, saved, grid: total, battery, feedIn, approx };
 }

@@ -415,6 +415,8 @@
         ...scenarios.feedin,
         options: { unit: "kW", mode: "energy", price_entity: "sensor.strompreis", feed_in_price: 0.08, currency: "EUR", secondary_value: "cost" },
       };
+      // Costs with savings: next to the costs, what solar and battery saved.
+      scenarios.savings = { ...scenarios.costs, options: { ...scenarios.costs.options, show_savings: true } };
       // Timeline (like mock B3): the energy of the day per hour, stacked by floor, yesterday dashed.
       scenarios.timeline = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"] } };
       // The solar forecast in the timeline of today (the dev data sends the forecast of the Energy dashboard).

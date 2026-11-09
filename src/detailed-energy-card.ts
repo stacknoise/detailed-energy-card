@@ -406,7 +406,10 @@ export class DetailedEnergyCard extends LitElement {
     const v = this._second.get(key);
     if (v === undefined) return undefined;
     const kind = this._secondKind();
-    if (kind === "cost") return this._money(v);
+    if (kind === "cost") {
+      const saved = this._config?.options?.show_savings ? this._costs?.result.saved.get(key) : undefined;
+      return this._money(v) + (saved !== undefined && saved >= 0.005 ? ` · ${this._t("saved_short").replace("{0}", this._money(saved))}` : "");
+    }
     return this._t(kind === "today" ? "second_today" : "second_power").replace("{0}", this._fmtAs(kind === "today" ? "energy" : "power", v));
   }
 
@@ -419,7 +422,13 @@ export class DetailedEnergyCard extends LitElement {
     return this._t("cost_tip")
       .replace("{0}", this._fmtAs("energy", energy))
       .replace("{1}", this._fmtAs("energy", r.fromGrid.get(key) ?? 0))
-      .replace("{2}", this._money(r.nodes.get(key)!));
+      .replace("{2}", this._money(r.nodes.get(key)!)) + this._savedTip(key);
+  }
+
+  /** "\nGespart 0,32 €, weil Solar und Akku es lieferten" (options.show_savings), or an empty text. */
+  private _savedTip(key: string): string {
+    const saved = this._config?.options?.show_savings ? this._costs?.result.saved.get(key) : undefined;
+    return saved !== undefined && saved >= 0.005 ? `\n${this._t("saved_tip").replace("{0}", this._money(saved))}` : "";
   }
 
   // ---------- costs ----------
@@ -1243,9 +1252,11 @@ export class DetailedEnergyCard extends LitElement {
     const r = c.result;
     const approx = c.ha === undefined && r.approx;
     const feedIn = c.haFeedIn ?? r.feedIn;
+    const savedHome = this._config?.options?.show_savings ? r.saved.get(nodeKey.home) : undefined;
     const text =
       `${this._t("costs")} ${approx ? "≈ " : ""}${this._money(c.ha ?? r.grid)}` +
-      (feedIn !== undefined ? ` · ${this._t("feed_in_pay")} ${this._money(feedIn)}` : "");
+      (feedIn !== undefined ? ` · ${this._t("feed_in_pay")} ${this._money(feedIn)}` : "") +
+      (savedHome !== undefined && savedHome >= 0.005 ? ` · ${this._t("saved")} ${this._money(savedHome)}` : "");
     const tips: string[] = [];
     if (r.battery >= 0.005) tips.push(this._t("costs_battery").replace("{0}", this._money(r.battery)));
     if (approx) tips.push(this._t("costs_approx"));

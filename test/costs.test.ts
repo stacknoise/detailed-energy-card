@@ -72,6 +72,14 @@ describe("costs", () => {
     expect(c.battery).toBe(0);
   });
 
+  it("books what solar and battery delivered as saved, so that cost and saved make the energy at the grid price", () => {
+    const c = costs(0.3);
+    // oven: 1 kWh x 75 % x 0.30 in the first hour, nothing in the second (all from the grid)
+    expect(c.saved.get(nodeKey.consumer("sensor.ofen"))).toBeCloseTo(0.225);
+    const ofen = c.nodes.get(nodeKey.consumer("sensor.ofen"))! + c.saved.get(nodeKey.consumer("sensor.ofen"))!;
+    expect(ofen).toBeCloseTo((1400 / 1000) * 0.3);
+  });
+
   it("uses the price of each hour", () => {
     const c = costs(0, { price: { rows: [{ start: 0, wh: 0.38 }, { start: H, wh: 0.19 }] } });
     expect(c.nodes.get(nodeKey.consumer("sensor.ofen"))).toBeCloseTo(1 * 0.25 * 0.38 + 0.4 * 1 * 0.19);

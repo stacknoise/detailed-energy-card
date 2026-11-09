@@ -27,6 +27,7 @@ Battery limits and a charge bar:
 Three more options for the overview, also off by default:
 
 - `options.lines_by_source`: the lines of the active paths take the colors of the sources instead of the thresholds; below the home they run as thin strands side by side, one per source, as wide as its share. The mode *Now* only.
+- `options.show_savings`: next to the costs, what solar and battery saved (energy not from the grid times the price of the hour), in the cost badge and per node with `secondary_value: cost`.
 - `options.surplus_devices` with `surplus_w` on consumers: the surplus banner suggests up to three idle consumers that fit into the surplus (a chip with a switch turns it on).
 - `options.show_surplus` with `surplus_min_w` (default 500 W): a banner while that much power goes into the grid, with what using it at home saves per hour (price minus feed-in compensation, when a price is set). It stays until 80 % of the limit. The mode *Now* only.
 - `options.show_day_title: false` hides the heading "Today so far" above the tiles of `show_day_values`.

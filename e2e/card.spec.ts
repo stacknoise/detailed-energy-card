@@ -883,6 +883,16 @@ test.describe("energy mode", () => {
     await expect(badge).toHaveText(/^Kosten \d+,\d\d\s€/);
   });
 
+  test("show_savings adds what solar and battery saved to the badge and the second value", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "costs");
+    await expect(page.locator("detailed-energy-card .badge.costs")).not.toContainText("Gespart");
+    await open(page, "savings");
+    await expect(page.locator("detailed-energy-card .badge.costs")).toContainText(/Gespart \d+,\d\d\s€/);
+    await expect(node(page, "Küche").locator(".second")).toHaveText(/^\d+,\d\d\s€ · gespart \d+,\d\d\s€$/);
+    await expect(node(page, "Küche").locator(".second")).toHaveAttribute("title", /Gespart \d+,\d\d\s€, weil Solar und Akku/);
+  });
+
   test("the costs take the amount of the cost statistics of Home Assistant when they exist", async ({ page }) => {
     await fixClock(page);
     await open(page, "costs");

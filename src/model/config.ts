@@ -151,6 +151,8 @@ export interface OptionsConfig {
   show_day_title?: boolean;
   /** the surplus banner names idle consumers with `surplus_w` that the surplus could run (default off) */
   surplus_devices?: boolean;
+  /** next to the costs (needs a price and `secondary_value: cost`): what solar and battery saved, per consumer and in the badge (default off) */
+  show_savings?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
@@ -313,7 +315,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values", "show_day_title", "surplus_devices"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values", "show_day_title", "surplus_devices", "show_savings"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;
