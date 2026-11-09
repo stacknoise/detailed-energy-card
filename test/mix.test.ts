@@ -122,7 +122,7 @@ describe("solarSplit", () => {
 describe("options of the package", () => {
   const base = { type: "x", sources: [{ entity: "sensor.a", type: "battery" }] };
   it("want true or false", () => {
-    for (const key of ["show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split"]) {
+    for (const key of ["show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar"]) {
       expect(() => validateConfig({ ...base, options: { [key]: true } })).not.toThrow();
       expect(() => validateConfig({ ...base, options: { [key]: "yes" } })).toThrow(new RegExp(`options\\.${key} must be true or false`));
     }
@@ -150,5 +150,35 @@ describe("layout with a note line", () => {
   });
   it("shares the line with the line of the other direction", () => {
     expect(computeLayout({ ...base, noteLine: true, returnLine: true }).sourceH).toBe(computeLayout({ ...base, returnLine: true }).sourceH);
+  });
+});
+
+describe("battery limits", () => {
+  const limited = (reserve?: number, max?: number) => {
+    const c: EnergyCardConfig = { ...cfg, sources: cfg.sources!.map((s) => (s.type === "battery" ? { ...s, reserve_percent: reserve, max_percent: max } : s)) };
+    return computeModel(c, reader({ "sensor.pv": 0, "sensor.bat": 1000, "sensor.grid": 0, "sensor.soc": 50 })).sources.find((s) => s.type === "battery")!;
+  };
+  it("take the discharge limit and the charge limit from the config", () => {
+    const b = limited(10, 90);
+    expect([b.reserve, b.max]).toEqual([10, 90]);
+  });
+  it("shorten the forecast: only the part above the discharge limit can be used", () => {
+    // 10 kWh at 50 % and 1 kW: 5 h to empty, 4 h with a limit of 10 %
+    const now = 0;
+    expect(batteryForecast(limited(), 10, now)?.minutes).toBeCloseTo(300);
+    expect(batteryForecast(limited(10), 10, now)?.minutes).toBeCloseTo(240);
+  });
+  it("shorten the forecast of a charging battery down to the charge limit", () => {
+    const c = computeModel(cfg, reader({ "sensor.bat": -1000, "sensor.soc": 50 }));
+    const b = { ...c.sources.find((s) => s.type === "battery")!, max: 90 };
+    expect(batteryForecast(b, 10, 0)?.minutes).toBeCloseTo(240);
+    expect(batteryForecast({ ...b, max: 50 }, 10, 0)).toBeUndefined();
+  });
+  it("want percent values, the discharge limit below the charge limit, and only a battery", () => {
+    const src = (extra: object) => ({ type: "x", sources: [{ entity: "sensor.a", type: "battery", ...extra }] });
+    expect(() => validateConfig(src({ reserve_percent: 10, max_percent: 90 }))).not.toThrow();
+    for (const bad of [-1, 101, "10"]) expect(() => validateConfig(src({ reserve_percent: bad }))).toThrow(/reserve_percent must be a number from 0 to 100/);
+    expect(() => validateConfig(src({ reserve_percent: 90, max_percent: 80 }))).toThrow(/reserve_percent must be below max_percent/);
+    expect(() => validateConfig({ type: "x", sources: [{ entity: "sensor.a", type: "solar", max_percent: 90 }] })).toThrow(/max_percent: only for the type battery/);
   });
 });

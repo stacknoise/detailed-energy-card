@@ -670,6 +670,40 @@ export const cardStyles = css`
     font-weight: 500;
   }
   /* note under a source: the forecast of a battery, the split of the solar power */
+  /* options.show_battery_bar: the charge, with the unused zones below the discharge limit and above the charge limit hatched */
+  .soc-bar {
+    background: color-mix(in srgb, var(--_text) 14%, transparent);
+    border-radius: 3px;
+    display: inline-block;
+    height: 6px;
+    margin-right: 5px;
+    overflow: hidden;
+    position: relative;
+    vertical-align: middle;
+    width: 44px;
+  }
+  .soc-bar .fill {
+    background: #f06292;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: var(--soc);
+  }
+  .soc-bar .zone {
+    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--_text) 55%, transparent) 0 1px, transparent 1px 3px);
+    bottom: 0;
+    position: absolute;
+    top: 0;
+  }
+  .soc-bar .zone.low {
+    left: 0;
+    width: var(--res);
+  }
+  .soc-bar .zone.high {
+    left: var(--max);
+    right: 0;
+  }
   .second.note.split {
     align-items: center;
     display: inline-flex;
@@ -713,7 +747,7 @@ export const cardStyles = css`
     height: 18px;
     justify-self: end;
     position: relative;
-    width: 34px;
+    width: 44px;
   }
   .switch i {
     background: var(--_text);

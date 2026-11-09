@@ -1035,16 +1035,27 @@ export class DetailedEnergyCard extends LitElement {
    */
   private _sourceNotes(cfg: EnergyCardConfig, model: EnergyModel): { notes?: Map<string, SourceNote>; noteLine?: boolean } {
     const o = cfg.options;
-    if (this._mode === "energy" || this._compact || (!o?.show_battery_forecast && !o?.show_solar_split)) return {};
+    if (this._mode === "energy" || this._compact || (!o?.show_battery_forecast && !o?.show_solar_split && !o?.show_battery_bar)) return {};
     const notes = new Map<string, SourceNote>();
     let line = false;
+    if (o.show_battery_bar) {
+      for (const s of model.sources) {
+        if (s.type !== "battery") continue;
+        line = true;
+        if (s.soc === undefined || !s.valid) continue;
+        const soc = Math.min(100, Math.max(0, s.soc));
+        notes.set(s.entity, { kind: "text", text: "", title: `${Math.round(soc)} %`, bar: { soc, reserve: s.reserve ?? 0, max: s.max ?? 100 } });
+      }
+    }
     if (o.show_battery_forecast) {
       for (const s of model.sources) {
         const capacity = cfg.sources?.find((c) => c.entity === s.entity)?.capacity_kwh;
         if (s.type !== "battery" || !capacity) continue;
         line = true;
+        const prev = notes.get(s.entity);
+        const bar = prev?.kind === "text" ? prev.bar : undefined;
         const f = batteryForecast(s, capacity, Date.now());
-        if (f) notes.set(s.entity, { kind: "text", text: this._t(f.kind === "full" ? "battery_full_at" : "battery_empty_at").replace("{0}", this._clock(f.at)), title: this._t("battery_in").replace("{0}", this._span(f.minutes)) });
+        if (f) notes.set(s.entity, { kind: "text", text: this._t(f.kind === "full" ? "battery_full_at" : "battery_empty_at").replace("{0}", this._clock(f.at)), title: this._t("battery_in").replace("{0}", this._span(f.minutes)), bar });
       }
     }
     if (o.show_solar_split) {

@@ -21,6 +21,10 @@ export interface SourceConfig extends ActionFields {
   soc_entity?: string;
   /** usable capacity of a battery in kWh: with `options.show_battery_forecast` the card shows when it is full or empty */
   capacity_kwh?: number;
+  /** battery: the state of charge in percent below which the battery does not discharge (the discharge limit); drawn as a zone in the bar and used by the forecast */
+  reserve_percent?: number;
+  /** battery: the state of charge in percent up to which the battery charges (the charge limit, default 100) */
+  max_percent?: number;
   invert?: boolean;
   /** energy counter (kWh) for the energy mode */
   energy_entity?: string;
@@ -129,6 +133,8 @@ export interface OptionsConfig {
   show_solar_split?: boolean;
   /** the lines take the colors of the sources instead of the thresholds; below the home they run as strands in the mix (default off) */
   lines_by_source?: boolean;
+  /** under a battery with a state of charge: a bar with the charge and, with `reserve_percent` / `max_percent`, the zones it does not use (default off) */
+  show_battery_bar?: boolean;
   /** a banner while more than `surplus_min_w` watts are fed into the grid, with what using it at home would save (default off) */
   show_surplus?: boolean;
   /** the feed-in in watts from which the surplus banner appears (default 500) */
@@ -294,7 +300,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "lines_by_source", "show_surplus", "show_day_values"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "lines_by_source", "show_surplus", "show_day_values"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;
@@ -425,6 +431,13 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
       }
       if (s.type !== "battery") throw new ConfigError(`sources[${i}].capacity_kwh: only for the type battery`);
     }
+    for (const key of ["reserve_percent", "max_percent"] as const) {
+      const v = s[key];
+      if (v === undefined) continue;
+      if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 100) throw new ConfigError(`sources[${i}].${key} must be a number from 0 to 100 (percent)`);
+      if (s.type !== "battery") throw new ConfigError(`sources[${i}].${key}: only for the type battery`);
+    }
+    if ((s.reserve_percent ?? 0) >= (s.max_percent ?? 100)) throw new ConfigError(`sources[${i}].reserve_percent must be below max_percent`);
     checkBool(s.invert, `sources[${i}].invert`);
     checkColor(s.color, `sources[${i}].color`);
     checkThresholds(s.thresholds, `sources[${i}].thresholds`);

@@ -12,6 +12,10 @@ Four options that show where the power comes from and where it goes. All are off
 - `options.show_solar_split`: under the solar source, the percentage of the solar power that goes into the home, the battery and the grid. The mode *Now* only.
 - The editor has the four switches under *General* and the field *Capacity (kWh)* at a battery source; the dev page has the scenarios `mix` and `surplus`.
 
+Battery limits and a charge bar:
+
+- `options.show_battery_bar`: under a battery with a state of charge, a small bar with the charge. The new `reserve_percent` (discharge limit) and `max_percent` (charge limit) of a battery source are hatched zones in it, and the battery forecast now counts only the usable part between them. The mode *Now* only. The editor has the switch and the two fields; the dev page has the scenario `battery`.
+
 Three more options for the overview, also off by default:
 
 - `options.lines_by_source`: the lines of the active paths take the colors of the sources instead of the thresholds; below the home they run as thin strands side by side, one per source, as wide as its share. The mode *Now* only.

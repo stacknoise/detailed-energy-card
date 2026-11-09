@@ -537,6 +537,21 @@ test.describe("energy mode", () => {
     });
   });
 
+  test.describe("battery bar (off by default)", () => {
+    test("shows the charge with the limits as zones, and the forecast stays next to it", async ({ page }) => {
+      await open(page, "mix");
+      await expect(page.locator("detailed-energy-card .soc-bar")).toHaveCount(0);
+      await open(page, "battery");
+      const bar = page.locator("detailed-energy-card .soc-bar");
+      await expect(bar).toHaveCount(1);
+      await expect(bar.locator(".fill")).toBeVisible();
+      await expect(node(page, "Batterie").locator(".note")).toContainText("Reicht bis");
+      const widths = await bar.evaluate((el) => ({ fill: el.querySelector(".fill")!.getBoundingClientRect().width / el.getBoundingClientRect().width, low: el.querySelector(".zone.low")!.getBoundingClientRect().width / el.getBoundingClientRect().width }));
+      expect(widths.fill).toBeCloseTo(0.76, 1);
+      expect(widths.low).toBeCloseTo(0.1, 1);
+    });
+  });
+
   test.describe("overview: source-colored lines, surplus banner, values of today (all off by default)", () => {
     test("without the options nothing of it is drawn", async ({ page }) => {
       await open(page, "surplus");

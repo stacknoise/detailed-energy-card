@@ -73,7 +73,7 @@ export const FORECAST_MAX_H = 48;
 
 /**
  * When a battery is full (charging) or empty (discharging) at the power it has now, from its state of charge
- * and its capacity in kWh. Undefined while idle, without a readable state of charge, without a capacity, when
+ * and its capacity in kWh, up to its charge limit and down to its discharge limit (`max`, `reserve`). Undefined while idle, without a readable state of charge, without a capacity, when
  * it is already full or empty, or when the time is further away than `FORECAST_MAX_H`.
  */
 export function batteryForecast(s: SourceNode, capacityKwh: number | undefined, now: number): BatteryForecast | undefined {
@@ -82,7 +82,8 @@ export function batteryForecast(s: SourceNode, capacityKwh: number | undefined, 
   if (watts < FORECAST_MIN_W) return undefined;
   const charging = s.watts < 0;
   const soc = Math.min(100, Math.max(0, s.soc));
-  const kwhLeft = capacityKwh * ((charging ? 100 - soc : soc) / 100);
+  // the usable part: up to the charge limit, down to the discharge limit
+  const kwhLeft = capacityKwh * (charging ? Math.max(0, (s.max ?? 100) - soc) : Math.max(0, soc - (s.reserve ?? 0))) / 100;
   if (kwhLeft <= 0.005) return undefined;
   const minutes = (kwhLeft / (watts / 1000)) * 60;
   if (minutes > FORECAST_MAX_H * 60) return undefined;

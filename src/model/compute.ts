@@ -106,6 +106,9 @@ export interface SourceNode {
   share: number;
   /** state of charge in percent (battery) */
   soc?: number;
+  /** battery: discharge limit and charge limit in percent from the config */
+  reserve?: number;
+  max?: number;
 }
 export interface EnergyModel {
   sources: SourceNode[];
@@ -246,6 +249,8 @@ export function computeModel(
       reverse: flow < 0,
       share: 0,
       soc: soc?.valid ? soc.watts : undefined,
+      reserve: type === "battery" ? s.reserve_percent : undefined,
+      max: type === "battery" ? s.max_percent : undefined,
     };
   });
 

@@ -51,6 +51,7 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Home value in the color of the largest source | `options.home_color_by_source` | `false` | Icon, border and glow of the home circle take the color of the source with the largest share. |
 | Battery forecast (full at / lasts until) | `options.show_battery_forecast` | `false` | Under a battery with a state of charge and a capacity: when it is full (charging) or empty (discharging). Mode *Now* only. |
 | Split of the solar power | `options.show_solar_split` | `false` | Under the solar source: the percentage of the power that goes into the home, the battery and the grid. Mode *Now* only. |
+| Charge bar at the battery | `options.show_battery_bar` | `false` | Under a battery with a state of charge: a bar with the charge; the zones below the discharge limit and above the charge limit are hatched. Mode *Now* only. |
 | Lines in source colors | `options.lines_by_source` | `false` | The lines of the active paths take the color of the source instead of the threshold color; below the home they run as strands in the mix. Mode *Now* only. |
 | Surplus banner | `options.show_surplus` | `false` | A banner while more than `surplus_min_w` watts go into the grid, with what using it at home would save per hour. Mode *Now* only. |
 | Surplus from (W) | `options.surplus_min_w` | `500` | The feed-in from which the banner appears; it stays until 80 % of it. |
@@ -69,6 +70,8 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Energy sensor of the other direction (feed-in or charged, kWh, optional) | `energy_entity_return` | none | Counter of the other direction (grid feed-in, battery charged); not for `solar`. |
 | State of charge (SoC) | `soc_entity` | none | State of charge of a battery, in %. |
 | Capacity (kWh) | `capacity_kwh` | none | Usable capacity of a battery in kWh. Needed for `options.show_battery_forecast`. Only for the type `battery`. |
+| Discharge limit (%) | `reserve_percent` | none | Battery only: the state of charge below which it does not discharge. A hatched zone in the charge bar, taken into account by the forecast. |
+| Charge limit (%) | `max_percent` | 100 | Battery only: the state of charge up to which it charges. Must be above `reserve_percent`. |
 | Invert sign | `invert` | `false` | Turn the sign of the sensor around. |
 | Tap action (default: select, or details) | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions of this source, see *Actions*; `thresholds` sets own thresholds. |
 
@@ -153,7 +156,7 @@ The *Self-sufficiency* badge (share of the consumption not drawn from the grid) 
 
 - `options.show_source_mix: true` draws a ring around the home circle: each source gets a segment as wide as its share of the power delivered (solar, a discharging battery, grid import; in the energy mode the energy of the period). A legend with the names and percentages sits to the left of the circle. A charging battery and feed-in deliver nothing and are left out. In the compact view only the ring is drawn.
 - `options.home_color_by_source: true` colors the home circle (icon, border, glow) like the source with the largest share. The color changes only when another source is at least 5 percentage points ahead, so it does not flicker when two sources are close.
-- `options.show_battery_forecast: true` adds a line under a battery: *Full at 17:06* while it charges, *Lasts until 06:06* while it discharges (with the weekday when it is not today; the tooltip says how long). It needs the state of charge (`soc_entity`) and the usable capacity (`capacity_kwh`, in kWh) of that battery and calculates with the power of the moment: the time is a guess that changes with the load. It stays out while the battery is idle (under 20 W), full or empty, and when the time is more than 48 hours away. The reserve of the battery is not taken into account.
+- `options.show_battery_forecast: true` adds a line under a battery: *Full at 17:06* while it charges, *Lasts until 06:06* while it discharges (with the weekday when it is not today; the tooltip says how long). It needs the state of charge (`soc_entity`) and the usable capacity (`capacity_kwh`, in kWh) of that battery and calculates with the power of the moment: the time is a guess that changes with the load. It stays out while the battery is idle (under 20 W), full or empty, and when the time is more than 48 hours away. With `reserve_percent` and `max_percent` it counts only the usable part: down to the discharge limit, up to the charge limit.
 - `options.show_solar_split: true` adds a line under the solar source with three percentages and symbols: how much of the power goes into the home, the battery and the grid right now. The tooltip names the powers. The measured flows come first (charging power of the batteries, feed-in), the rest goes into the home, so it works without a sensor for the home. Parts of 0 % and a production under 50 W are left out.
 
 The battery forecast and the split show only in the mode *Now* and not in the compact view. As soon as a source can have such a line, all sources get one line more (also while it is empty), so the diagram does not jump.
@@ -169,6 +172,8 @@ options:
   show_battery_forecast: true
   show_solar_split: true
 ```
+
+**Charge bar.** `options.show_battery_bar: true` draws a small bar under a battery with a readable state of charge (`soc_entity`): the filled part is the charge, the tooltip says the percentage. `reserve_percent` (discharge limit) and `max_percent` (charge limit) of the battery source mark the zones it does not use as hatched areas at the start and at the end of the bar. The bar sits in the line under the battery, next to the forecast when that is on, and uses the same extra line as the other notes. Mode *Now* only, not in the compact view.
 
 **Overview.** Three more options, all off by default and independent of each other. They work in the mode *Now* and not in the compact view (the colored lines also work there).
 

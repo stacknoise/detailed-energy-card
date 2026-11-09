@@ -451,6 +451,12 @@
       const withCapacity = (list) => list.map((src) => (src.type === "battery" ? { ...src, capacity_kwh: 10 } : src));
       const mixOptions = { unit: "kW", show_source_mix: true, home_color_by_source: true, show_battery_forecast: true, show_solar_split: true };
       scenarios.mix = { ...scenarios.floors, sources: withCapacity(scenarios.floors.sources), options: mixOptions };
+      // The charge bar with a discharge limit of 10 % and a charge limit of 90 %, and the forecast that takes them into account.
+      scenarios.battery = {
+        ...scenarios.mix,
+        sources: scenarios.mix.sources.map((src) => (src.type === "battery" ? { ...src, reserve_percent: 10, max_percent: 90 } : src)),
+        options: { unit: "kW", show_battery_bar: true, show_battery_forecast: true },
+      };
       // The same with a solar surplus: the battery charges ("Full at ..."), the rest goes into the grid.
       scenarios.surplus = {
         ...scenarios.floors,

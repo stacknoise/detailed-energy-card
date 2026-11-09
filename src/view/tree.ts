@@ -73,7 +73,7 @@ export interface ResolvedSelection {
 
 /** A note under a source (options.show_battery_forecast, options.show_solar_split). */
 export type SourceNote =
-  | { kind: "text"; text: string; title?: string }
+  | { kind: "text"; text: string; title?: string; bar?: { soc: number; reserve: number; max: number } }
   | { kind: "split"; home: number; battery: number; grid: number; title: string };
 
 /** What a node listens to: a click, and for a hold action the press and its end. */
@@ -388,7 +388,12 @@ export class TreeView {
   private _renderNote(c: TreeContext, note: SourceNote | undefined): TemplateResult | typeof nothing {
     if (!c.noteLine) return nothing;
     if (!note) return html`<span class="second note"></span>`;
-    if (note.kind === "text") return html`<span class="second note" title=${note.title ?? nothing}>${note.text}</span>`;
+    if (note.kind === "text") {
+      const bar = note.bar;
+      return html`<span class="second note ${bar ? "withbar" : ""}" title=${note.title ?? nothing}>${bar
+        ? html`<span class="soc-bar" style=${`--soc:${bar.soc}%;--res:${bar.reserve}%;--max:${bar.max}%`}><span class="fill"></span><span class="zone low"></span><span class="zone high"></span></span>`
+        : nothing}${note.text}</span>`;
+    }
     const part = (icon: string, pct: number, color: string) =>
       pct > 0 ? html`<span class="part"><ha-icon icon=${icon} style=${`color:${color}`}></ha-icon>${pct}</span>` : nothing;
     return html`<span class="second note split" title=${note.title}>${part("mdi:home", note.home, "var(--_accent)")}${part("mdi:battery-charging", note.battery, "#f06292")}${part("mdi:transmission-tower-export", note.grid, "#488fc2")}<span>%</span></span>`;
