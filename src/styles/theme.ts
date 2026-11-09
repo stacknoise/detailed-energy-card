@@ -691,7 +691,7 @@ export const cardStyles = css`
     border-radius: 10px;
     display: flex;
     gap: 12px;
-    margin: 4px 16px 0;
+    margin: 4px 16px 10px;
     padding: 10px 14px;
   }
   .surplus ha-icon {
@@ -775,15 +775,19 @@ export const cardStyles = css`
   .second.note.split {
     align-items: center;
     display: inline-flex;
-    gap: 5px;
+    gap: 3px;
   }
   .second.note .part {
     align-items: center;
     display: inline-flex;
-    gap: 1px;
+    gap: 0;
   }
   .second.note ha-icon {
-    --mdc-icon-size: 12px;
+    --mdc-icon-size: 11px;
+  }
+  /* a little closer to the value, so that the lines below do not touch the note */
+  .second.note {
+    margin-top: -3px;
   }
   .pill .second {
     display: block;
