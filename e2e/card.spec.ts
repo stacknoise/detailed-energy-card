@@ -552,6 +552,33 @@ test.describe("energy mode", () => {
     });
   });
 
+  test.describe("origin of the power (off by default)", () => {
+    test("without the option the list has no ring and the bars keep their color", async ({ page }) => {
+      await open(page, "energy");
+      await expect(page.locator("detailed-energy-card div.origin")).toHaveCount(0);
+    });
+
+    test("a ring says where the power comes from, the bars are split, a hint names the best hours", async ({ page }) => {
+      await open(page, "origin");
+      const ring = page.locator("detailed-energy-card div.origin");
+      await expect(ring).toBeVisible();
+      await expect(ring.locator(".origin-legend")).toContainText("Solar");
+      await expect(ring.locator(".origin-legend")).toContainText("Netz");
+      await expect(ring.locator(".origin-best")).toContainText("Am wenigsten Netzstrom");
+      await expect(page.locator("detailed-energy-card .bar.origin").first()).toBeVisible();
+      expect(await page.locator("detailed-energy-card .bar.origin .origin-strip i").count()).toBeGreaterThan(1);
+    });
+
+    test("follows the selection: a room has its own shares", async ({ page }) => {
+      await open(page, "origin");
+      const total = await page.locator("detailed-energy-card .origin-legend").innerText();
+      await node(page, "Küche").click();
+      await expect(page.locator("detailed-energy-card div.origin")).toBeVisible();
+      expect(await page.locator("detailed-energy-card .origin-legend").innerText()).not.toBe("");
+      expect(total).not.toBe("");
+    });
+  });
+
   test.describe("overview: source-colored lines, surplus banner, values of today (all off by default)", () => {
     test("without the options nothing of it is drawn", async ({ page }) => {
       await open(page, "surplus");

@@ -479,6 +479,8 @@
         })),
         options: { ...mixOptions, lines_by_source: true, show_surplus: true, show_day_values: true, price: 0.31, feed_in_price: 0.08 },
       };
+      // Origin of the power in the list: the energy counters of solar, battery and grid with their hourly shapes.
+      scenarios.origin = { ...scenarios.energy, options: { unit: "kW", mode: "power", show_origin: true } };
       // Strands: with several sources delivering, the lines below the home run side by side in the colors of the mix.
       scenarios.strands = { ...scenarios.mix, options: { unit: "kW", lines_by_source: true, show_source_mix: true } };
       // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
@@ -690,11 +692,23 @@
             } else {
               for (let t = start; t < end; t += 86400000) slots.push([t, Math.min(1, (end - t) / 86400000) * (1 + 0.15 * Math.sin(t / 86400000))]);
             }
-            const weight = slots.reduce((s, [, w]) => s + w, 0) || 1;
+            // the sources have their own hourly shape: solar a bell around noon, the battery discharges in the evening, the grid fills the rest
+            const shape = (id, t, w) => {
+              if (m.period !== "hour") return w;
+              const h = new Date(t).getHours();
+              if (id === "sensor.e_pv" || id === "sensor.e_pv_s") return Math.exp(-((h - 13) ** 2) / 8);
+              if (id === "sensor.e_akku" || id === "sensor.e_akku_s") return h >= 17 && h <= 23 ? 1 : 0;
+              if (id === "sensor.e_netz" || id === "sensor.e_netz_s") return Math.max(0.05, 1 - 1.2 * Math.exp(-((h - 13) ** 2) / 8));
+              return w;
+            };
             return Object.fromEntries(
               m.statistic_ids
                 .filter((id) => id in energyToday)
-                .map((id) => [id, slots.map(([t, w]) => ({ start: t, change: (energyToday[id] * factor * scale * w) / weight }))]),
+                .map((id) => {
+                  const ws = slots.map(([t, w]) => shape(id, t, w));
+                  const weight = ws.reduce((s, w) => s + w, 0) || 1;
+                  return [id, slots.map(([t], i) => ({ start: t, change: (energyToday[id] * factor * scale * ws[i]) / weight }))];
+                }),
             );
           }
           return m.type.includes("floor") ? registries.floors : registries.areas;

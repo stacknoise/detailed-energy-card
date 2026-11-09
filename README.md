@@ -78,6 +78,14 @@ Three more switches: the lines in the colors of the sources (below the home as s
 | --- | --- |
 | ![Surplus banner, the solar line in orange and tiles with today's solar, grid, feed-in, battery, home and self-sufficiency](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-overview.png?v=5) | ![Lines in the colors of the sources, below the home as strands in the mix](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-lines.png?v=5) |
 
+### Where does the power come from? (optional)
+
+One more switch: in the list a ring shows how much of the power of the shown room, floor or home was solar, battery or grid, every bar is split the same way, and a hint names the hours with the least grid import, the best time for big loads.
+
+| Origin of the power per consumer, and the best hours |
+| --- |
+| ![Ring with solar and grid, bars split by origin and the hint for the hours with the least grid import](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-origin.png?v=5) |
+
 ### More ways to see it
 
 | Timeline of the day | Sankey diagram |

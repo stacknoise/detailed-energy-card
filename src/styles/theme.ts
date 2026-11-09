@@ -615,6 +615,60 @@ export const cardStyles = css`
     min-height: 12px;
     white-space: nowrap;
   }
+  /* options.show_origin: ring, legend and hint of the origin, and bars split by origin */
+  .origin {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 6px 0 10px;
+  }
+  .origin-main {
+    align-items: center;
+    display: flex;
+    gap: 16px;
+  }
+  .origin-ring {
+    border-radius: 50%;
+    flex: none;
+    height: 64px;
+    -webkit-mask: radial-gradient(circle, transparent 0 20px, #000 21px);
+    mask: radial-gradient(circle, transparent 0 20px, #000 21px);
+    width: 64px;
+  }
+  .origin-legend {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85em;
+    gap: 3px;
+  }
+  .origin-best {
+    align-items: flex-start;
+    background: color-mix(in srgb, #4caf50 14%, transparent);
+    border-radius: 8px;
+    display: flex;
+    font-size: 0.8em;
+    gap: 8px;
+    line-height: 1.4;
+    padding: 8px 10px;
+  }
+  .origin-best ha-icon {
+    --mdc-icon-size: 18px;
+    color: #81c784;
+    flex: none;
+  }
+  .bar.origin {
+    height: 6px;
+  }
+  .bar.origin .origin-strip {
+    border-radius: inherit;
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+  }
+  .bar.origin .origin-strip i {
+    display: block;
+    height: 100%;
+  }
   /* options.show_surplus: banner while power is fed into the grid */
   .surplus {
     align-items: center;

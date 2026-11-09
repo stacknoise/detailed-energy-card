@@ -13,6 +13,7 @@ import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
 import { SOURCE_COLORS, batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
+import { ORIGIN_KINDS, computeOrigin, originKinds, BEST_HOURS, type OriginResult, type OriginKind } from "./model/origin";
 import { SURPLUS_DEFAULT_W, dayTiles, surplusOf, type DayTile, type Surplus } from "./model/day";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
 import { localize, sourceNames, type Key } from "./localize";
@@ -86,6 +87,8 @@ export class DetailedEnergyCard extends LitElement {
   /** the feed-in while the surplus banner is shown (options.show_surplus), and the tiles of today (options.show_day_values) */
   private _surplus?: Surplus;
   private _day?: DayTile[];
+  /** where the energy of the nodes comes from (options.show_origin) */
+  private _origin?: OriginResult;
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
@@ -230,6 +233,7 @@ export class DetailedEnergyCard extends LitElement {
     const today = kind === "today" ? this._energyStore.values(this._todayQuery()) : undefined;
     this._costs = this._computeCosts();
     this._surplus = this._mode === "power" && o?.show_surplus ? surplusOf(this._model, o.surplus_min_w ?? SURPLUS_DEFAULT_W, !!this._surplus, this._priceNow("price", "price_entity"), this._priceNow("feed_in_price", "feed_in_price_entity")) : undefined;
+    this._origin = this._originOn ? this._computeOrigin() : undefined;
     const dayEnergy = this._dayOn ? this._energyStore.values(this._todayQuery()) : undefined;
     this._day = dayEnergy ? dayTiles(computeModel(cfg, energyReader(dayEnergy), socReader(states), names, true)) : undefined;
     this._second =
@@ -436,13 +440,31 @@ export class DetailedEnergyCard extends LitElement {
     };
   }
 
+  /** The hourly energy of all counters in the cost period (the base of the costs and of the origin). */
+  private _hourlyQuery(): EnergyQuery {
+    return { ids: collectEnergyIds(this._config!), period: this._costPeriod, offset: this._off || undefined, stat: "hour", incremental: true };
+  }
+
+  /** The origin can be shown: the option is on, there are energy counters of at least two kinds of sources, and the list is shown. */
+  private get _originOn(): boolean {
+    const cfg = this._config;
+    return !!cfg?.options?.show_origin && !this._compact && cfg.options.show_consumers !== false && originKinds(cfg).length > 0;
+  }
+
+  private _computeOrigin(): OriginResult | undefined {
+    const rows = this._energyStore.series(this._hourlyQuery());
+    if (!rows || !this._config) return undefined;
+    const b = periodBounds(this._costPeriod, new Date(), this._timeZone, this._firstWeekday, this._off);
+    return computeOrigin({ cfg: this._config, rows, starts: bucketStarts(b.start, b.end, "hour", this._timeZone), end: b.end.getTime(), timeZone: this._timeZone });
+  }
+
   /** Hourly energy and prices of the cost period (loaded incrementally) and the cost statistics of Home Assistant. */
   private _costQueries(): EnergyQuery[] {
     if (!this._costsOn) return [];
     const cfg = this._config!;
     const period = this._costPeriod;
     const offset = this._off || undefined;
-    const out: EnergyQuery[] = [{ ids: collectEnergyIds(cfg), period, offset, stat: "hour", incremental: true }];
+    const out: EnergyQuery[] = [this._hourlyQuery()];
     const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity].filter((e): e is string => !!e);
     if (prices.length) out.push({ ids: prices, period, offset, stat: "hour", kind: "mean", incremental: true });
     const ha = Object.values(this._haCostIds()).filter((e): e is string => !!e);
@@ -502,6 +524,8 @@ export class DetailedEnergyCard extends LitElement {
     if (this._showsTimeline) wanted.push(...this._timelineQueries());
     // the costs need the hours of their period and the prices
     wanted.push(...this._costQueries());
+    // the origin needs the same hours of energy; when the costs load them already, the query is shared
+    if (this._originOn && !this._costsOn) wanted.push(this._hourlyQuery());
     // base load and standby look at the hourly means of power sensors
     wanted.push(...this._powerStatQueries());
     this._energyStore.want(wanted);
@@ -1148,7 +1172,7 @@ export class DetailedEnergyCard extends LitElement {
             ? this._sankey.render()
             : this._tree.render(this._treeContext(cfg, model, sel, home))}
         ${this._renderDay()}
-        ${this._compact || this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
+        ${this._compact || this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room), room ? nodeKey.room(room.id) : allRooms && floor ? nodeKey.floor(floor.id) : nodeKey.home)}
       </ha-card>
     `;
   }
@@ -1219,7 +1243,38 @@ export class DetailedEnergyCard extends LitElement {
     </div>`;
   }
 
-  private _renderDetail(room: RoomNode | undefined, remainder: Remainder | undefined): TemplateResult {
+  /** The ring, the legend and the hint "least grid power" for the shown node (options.show_origin). */
+  private _renderOrigin(key: string): TemplateResult | typeof nothing {
+    const o = this._origin?.nodes.get(key);
+    if (!this._originOn || !o) return nothing;
+    const kinds = ORIGIN_KINDS.filter((k) => o.share[k] >= 0.005);
+    let at = 0;
+    const stops = kinds.map((k) => {
+      const from = at;
+      at += o.share[k] * 100;
+      return `${SOURCE_COLORS[k]} ${from.toFixed(2)}% ${at.toFixed(2)}%`;
+    });
+    const best = this._origin?.best;
+    const pad = (h: number) => String(h % 24);
+    return html`<div class="origin">
+      <div class="origin-main">
+        <span class="origin-ring" style=${`background:conic-gradient(from 0deg, ${stops.join(", ")})`} role="img" aria-label=${kinds.map((k) => `${this._t(`origin_${k}` as Key)} ${Math.round(o.share[k] * 100)} %`).join(", ")}></span>
+        <div class="origin-legend">
+          ${kinds.map((k) => html`<div><span style=${`color:${SOURCE_COLORS[k]}`}>●</span> ${this._t(`origin_${k}` as Key)} <b>${Math.round(o.share[k] * 100)} %</b> <span class="muted">${this._fmtAs("energy", o.wh[k])}</span></div>`)}
+        </div>
+      </div>
+      ${best ? html`<div class="origin-best"><ha-icon icon=${"mdi:clock-outline"}></ha-icon><span>${this._t("origin_best").replace("{0}", pad(best.fromHour)).replace("{1}", pad(best.fromHour + BEST_HOURS)).replace("{2}", String(Math.round(best.gridShare * 100)))}</span></div>` : nothing}
+    </div>`;
+  }
+
+  /** The bar of a consumer split by origin, as wide as `fraction` of the row (options.show_origin); undefined without a known origin. */
+  private _originBar(entity: string, fraction: number): TemplateResult | undefined {
+    const o = this._origin?.nodes.get(nodeKey.consumer(entity));
+    if (!this._originOn || !o) return undefined;
+    return html`<span class="bar origin"><div class="origin-strip" style=${`width:${Math.max(0, Math.min(1, fraction)) * 100}%`}>${ORIGIN_KINDS.filter((k) => o.share[k] > 0).map((k: OriginKind) => html`<i style=${`width:${o.share[k] * 100}%;background:${SOURCE_COLORS[k]}`}></i>`)}</div></span>`;
+  }
+
+  private _renderDetail(room: RoomNode | undefined, remainder: Remainder | undefined, originKey = nodeKey.home): TemplateResult {
     if (!room) {
       return html`<div class="detail empty">${this._t("no_rooms")}</div>`;
     }
@@ -1239,6 +1294,7 @@ export class DetailedEnergyCard extends LitElement {
             <span class="muted"> · ${this._fmt(room.watts)}</span></span>
           <span class="muted">${onlyActive ? `${sorted.length} / ${room.consumers.length}` : room.consumers.length} ${this._t("consumers")}</span>
         </div>
+        ${this._renderOrigin(originKey)}
         ${sorted.length === 0 && !(room.consumers.length === 0 && room.meter?.metered)
           ? html`<div class="empty">${this._t(room.consumers.length === 0 ? "no_consumers" : "no_active_consumers")}</div>`
           : nothing}
@@ -1254,7 +1310,7 @@ export class DetailedEnergyCard extends LitElement {
             <button class="row ${c.valid || c.noPower ? "" : "warn"} ${c.noPower || (c.valid && isIdle(c.watts)) ? "idle" : ""}"
               @click=${() => b.click()} @pointerdown=${() => b.down()} @pointerup=${() => b.up()} @pointerleave=${() => b.up()} @pointercancel=${() => b.up()} @contextmenu=${(e: Event) => b.contextmenu(e)}>
               <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}${c.noSensor || c.noEnergy || c.noPower || showIds ? html`<small>${c.noSensor ? this._t("no_sensor") : c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small>` : nothing}</span>
-              <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
+              ${this._originBar(c.entity, c.watts / max) ?? html`<span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>`}
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
               ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}
               ${switches ? this._renderSwitch(c.switchEntity, c.confirmSwitch === true) : nothing}

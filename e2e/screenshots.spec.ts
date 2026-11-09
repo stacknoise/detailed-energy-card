@@ -160,6 +160,15 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
       await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
     },
   },
+  {
+    scenario: "origin",
+    file: "card-origin",
+    // the origin of the power of the home and of every consumer, and the hours with the least grid import
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .origin-best")).toBeVisible();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",
@@ -194,7 +203,7 @@ async function fixClock(page: import("@playwright/test").Page, at: string): Prom
 const CARD_IMAGE_HEIGHT = 910;
 /** a little of the page around the card, so that it reads as a card and not as a cut-out */
 const IMAGE_MARGIN = 12;
-const natural = new Set(["card-hero", "card-overview"]);
+const natural = new Set(["card-hero", "card-overview", "card-origin"]);
 
 for (const { scenario, file, clock, width, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {
