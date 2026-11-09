@@ -334,6 +334,29 @@ test.describe("energy mode", () => {
     await expect(legend).toHaveText(["EG", "OG", "Keller", "gestern"]);
   });
 
+  test("year_budget_kwh shows the use since January against the budget", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "today");
+    await expect(page.locator("detailed-energy-card .budget")).toHaveCount(0);
+    await open(page, "budget");
+    const budget = page.locator("detailed-energy-card .budget");
+    await expect(budget).toContainText("Jahresbudget");
+    await expect(budget.locator(".budget-text")).toContainText(/ von 6\.?000(,0)? kWh verbraucht \(\d+ %\)/);
+    await expect(budget.locator(".budget-pace")).toContainText("Hochgerechnet");
+  });
+
+  test("compare_last_year marks the same days of last year and compares with them", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "timeline");
+    await mode(page, "Monat").click();
+    await expect(page.locator("detailed-energy-card .chart line.lastyear")).toHaveCount(0);
+    await open(page, "lastyear");
+    await mode(page, "Monat").click();
+    await expect.poll(() => page.locator("detailed-energy-card .chart line.lastyear").count()).toBeGreaterThan(20);
+    await expect(page.locator("detailed-energy-card .legend-item.year-key")).toHaveText("gleicher Monat im Vorjahr");
+    await expect(page.locator("detailed-energy-card .kpi span", { hasText: "ggü. Vorjahr (gleiche Tage)" })).toHaveCount(1);
+  });
+
   test("the timeline of a week has a bar per day and compares with last week", async ({ page }) => {
     await fixClock(page);
     await open(page, "timeline");
@@ -478,6 +501,191 @@ test.describe("energy mode", () => {
         }),
       );
       await expect(page.locator("detailed-energy-card .error")).toContainText("sources[0].tap_action.navigation_path");
+    });
+  });
+
+  test.describe("source mix, forecast and split (all off by default)", () => {
+    test("without the options nothing of it is drawn and the sources keep their height", async ({ page }) => {
+      await open(page, "floors");
+      await expect(page.locator("detailed-energy-card .circle.home.mixring")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .mix-legend")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .second.note")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .circle.home.sourcecolor")).toHaveCount(0);
+    });
+
+    test("a ring and a legend show the mix, the battery says when it is empty, the split goes to the home", async ({ page }) => {
+      await open(page, "mix");
+      await expect(page.locator("detailed-energy-card .circle.home.mixring")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("PV 80 %");
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("Batterie 11 %");
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("Netz 8 %");
+      // PV leads: the home circle has its color
+      await expect(page.locator("detailed-energy-card .circle.home.sourcecolor")).toHaveCSS("color", "rgb(255, 152, 0)");
+      await expect(node(page, "Batterie").locator(".note")).toContainText("Reicht bis");
+      // the solar power goes only into the home: 100 %
+      await expect(node(page, "PV").locator(".note.split")).toContainText("100");
+    });
+
+    test("with a surplus the battery says when it is full and the split names battery and grid", async ({ page }) => {
+      await open(page, "surplus");
+      await expect(node(page, "Batterie").locator(".note")).toContainText("Voll um");
+      await expect(node(page, "PV").locator(".note.split")).toHaveText(/16\s*29\s*55\s*%/);
+      // a charging battery and feed-in do not deliver: PV is the whole mix
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("PV 100 %");
+      await expect(page.locator("detailed-energy-card .mix-legend .mix-row")).toHaveCount(1);
+    });
+
+    test("the notes keep the sources aligned, and each option works on its own", async ({ page }) => {
+      await open(page, "mix");
+      const heights = await page.locator("detailed-energy-card button.node:has(.circle.source)").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+      expect(new Set(heights).size).toBe(1);
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { unit: "kW", show_source_mix: true } });
+      });
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .second.note")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .circle.home.sourcecolor")).toHaveCount(0);
+    });
+
+    test("the compact view keeps the ring and drops the legend and the notes", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=mix&width=360");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, compact: true } });
+      });
+      await expect(page.locator("detailed-energy-card .circle.home.mixring")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .mix-legend")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .second.note")).toHaveCount(0);
+    });
+  });
+
+  test.describe("battery bar (off by default)", () => {
+    test("shows the charge with the limits as zones, and the forecast stays next to it", async ({ page }) => {
+      await open(page, "mix");
+      await expect(page.locator("detailed-energy-card .soc-bar")).toHaveCount(0);
+      await open(page, "battery");
+      const bar = page.locator("detailed-energy-card .soc-bar");
+      await expect(bar).toHaveCount(1);
+      await expect(bar.locator(".fill")).toBeVisible();
+      await expect(node(page, "Batterie").locator(".note")).toContainText("Reicht bis");
+      const widths = await bar.evaluate((el) => ({ fill: el.querySelector(".fill")!.getBoundingClientRect().width / el.getBoundingClientRect().width, low: el.querySelector(".zone.low")!.getBoundingClientRect().width / el.getBoundingClientRect().width }));
+      expect(widths.fill).toBeCloseTo(0.76, 1);
+      expect(widths.low).toBeCloseTo(0.1, 1);
+    });
+  });
+
+  test.describe("solar forecast in the timeline (off by default)", () => {
+    test("without the option the timeline has no forecast line", async ({ page }) => {
+      await open(page, "timeline");
+      await expect(page.locator("detailed-energy-card svg.chart")).toBeVisible();
+      await expect(page.locator("detailed-energy-card path.forecast")).toHaveCount(0);
+    });
+
+    test("a dashed line shows the forecast of the solar production, with a legend entry", async ({ page }) => {
+      await open(page, "forecast");
+      await expect(page.locator("detailed-energy-card path.forecast")).toHaveCount(1);
+      await expect(page.locator("detailed-energy-card .forecast-key")).toContainText("PV-Prognose");
+    });
+
+    test("a missing forecast leaves the timeline as it is", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=forecast&forecast=error");
+      await expect(page.locator("detailed-energy-card svg.chart")).toBeVisible();
+      await expect(page.locator("detailed-energy-card path.forecast")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .forecast-key")).toHaveCount(0);
+    });
+  });
+
+  test.describe("origin of the power (off by default)", () => {
+    test("without the option the list has no ring and the bars keep their color", async ({ page }) => {
+      await open(page, "energy");
+      await expect(page.locator("detailed-energy-card div.origin")).toHaveCount(0);
+    });
+
+    test("a ring says where the power comes from, the bars are split, a hint names the best hours", async ({ page }) => {
+      await open(page, "origin");
+      const ring = page.locator("detailed-energy-card div.origin");
+      await expect(ring).toBeVisible();
+      await expect(ring.locator(".origin-legend")).toContainText("Solar");
+      await expect(ring.locator(".origin-legend")).toContainText("Netz");
+      await expect(ring.locator(".origin-best")).toContainText("Am wenigsten Netzstrom");
+      await expect(page.locator("detailed-energy-card .bar.origin").first()).toBeVisible();
+      expect(await page.locator("detailed-energy-card .bar.origin .origin-strip i").count()).toBeGreaterThan(1);
+    });
+
+    test("follows the selection: a room has its own shares", async ({ page }) => {
+      await open(page, "origin");
+      const total = await page.locator("detailed-energy-card .origin-legend").innerText();
+      await node(page, "Küche").click();
+      await expect(page.locator("detailed-energy-card div.origin")).toBeVisible();
+      expect(await page.locator("detailed-energy-card .origin-legend").innerText()).not.toBe("");
+      expect(total).not.toBe("");
+    });
+  });
+
+  test.describe("overview: source-colored lines, surplus banner, values of today (all off by default)", () => {
+    test("without the options nothing of it is drawn", async ({ page }) => {
+      await open(page, "surplus");
+      await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .today-values")).toHaveCount(0);
+    });
+
+    test("the banner names the surplus and what using it saves, the tiles show today", async ({ page }) => {
+      await open(page, "today");
+      await expect(page.locator("detailed-energy-card .surplus")).toContainText("3,40 kW Überschuss");
+      await expect(page.locator("detailed-energy-card .surplus")).toContainText("spart etwa");
+      await expect(page.locator("detailed-energy-card .day-tile")).toHaveCount(6);
+      await expect(page.locator("detailed-energy-card .today-values")).toContainText("14,2 kWh");
+      await expect(page.locator("detailed-energy-card .today-values")).toContainText("Autarkie");
+    });
+
+    test("the line from the solar source has its color, and each option works on its own", async ({ page }) => {
+      await open(page, "today");
+      const colors = await page.locator("detailed-energy-card path.line.active").evaluateAll((els) => els.map((e) => getComputedStyle(e).stroke));
+      expect(colors).toContain("rgb(255, 152, 0)");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { unit: "kW", lines_by_source: true } });
+      });
+      await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .today-values")).toHaveCount(0);
+    });
+
+    test("the banner suggests idle devices that fit, and a chip with a switch turns it on", async ({ page }) => {
+      await open(page, "devices");
+      const chips = page.locator("detailed-energy-card .surplus-chip");
+      await expect(chips).toHaveCount(2);
+      await expect(chips.first()).toContainText("Kaffeemaschine");
+      await open(page, "today");
+      await expect(page.locator("detailed-energy-card .surplus-chip")).toHaveCount(0);
+    });
+
+    test("show_hints names readings that do not add up, and only then", async ({ page }) => {
+      await open(page, "surplus");
+      await expect(page.locator("detailed-energy-card .hints")).toHaveCount(0);
+      await open(page, "hints");
+      await expect(page.locator("detailed-energy-card .hint")).toContainText("Räume und Verbraucher messen");
+    });
+
+    test("the heading of the tiles can be hidden", async ({ page }) => {
+      await open(page, "today");
+      await expect(page.locator("detailed-energy-card .day-title")).toHaveCount(1);
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, show_day_title: false } });
+      });
+      await expect(page.locator("detailed-energy-card .day-title")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .day-tile")).toHaveCount(6);
+    });
+
+    test("the compact view leaves them out", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=today&width=360");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, compact: true } });
+      });
+      await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .today-values")).toHaveCount(0);
     });
   });
 
@@ -703,6 +911,16 @@ test.describe("energy mode", () => {
     // the mode Now shows the costs of today
     await mode(page, "Jetzt").click();
     await expect(badge).toHaveText(/^Kosten \d+,\d\d\s€/);
+  });
+
+  test("show_savings adds what solar and battery saved to the badge and the second value", async ({ page }) => {
+    await fixClock(page);
+    await open(page, "costs");
+    await expect(page.locator("detailed-energy-card .badge.costs")).not.toContainText("Gespart");
+    await open(page, "savings");
+    await expect(page.locator("detailed-energy-card .badge.costs")).toContainText(/Gespart \d+,\d\d\s€/);
+    await expect(node(page, "Küche").locator(".second")).toHaveText(/^\d+,\d\d\s€ · gespart \d+,\d\d\s€$/);
+    await expect(node(page, "Küche").locator(".second")).toHaveAttribute("title", /Gespart \d+,\d\d\s€, weil Solar und Akku/);
   });
 
   test("the costs take the amount of the cost statistics of Home Assistant when they exist", async ({ page }) => {

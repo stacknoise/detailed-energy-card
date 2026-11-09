@@ -45,6 +45,8 @@ export interface LayoutInput {
   secondary?: boolean;
   /** a source shows the other direction (feed-in, charged) in a line of its own: the sources get one line more */
   returnLine?: boolean;
+  /** a source shows a note (battery forecast, split of the solar power): the sources get one line more */
+  noteLine?: boolean;
   /** the compact view: smaller circles and rows */
   compact?: boolean;
   /** the floors show the value under the name (see `floorsStacked`) */
@@ -127,7 +129,7 @@ export function computeLayout(i: LayoutInput): Layout {
   const perRow = wrapped ? wrapColumns(rowRooms) : rowRooms;
   const width = Math.max(i.width, perRow * ROOM_COL_W, i.floors > 0 && direct > 0 ? (i.floors + direct) * DIRECT_SLOT_W : 0);
   const extra = i.secondary ? SECONDARY_H : 0;
-  const back = i.returnLine ? SECONDARY_H : 0;
+  const back = i.returnLine || i.noteLine ? SECONDARY_H : 0;
   const c = !!i.compact;
   const sourceH = (c ? COMPACT.sourceH : SOURCE_H) + extra + back;
   // a stacked pill has two lines, as in the compact view

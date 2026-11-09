@@ -5,6 +5,7 @@ import type { EnergyCardConfig } from "../model/config";
 import { nodeKey, type ConsumerNode, type EnergyModel, type MeterInfo, type RoomNode, type SourceNode } from "../model/compute";
 import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
+import { SOURCE_COLORS, mixGradient, type MixSegment } from "../model/mix";
 import type { Key } from "../localize";
 import { Tween, focusTargets, type Pos } from "./focus";
 import { computeLayout, floorsStacked, pillMaxWidth, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
@@ -70,7 +71,11 @@ export interface ResolvedSelection {
   room?: number;
 }
 
-/** What the tree view needs from the card for one frame. */
+/** A note under a source (options.show_battery_forecast, options.show_solar_split). */
+export type SourceNote =
+  | { kind: "text"; text: string; title?: string; bar?: { soc: number; reserve: number; max: number } }
+  | { kind: "split"; home: number; battery: number; grid: number; title: string };
+
 /** What a node listens to: a click, and for a hold action the press and its end. */
 export interface ActionBinding {
   click(): void;
@@ -79,6 +84,7 @@ export interface ActionBinding {
   contextmenu(e: Event): void;
 }
 
+/** What the tree view needs from the card for one frame. */
 export interface TreeContext {
   config: EnergyCardConfig;
   model: EnergyModel;
@@ -95,6 +101,17 @@ export interface TreeContext {
   consumerName(c: ConsumerNode): string;
   /** the compact view: smaller circles, a click on a node opens the dialog of its sensor */
   compact?: boolean;
+  /** options.show_source_mix: the shares of the sources, drawn as a ring around the home and as a legend */
+  mix?: MixSegment[];
+  /** options.home_color_by_source: the color of the home circle (icon, border and glow) */
+  homeColor?: string;
+  /** options.lines_by_source: the lines of the active paths take the colors of the sources (power mode); below the home they run as strands in `mix` */
+  linesBySource?: boolean;
+  /** the mix of the sources for the strands (set with `linesBySource`, whether or not the ring is shown) */
+  lineMix?: MixSegment[];
+  /** notes under the sources by entity; `noteLine` keeps the line free under the sources that have none */
+  notes?: Map<string, SourceNote>;
+  noteLine?: boolean;
   /** the nodes show a second value (options.secondary_value): one line more */
   secondary: boolean;
   /** the second line of a node by nodeKey, undefined when it has none */
@@ -172,6 +189,7 @@ export class TreeView {
       wrap: c.config.options?.wrap_rooms === true,
       secondary: c.secondary,
       returnLine: c.energy && model.sources.some((s) => s.returnCounter),
+      noteLine: !!c.noteLine,
       compact: c.compact,
       stackFloors: this._stackFloors(c),
       direct: model.consumers.length,
@@ -240,7 +258,7 @@ export class TreeView {
       <div class="scroll">
         <div class="graph ${c.compact ? "compact" : ""}" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px`, "--pill-max": `${pillMaxWidth(layout)}px` })}>
           ${this._renderLines(c, layout, floorViews, roomViews, directViews, allRooms, allFloors)}
-          ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
+          ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i], sourceSlot(layout.sourceXs, layout.width)))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
           ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.icon, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity, this._stackFloors(c)))}
           ${model.consumers.map((x, i) => this._renderDirect(c, x, directViews[i], layout, !model.floors.length))}
@@ -259,26 +277,45 @@ export class TreeView {
     const shareOf = (v: number, total: number) => 1 + Math.min(1, Math.max(0, total > 0 ? v / total : 0)) * 5;
     const produced = model.sources.reduce((sum, s) => sum + Math.max(0, s.watts), 0);
     // a line belongs to the level of the node it leads to
-    const line = (lvl: ThresholdLevel, own: ThresholdConfig[] | undefined, d: string, watts: number, active: boolean, reverse = false, opacity = 1) => {
+    const bySource = !!c.linesBySource && !energy;
+    const lineMix = c.lineMix ?? [];
+    const single = lineMix.length === 1 ? lineMix[0].color : undefined;
+    const line = (lvl: ThresholdLevel, own: ThresholdConfig[] | undefined, d: string, watts: number, active: boolean, reverse = false, opacity = 1, sourceColor?: string) => {
       const dur = energy ? null : flowDuration(watts);
       // only lines of the selected path take the threshold color, the others stay muted
       const list = elementThresholds(own, thresholds[lvl]);
-      const color = !energy && active && !isIdle(watts) ? thresholdColor(list, watts) : undefined;
-      const level = color ? Math.min(thresholdLevel(list, watts), MAX_LEVEL) : 0;
+      const lit = !energy && active && !isIdle(watts);
+      // the color of the source replaces the threshold color; below the home it is the mix of the sources
+      const fromSource = bySource && lit ? sourceColor ?? (lvl !== "source" ? single : undefined) : undefined;
+      const color = fromSource ?? (lit ? thresholdColor(list, watts) : undefined);
+      const level = color && !fromSource ? Math.min(thresholdLevel(list, watts), MAX_LEVEL) : 0;
       // a width set on the reached range replaces the width that follows the power
-      const width = energy ? shareOf(watts, lvl === "source" ? produced : model.homeWatts) : (color ? thresholdWidth(list, watts) : undefined) ?? strokeWidth(watts) + level * 0.75;
-      return svg`<path
+      const width = energy ? shareOf(watts, lvl === "source" ? produced : model.homeWatts) : (color && !fromSource ? thresholdWidth(list, watts) : undefined) ?? strokeWidth(watts) + level * 0.75;
+      const path = (dx: number, w: number, stroke: string | undefined) => svg`<path
         class="line ${active ? "active" : ""} ${dur && animate ? "flowing" : ""} ${reverse ? "reverse" : ""}"
         d=${d}
-        stroke-width=${width}
-        style=${(dur ? `--dur:${dur}s;` : "") + (color ? `stroke:${color};` : "") + (opacity < 1 ? `opacity:${opacity}` : "")}
+        stroke-width=${w}
+        transform=${dx ? `translate(${dx} 0)` : nothing}
+        style=${(dur ? `--dur:${dur}s;` : "") + (stroke ? `stroke:${stroke};` : "") + (opacity < 1 ? `opacity:${opacity}` : "")}
       />`;
+      // below the home: one strand per source, as thick as its share, side by side
+      if (bySource && lit && lvl !== "source" && lineMix.length > 1) {
+        const widths = lineMix.map((m) => Math.max(0.7, width * m.share));
+        const total = widths.reduce((a, b) => a + b, 0);
+        let at = -total / 2;
+        return svg`${lineMix.map((m, i) => {
+          const dx = at + widths[i] / 2;
+          at += widths[i];
+          return path(dx, widths[i], m.color);
+        })}`;
+      }
+      return path(0, width, color);
     };
     const parts: TemplateResult[] = [];
     model.sources.forEach((s, i) => {
       // in the energy mode the width follows the balance of delivered and returned energy
       const w = energy ? Math.abs(s.flow) : s.watts;
-      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), w, Math.abs(w) >= 1, s.reverse));
+      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), w, Math.abs(w) >= 1, s.reverse, 1, s.color ?? SOURCE_COLORS[s.type]));
     });
     const homeBottom = l.yHome + l.homeH;
     let roomFromX = l.homeX;
@@ -305,7 +342,8 @@ export class TreeView {
     return html`<svg class="lines" width=${l.width} height=${l.height}>${parts}</svg>`;
   }
 
-  private _renderSource(c: TreeContext, s: SourceNode, x: number): TemplateResult {
+  /** `slot` is the width px one source has; a source label never grows wider than that. */
+  private _renderSource(c: TreeContext, s: SourceNode, x: number, slot: number): TemplateResult {
     // the energy mode shows what the source delivered (import, discharged); the other direction has a line of its own
     const reverse = !c.energy && s.reverse;
     const suffix =
@@ -323,8 +361,8 @@ export class TreeView {
     const b = press(c.bind(nodeKey.source(s.entity), s.actions, () => c.moreInfo(s.entity)));
     return html`
       <button
-        class="node ${s.valid ? "" : "warn"}"
-        style=${styleMap({ left: `${x}px`, top: "0px", "--node-color": s.color ?? "" })}
+        class="node ${s.valid ? "" : "warn"} ${slot < TIGHT_SLOT_PX ? "tight" : ""}"
+        style=${styleMap({ left: `${x}px`, top: "0px", "max-width": `${Math.min(120, Math.max(60, slot - 4))}px`, "--node-color": s.color ?? "" })}
         title=${s.valid ? s.name : `${s.name}: ${c.t(s.noEnergy ? "no_energy" : "unavailable")}`}
         @click=${b.click}
         @pointerdown=${b.down}
@@ -341,13 +379,30 @@ export class TreeView {
           : c.energy && c.model.sources.some((x) => x.returnCounter)
             ? html`<span class="second back"></span>`
             : nothing}
+        ${this._renderNote(c, c.notes?.get(s.entity))}
         ${secondLine(c, nodeKey.source(s.entity))}
       </button>
     `;
   }
 
+  /** The line under a source with the forecast of a battery or the split of the solar power; an empty line keeps the sources aligned. */
+  private _renderNote(c: TreeContext, note: SourceNote | undefined): TemplateResult | typeof nothing {
+    if (!c.noteLine) return nothing;
+    if (!note) return html`<span class="second note"></span>`;
+    if (note.kind === "text") {
+      const bar = note.bar;
+      return html`<span class="second note ${bar ? "withbar" : ""}" title=${note.title ?? nothing}>${bar
+        ? html`<span class="soc-bar" style=${`--soc:${bar.soc}%;--res:${bar.reserve}%;--max:${bar.max}%`}><span class="fill"></span><span class="zone low"></span><span class="zone high"></span></span>`
+        : nothing}${note.text}</span>`;
+    }
+    const part = (icon: string, pct: number, color: string) =>
+      pct > 0 ? html`<span class="part"><ha-icon icon=${icon} style=${`color:${color}`}></ha-icon>${pct}</span>` : nothing;
+    return html`<span class="second note split" title=${note.title}>${part("mdi:home", note.home, "var(--_accent)")}${part("mdi:battery-charging", note.battery, "#f06292")}${part("mdi:transmission-tower-export", note.grid, "#488fc2")}<span>%</span></span>`;
+  }
+
   /** Clicking the home selects everything: all floors, or all rooms without floors. */
   private _renderHome(c: TreeContext, l: Layout, everything: boolean): TemplateResult {
+    const gradient = c.mix ? mixGradient(c.mix) : undefined;
     return html`
       <button
         class="node"
@@ -356,10 +411,13 @@ export class TreeView {
         title=${c.home}
         @click=${() => (c.compact ? undefined : c.select(c.model.floors.length ? { floor: null } : { room: null }))}
       >
-        <span class="circle home">
+        <span class="circle home ${gradient ? "mixring" : ""} ${c.homeColor ? "sourcecolor" : ""}" style=${styleMap({ "--mix": gradient ?? "", color: c.homeColor ?? "" })}>
           <ha-icon icon="mdi:home"></ha-icon>
           <span>${c.fmt(c.model.homeWatts)}</span>
         </span>
+        ${c.mix?.length && !c.compact
+          ? html`<span class="mix-legend" title=${c.t("mix_title")}>${c.mix.map((m) => html`<span class="mix-row"><i style=${`background:${m.color}`}></i><span class="mix-name">${m.name}</span> <b>${Math.round(m.share * 100)} %</b></span>`)}</span>`
+          : nothing}
         ${c.secondary && c.second(nodeKey.home) ? html`<span class="second home-second" title=${c.secondTitle?.(nodeKey.home) ?? nothing}>${c.second(nodeKey.home)}</span>` : nothing}
       </button>
     `;
@@ -462,4 +520,15 @@ export class TreeView {
       </button>
     `;
   }
+}
+
+/** A source with less room than this (px) gets the smaller notes. */
+export const TIGHT_SLOT_PX = 100;
+
+/** The width in px one source has: the smallest distance between two sources, or the whole width for one. */
+export function sourceSlot(xs: number[], width: number): number {
+  if (xs.length < 2) return width;
+  let min = Infinity;
+  for (let i = 1; i < xs.length; i++) min = Math.min(min, xs[i] - xs[i - 1]);
+  return min;
 }

@@ -25,6 +25,12 @@ export interface TimelineContext {
   /** the shown element in the previous period, per bar (same index), drawn dashed */
   previous?: number[];
   previousLabel: string;
+  /** options.compare_last_year: the same element a year ago, per bar (same index), drawn as a marker on the bar */
+  lastYear?: number[];
+  lastYearLabel?: string;
+  /** options.show_pv_forecast: the forecast of the solar production per bar (undefined where it does not reach), drawn as a dashed line */
+  forecast?: Array<number | undefined>;
+  forecastLabel?: string;
   kpis: TimelineKpi[];
   /** text on the x axis under a bar, or undefined for none */
   axisLabel(i: number): string | undefined;
@@ -66,7 +72,8 @@ export function renderTimeline(c: TimelineContext): TemplateResult {
   const n = c.stacks[0]?.values.length ?? c.previous?.length ?? 0;
   const W = Math.max(280, c.width);
   const totals = Array.from({ length: n }, (_, i) => c.stacks.reduce((s, st) => s + (st.values[i] ?? 0), 0));
-  const max = niceMax(Math.max(0, ...totals, ...(c.previous ?? [])));
+  const forecast = c.forecast ?? [];
+  const max = niceMax(Math.max(0, ...totals, ...(c.previous ?? []), ...(c.lastYear ?? []), ...forecast.map((v) => v ?? 0)));
   const bw = n ? (W - LEFT - RIGHT) / n : 0;
   const y = (v: number) => H - BOTTOM - (v / max) * (H - BOTTOM - TOP);
   const parts: TemplateResult[] = [];
@@ -80,6 +87,8 @@ export function renderTimeline(c: TimelineContext): TemplateResult {
     const w = Math.max(1, bw - gap);
     const prev = c.previous?.[i];
     if (prev !== undefined && prev > 0) parts.push(svg`<rect class="prev" x=${x} y=${y(prev)} width=${w} height=${y(0) - y(prev)}></rect>`);
+    const year = c.lastYear?.[i];
+    if (year !== undefined && year > 0) parts.push(svg`<line class="lastyear" x1=${x - gap / 2} x2=${x + w + gap / 2} y1=${y(year)} y2=${y(year)}></line>`);
     let acc = 0;
     c.stacks.forEach((st, k) => {
       const v = st.values[i] ?? 0;
@@ -90,6 +99,18 @@ export function renderTimeline(c: TimelineContext): TemplateResult {
     const label = c.axisLabel(i);
     if (label) parts.push(svg`<text class="axis" x=${LEFT + i * bw} y=${H - 5}>${label}</text>`);
   }
+  // the forecast: a dashed line through the middle of the bars it covers, broken where it does not reach
+  let line = "";
+  let open = false;
+  forecast.slice(0, n).forEach((v, i) => {
+    if (v === undefined) {
+      open = false;
+      return;
+    }
+    line += `${open ? "L" : "M"}${LEFT + (i + 0.5) * bw} ${y(v)} `;
+    open = true;
+  });
+  if (line) parts.push(svg`<path class="forecast" d=${line}></path>`);
   if (c.nowIndex >= 0 && c.nowIndex < n) {
     const x = LEFT + (c.nowIndex + 1) * bw;
     parts.push(svg`<line class="now" x1=${x} x2=${x} y1=${TOP} y2=${H - BOTTOM}></line><text class="now-label" x=${x + 4} y=${TOP + 9}>${c.nowLabel}</text>`);
@@ -109,6 +130,8 @@ export function renderTimeline(c: TimelineContext): TemplateResult {
           </button>`,
         )}
         ${c.previous ? html`<span class="legend-item prev-key"><i></i>${c.previousLabel}</span>` : nothing}
+        ${c.lastYear?.some((v) => v > 0) ? html`<span class="legend-item year-key"><i></i>${c.lastYearLabel}</span>` : nothing}
+        ${forecast.some((v) => v !== undefined) ? html`<span class="legend-item forecast-key"><i></i>${c.forecastLabel}</span>` : nothing}
       </div>
     </div>
   `;

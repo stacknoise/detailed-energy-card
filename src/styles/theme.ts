@@ -58,6 +58,16 @@ export const cardStyles = css`
     gap: 12px;
     margin-bottom: 16px;
   }
+  /* children may shrink below their content, so the badges wrap instead of leaving the card (320 px) */
+  header > * {
+    min-width: 0;
+  }
+  /* the title keeps its width: the badges wrap beside it instead of running over it */
+  header > div:first-child {
+    flex: none;
+    max-width: 60%;
+    min-width: min-content;
+  }
   h2 {
     margin: 0;
     font-size: 1.3em;
@@ -141,7 +151,8 @@ export const cardStyles = css`
     padding: 6px 12px;
     font-size: 0.85em;
     font-weight: 600;
-    white-space: nowrap;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
   .scroll {
     overflow-x: auto;
@@ -261,6 +272,63 @@ export const cardStyles = css`
     font-weight: 600;
     font-size: 0.85em;
     align-content: center;
+  }
+  /* options.show_source_mix: a ring of the shares of the sources over the border of the home circle (the circle keeps its size) */
+  .circle.home.mixring::before {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 50%;
+    background: var(--mix);
+    padding: 4px;
+    pointer-events: none;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
+  .compact .circle.home.mixring::before {
+    padding: 3px;
+  }
+  /* options.home_color_by_source: icon, border and glow of the home circle in the color of the largest source (set as the text color) */
+  .circle.home.sourcecolor {
+    border-color: currentColor;
+    box-shadow: 0 0 18px color-mix(in srgb, currentColor 40%, transparent);
+  }
+  .mix-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    right: calc(100% + 10px);
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--_muted);
+    font-size: 0.75em;
+    font-weight: 400;
+    line-height: 14px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .mix-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .mix-row i {
+    border-radius: 50%;
+    flex: none;
+    height: 8px;
+    width: 8px;
+  }
+  .mix-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mix-row b {
+    color: var(--primary-text-color, inherit);
+    font-weight: 600;
   }
   /* own meter of a room or a floor: a small icon at the circle / after the value; a warning in the warning color */
   .circle {
@@ -442,6 +510,18 @@ export const cardStyles = css`
     stroke-dasharray: 2 2;
     stroke-width: 0.9;
   }
+  .chart .lastyear {
+    stroke: #f06292;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
+  .chart .forecast {
+    fill: none;
+    stroke: #ff9800;
+    stroke-dasharray: 5 3;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
   .chart .now {
     stroke: var(--_accent);
     stroke-width: 1;
@@ -482,6 +562,23 @@ export const cardStyles = css`
     display: inline-block;
     height: 10px;
     width: 10px;
+  }
+  .forecast-key i {
+    background: none !important;
+    border-top: 2px dashed #ff9800;
+    border-radius: 0;
+    height: 0;
+    margin-top: 5px;
+  }
+  .year-key i {
+    background: none !important;
+    border-top: 2px solid #f06292;
+    border-radius: 0;
+    height: 0;
+    margin-top: 5px;
+  }
+  .legend-item.year-key {
+    cursor: default;
   }
   .prev-key i {
     border: 1px dashed var(--_muted);
@@ -558,6 +655,273 @@ export const cardStyles = css`
     min-height: 12px;
     white-space: nowrap;
   }
+  /* options.show_origin: ring, legend and hint of the origin, and bars split by origin */
+  .origin {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 6px 0 10px;
+  }
+  .origin-main {
+    align-items: center;
+    display: flex;
+    gap: 16px;
+  }
+  .origin-ring {
+    border-radius: 50%;
+    flex: none;
+    height: 64px;
+    -webkit-mask: radial-gradient(circle, transparent 0 20px, #000 21px);
+    mask: radial-gradient(circle, transparent 0 20px, #000 21px);
+    width: 64px;
+  }
+  .origin-legend {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85em;
+    gap: 3px;
+  }
+  .origin-best {
+    align-items: flex-start;
+    background: color-mix(in srgb, #4caf50 14%, transparent);
+    border-radius: 8px;
+    display: flex;
+    font-size: 0.8em;
+    gap: 8px;
+    line-height: 1.4;
+    padding: 8px 10px;
+  }
+  .origin-best ha-icon {
+    --mdc-icon-size: 18px;
+    color: #81c784;
+    flex: none;
+  }
+  .bar.origin {
+    height: 6px;
+  }
+  .bar.origin .origin-strip {
+    border-radius: inherit;
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+  }
+  .bar.origin .origin-strip i {
+    display: block;
+    height: 100%;
+  }
+  /* options.show_surplus: banner while power is fed into the grid */
+  /* options.show_hints: readings that do not add up */
+  .hints {
+    color: var(--_muted);
+    font-size: 0.8em;
+    margin: 0 16px 8px;
+  }
+  .hint {
+    align-items: flex-start;
+    display: flex;
+    gap: 6px;
+  }
+  .hint ha-icon {
+    --mdc-icon-size: 16px;
+    color: var(--warning-color, #ffb74d);
+    flex: none;
+  }
+  .surplus {
+    align-items: center;
+    background: color-mix(in srgb, #ff9800 18%, var(--_bg, transparent));
+    border: 1px solid color-mix(in srgb, #ff9800 45%, transparent);
+    border-radius: 10px;
+    display: flex;
+    gap: 12px;
+    margin: 4px 16px 10px;
+    padding: 10px 14px;
+  }
+  .surplus ha-icon {
+    --mdc-icon-size: 28px;
+    color: #ffb74d;
+    flex: none;
+  }
+  .surplus-title {
+    color: #ffb74d;
+    font-weight: 700;
+  }
+  .surplus-text {
+    color: var(--_muted);
+    font-size: 0.85em;
+  }
+  /* options.surplus_devices: idle consumers the surplus could run */
+  .surplus-devices {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    margin-top: 4px;
+  }
+  .surplus-chip {
+    background: color-mix(in srgb, var(--_accent) 18%, transparent);
+    border: none;
+    border-radius: 10px;
+    color: var(--_text);
+    font: inherit;
+    font-size: 0.8em;
+    padding: 2px 8px;
+  }
+  button.surplus-chip {
+    cursor: pointer;
+  }
+  .surplus-w {
+    color: var(--_muted);
+  }
+  /* options.year_budget_kwh: the use since January against a yearly budget */
+  .budget {
+    border-top: 1px solid var(--_line, rgba(128, 128, 128, 0.25));
+    margin: 8px 16px 0;
+    padding-top: 8px;
+  }
+  .budget-bar {
+    background: color-mix(in srgb, var(--_text) 14%, transparent);
+    border-radius: 4px;
+    height: 8px;
+    margin: 6px 0 4px;
+    overflow: visible;
+    position: relative;
+  }
+  .budget-bar .used {
+    background: var(--_accent);
+    border-radius: 4px;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: var(--used);
+  }
+  .budget-bar.over .used {
+    background: var(--warning-color, #ffb74d);
+  }
+  .budget-bar .pace {
+    background: var(--_text);
+    border-radius: 1px;
+    bottom: -3px;
+    left: var(--pace);
+    position: absolute;
+    top: -3px;
+    width: 2px;
+  }
+  .budget-text {
+    font-size: 0.85em;
+  }
+  .budget-pace {
+    color: var(--_muted);
+    font-size: 0.75em;
+  }
+  .budget-pace.over {
+    color: var(--warning-color, #ffb74d);
+  }
+  /* options.show_day_values: tiles of today's values */
+  .today-values {
+    border-top: 1px solid var(--_line, rgba(128, 128, 128, 0.25));
+    margin: 8px 16px 0;
+    padding-top: 10px;
+  }
+  .day-title {
+    color: var(--_muted);
+    font-size: 0.8em;
+    margin-bottom: 6px;
+  }
+  .day-tiles {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+  .day-tile {
+    background: color-mix(in srgb, var(--_text, currentColor) 7%, transparent);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+  }
+  .day-name {
+    font-size: 0.75em;
+  }
+  .day-value {
+    font-weight: 500;
+  }
+  /* note under a source: the forecast of a battery, the split of the solar power */
+  /* options.show_battery_bar: the charge, with the unused zones below the discharge limit and above the charge limit hatched */
+  .soc-bar {
+    background: color-mix(in srgb, var(--_text) 14%, transparent);
+    border-radius: 3px;
+    display: inline-block;
+    height: 6px;
+    margin-right: 5px;
+    overflow: hidden;
+    position: relative;
+    vertical-align: middle;
+    width: 44px;
+  }
+  .soc-bar .fill {
+    background: #f06292;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: var(--soc);
+  }
+  .soc-bar .zone {
+    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--_text) 55%, transparent) 0 1px, transparent 1px 3px);
+    bottom: 0;
+    position: absolute;
+    top: 0;
+  }
+  .soc-bar .zone.low {
+    left: 0;
+    width: var(--res);
+  }
+  .soc-bar .zone.high {
+    left: var(--max);
+    right: 0;
+  }
+  .second.note.split {
+    align-items: center;
+    display: inline-flex;
+    gap: 3px;
+  }
+  .second.note .part {
+    align-items: center;
+    display: inline-flex;
+    gap: 0;
+  }
+  .second.note ha-icon {
+    --mdc-icon-size: 11px;
+  }
+  /* a little closer to the value, so that the lines below do not touch the note */
+  .second.note {
+    margin-top: -3px;
+  }
+  /* narrow card: a smaller bar and note, so neighbouring notes do not touch */
+  ha-card.narrow .soc-bar {
+    margin-right: 3px;
+    width: 26px;
+  }
+  ha-card.narrow .second.note {
+    font-size: 0.72em;
+  }
+  /* four sources on a narrow card: very little room each, the note never runs into the neighbour */
+  .node.tight .second.note {
+    font-size: 0.66em;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .node.tight .soc-bar {
+    margin-right: 2px;
+    width: 16px;
+  }
+  ha-card.narrow .second.note.split {
+    gap: 2px;
+  }
   .pill .second {
     display: block;
     font-weight: 400;
@@ -588,7 +952,7 @@ export const cardStyles = css`
     height: 18px;
     justify-self: end;
     position: relative;
-    width: 34px;
+    width: 44px;
   }
   .switch i {
     background: var(--_text);

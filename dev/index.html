@@ -190,6 +190,12 @@
         "sensor.soc": { state: "76", attributes: { unit_of_measurement: "%", device_class: "battery" } },
         "sensor.netz": s(350),
         "sensor.total": s(4250),
+        // the scenario "surplus": solar surplus, the battery charges, the rest is fed into the grid
+        "sensor.pv_s": s(6200),
+        "sensor.akku_s": s(-1800),
+        "sensor.soc_s": { state: "78", attributes: { unit_of_measurement: "%", device_class: "battery" } },
+        "sensor.netz_s": s(-3400),
+        "sensor.total_s": s(1000),
         "sensor.backofen": s(820),
         "sensor.spuel": s(310),
         "sensor.kuehl": s(120),
@@ -409,8 +415,14 @@
         ...scenarios.feedin,
         options: { unit: "kW", mode: "energy", price_entity: "sensor.strompreis", feed_in_price: 0.08, currency: "EUR", secondary_value: "cost" },
       };
+      // Costs with savings: next to the costs, what solar and battery saved.
+      scenarios.savings = { ...scenarios.costs, options: { ...scenarios.costs.options, show_savings: true } };
+      // Last year in the timeline of a week and a month: a marker per bar and the comparison in the head.
+      scenarios.lastyear = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"], compare_last_year: true } };
       // Timeline (like mock B3): the energy of the day per hour, stacked by floor, yesterday dashed.
       scenarios.timeline = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"] } };
+      // The solar forecast in the timeline of today (the dev data sends the forecast of the Energy dashboard).
+      scenarios.forecast = { ...scenarios.energy, options: { unit: "kW", mode: "energy", period: "today", view: "timeline", views: ["tree", "timeline"], show_pv_forecast: true } };
       // Actions and switches (package P15): the sun navigates and, held, opens the battery; a double tap on OG runs a
       // script; two consumers have a switch, the heating asks before it is turned off.
       scenarios.actions = {
@@ -441,6 +453,60 @@
       scenarios.sankey = { ...scenarios.feedin, options: { unit: "kW", mode: "energy", view: "sankey", views: ["tree", "sankey", "timeline"] } };
       // Base load and standby (package P11): the badge in the head, the fridge runs all the time.
       scenarios.standby = { ...scenarios.floors, options: { unit: "W", show_base_load: true, standby_watts: 5 } };
+      // Source mix, battery forecast and split of the solar power (the four options of the package "sources"), on the default data: the battery discharges.
+      const withCapacity = (list) => list.map((src) => (src.type === "battery" ? { ...src, capacity_kwh: 10 } : src));
+      const mixOptions = { unit: "kW", show_source_mix: true, home_color_by_source: true, show_battery_forecast: true, show_solar_split: true };
+      scenarios.mix = { ...scenarios.floors, sources: withCapacity(scenarios.floors.sources), options: mixOptions };
+      // The charge bar with a discharge limit of 10 % and a charge limit of 90 %, and the forecast that takes them into account.
+      scenarios.battery = {
+        ...scenarios.mix,
+        sources: scenarios.mix.sources.map((src) => (src.type === "battery" ? { ...src, reserve_percent: 10, max_percent: 90 } : src)),
+        options: { unit: "kW", show_battery_bar: true, show_battery_forecast: true },
+      };
+      // The same with a solar surplus: the battery charges ("Full at ..."), the rest goes into the grid.
+      scenarios.surplus = {
+        ...scenarios.floors,
+        home: { total_entity: "sensor.total_s" },
+        sources: withCapacity([
+          { entity: "sensor.pv_s", type: "solar" },
+          { entity: "sensor.akku_s", type: "battery", soc_entity: "sensor.soc_s" },
+          { entity: "sensor.netz_s", type: "grid" },
+        ]),
+        options: mixOptions,
+      };
+      // Lines in source colors, surplus banner and the values of today (the options of the package "overview"): the solar surplus with energy counters and prices.
+      scenarios.today = {
+        ...scenarios.surplus,
+        home: { total_entity: "sensor.total_s", total_energy_entity: "sensor.e_total_s" },
+        sources: scenarios.surplus.sources.map((src) => ({
+          ...src,
+          energy_entity: energyId(src.entity),
+          ...(src.type === "grid" ? { energy_entity_return: "sensor.e_netz_s_einspeisung" } : src.type === "battery" ? { energy_entity_return: "sensor.e_akku_s_geladen" } : {}),
+        })),
+        options: { ...mixOptions, lines_by_source: true, show_surplus: true, show_day_values: true, price: 0.31, feed_in_price: 0.08 },
+      };
+      // Surplus banner with suggestions: the idle coffee machine (1.2 kW) and lighting (60 W) fit into the surplus, the oven does not run.
+      scenarios.devices = {
+        ...scenarios.today,
+        floors: scenarios.today.floors.map((f) => ({
+          ...f,
+          rooms: (f.rooms ?? []).map((r) => ({
+            ...r,
+            consumers: (r.consumers ?? []).map((cn) =>
+              cn.entity === "sensor.kaffee" ? { ...cn, surplus_w: 1200, switch_entity: "switch.kaffee" } : cn.entity === "sensor.flur" ? { ...cn, surplus_w: 60 } : cn.entity === "sensor.backofen" ? { ...cn, surplus_w: 2500 } : cn,
+            ),
+          })),
+        })),
+        options: { ...scenarios.today.options, surplus_devices: true },
+      };
+      // Hints: the consumers measure more than the meter of the home (and the sources do not match it).
+      scenarios.hints = { ...scenarios.surplus, options: { ...scenarios.surplus.options, show_hints: true } };
+      // Yearly budget: the use since January against a budget of 6000 kWh (the dev statistics give a plausible year).
+      scenarios.budget = { ...scenarios.surplus, options: { ...scenarios.surplus.options, year_budget_kwh: 6000 }, home: { total_entity: "sensor.total_s", total_energy_entity: "sensor.e_total_s" } };
+      // Origin of the power in the list: the energy counters of solar, battery and grid with their hourly shapes.
+      scenarios.origin = { ...scenarios.energy, options: { unit: "kW", mode: "power", show_origin: true } };
+      // Strands: with several sources delivering, the lines below the home run side by side in the colors of the mix.
+      scenarios.strands = { ...scenarios.mix, options: { unit: "kW", lines_by_source: true, show_source_mix: true } };
       // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
       scenarios.secondary = { ...scenarios.energy, options: { unit: "kW", mode: "power", secondary_value: "auto" } };
       // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a
@@ -476,6 +542,8 @@
         "sensor.e_uv_eg": 12.6, "sensor.e_kueche_zaehler": 9.1, "sensor.e_flur_zaehler": 0.4,
         // the other direction (scenario "feedin"): fed into the grid, charged into the battery
         "sensor.e_netz_einspeisung": 3.8, "sensor.e_akku_geladen": 2.4,
+        // scenario "today": the sources of the solar surplus with their counters
+        "sensor.e_pv_s": 14.2, "sensor.e_akku_s": 4.2, "sensor.e_akku_s_geladen": 6.1, "sensor.e_netz_s": 2.1, "sensor.e_netz_s_einspeisung": 6.3, "sensor.e_total_s": 12.0,
       };
 
       // names for the entity pickers of the editor view, and the energy counters
@@ -588,6 +656,20 @@
         entities: registryEntities,
         devices: registryDevices,
         callWS: async (m) => {
+          if (m.type === "energy/solar_forecast") {
+            if (params.get("forecast") === "error") throw new Error("no forecast");
+            // a bell around 13 o'clock for today and the next two days, like Forecast.Solar sends it: Wh per hour by time stamp
+            const wh_hours = {};
+            const midnight = new Date();
+            midnight.setHours(0, 0, 0, 0);
+            for (let d = 0; d < 3; d++) {
+              for (let h = 5; h <= 20; h++) {
+                const t = new Date(midnight.getTime() + (d * 24 + h) * 3600000);
+                wh_hours[t.toISOString()] = Math.round(2400 * Math.exp(-((h - 13) ** 2) / 10) * (d === 1 ? 0.7 : 1));
+              }
+            }
+            return { demo_entry: { wh_hours } };
+          }
           if (m.type === "energy/get_prefs") {
             if (params.get("prefs") === "empty") throw { code: "not_found", message: "No prefs." };
             if (params.get("prefs") === "error") throw new Error("boom");
@@ -648,11 +730,23 @@
             } else {
               for (let t = start; t < end; t += 86400000) slots.push([t, Math.min(1, (end - t) / 86400000) * (1 + 0.15 * Math.sin(t / 86400000))]);
             }
-            const weight = slots.reduce((s, [, w]) => s + w, 0) || 1;
+            // the sources have their own hourly shape: solar a bell around noon, the battery discharges in the evening, the grid fills the rest
+            const shape = (id, t, w) => {
+              if (m.period !== "hour") return w;
+              const h = new Date(t).getHours();
+              if (id === "sensor.e_pv" || id === "sensor.e_pv_s") return Math.exp(-((h - 13) ** 2) / 8);
+              if (id === "sensor.e_akku" || id === "sensor.e_akku_s") return h >= 17 && h <= 23 ? 1 : 0;
+              if (id === "sensor.e_netz" || id === "sensor.e_netz_s") return Math.max(0.05, 1 - 1.2 * Math.exp(-((h - 13) ** 2) / 8));
+              return w;
+            };
             return Object.fromEntries(
               m.statistic_ids
                 .filter((id) => id in energyToday)
-                .map((id) => [id, slots.map(([t, w]) => ({ start: t, change: (energyToday[id] * factor * scale * w) / weight }))]),
+                .map((id) => {
+                  const ws = slots.map(([t, w]) => shape(id, t, w));
+                  const weight = ws.reduce((s, w) => s + w, 0) || 1;
+                  return [id, slots.map(([t], i) => ({ start: t, change: (energyToday[id] * factor * scale * ws[i]) / weight }))];
+                }),
             );
           }
           return m.type.includes("floor") ? registries.floors : registries.areas;

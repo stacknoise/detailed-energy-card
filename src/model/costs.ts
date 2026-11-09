@@ -53,6 +53,8 @@ export interface CostResult {
   nodes: Map<string, number>;
   /** watt hours of every node that came from the grid, by nodeKey (for the tooltip) */
   fromGrid: Map<string, number>;
+  /** what the energy of every node from solar and battery saved against the grid price, by nodeKey (home, floors, rooms, consumers) */
+  saved: Map<string, number>;
   /** watt hours of every node in the period, by nodeKey (for the tooltip) */
   energy: Map<string, number>;
   /** the whole grid import */
@@ -69,7 +71,8 @@ export interface CostResult {
  * Costs of a period from hourly rows. Only energy from the grid costs money (solar and battery cost 0): every
  * hour has a grid share, the grid import over the consumption of the home (at most 1), and every node pays
  * its energy of that hour times the share times the price of that hour. Undefined without a grid energy
- * counter or without a price.
+ * counter or without a price. `saved` is the other side: what the part of a node that did not come from the grid
+ * would have cost at the price of the hour.
  */
 export function computeCosts(i: {
   cfg: EnergyCardConfig;
@@ -78,36 +81,52 @@ export function computeCosts(i: {
   end: number;
   /** now: hours after it are not counted as missing prices */
   until: number;
-  price: PriceInput;
+  /** the general price; may be left out when every grid meter has a tariff of its own */
+  price?: PriceInput;
+  /** own tariffs of grid meters by `entity` of the source; they replace `price` for that meter */
+  gridPrices?: Map<string, PriceInput>;
   feedInPrice?: PriceInput;
 }): CostResult | undefined {
   const grids = (i.cfg.sources ?? []).filter((s) => s.type === "grid" && s.energy_entity);
   if (!grids.length) return undefined;
-  const p = hourlyPrices(i.price, i.starts, i.end, i.until);
-  if (!p) return undefined;
+  // the price of every grid meter; with several tariffs the price of an hour is the mean weighted by what each meter delivered
+  const meterPrices = grids.map((g) => {
+    const input = i.gridPrices?.get(g.entity) ?? i.price;
+    return input ? hourlyPrices(input, i.starts, i.end, i.until) : undefined;
+  });
+  if (meterPrices.some((x) => !x)) return undefined;
   const hours = (id: string | undefined) => {
     const r = id ? i.rows.get(id) : undefined;
     return r ? bucketize(r, i.starts, i.end) : i.starts.map(() => 0);
   };
-  const perGrid = grids.map((g) => ({ entity: g.entity, wh: hours(g.energy_entity) }));
+  const perGrid = grids.map((g, k) => ({ entity: g.entity, wh: hours(g.energy_entity), prices: meterPrices[k]!.prices }));
   const grid = i.starts.map((_, h) => perGrid.reduce((s, g) => s + g.wh[h], 0));
+  const p = {
+    prices: grid.map((total, h) =>
+      total > 0 ? perGrid.reduce((s, g) => s + g.wh[h] * g.prices[h], 0) / total : perGrid.reduce((s, g) => s + g.prices[h], 0) / perGrid.length,
+    ),
+    approx: meterPrices.some((x) => x!.approx),
+  };
   const series = treeSeries(i.cfg, i.rows, i.starts, i.end);
   const home = series.home ?? i.starts.map(() => 0);
   const share = home.map((v, h) => (v > 0 ? Math.min(1, grid[h] / v) : 0));
-  const money = (wh: number[], h: number) => (wh[h] / 1000) * p.prices[h];
 
   const nodes = new Map<string, number>();
   const fromGrid = new Map<string, number>();
   const energy = new Map<string, number>();
+  const saved = new Map<string, number>();
   const put = (key: string, values: number[] | undefined) => {
     if (!values) return;
     let cost = 0;
     let wh = 0;
+    let free = 0;
     values.forEach((v, h) => {
       cost += (v / 1000) * share[h] * p.prices[h];
       wh += v * share[h];
+      free += (v / 1000) * (1 - share[h]) * p.prices[h];
     });
     nodes.set(key, cost);
+    saved.set(key, free);
     fromGrid.set(key, wh);
     energy.set(key, values.reduce((s, v) => s + v, 0));
   };
@@ -115,9 +134,9 @@ export function computeCosts(i: {
   for (const [id, v] of series.floors) put(nodeKey.floor(id), v);
   for (const [id, v] of series.rooms) put(nodeKey.room(id), v);
   for (const [entity, v] of series.consumers) put(nodeKey.consumer(entity), v);
-  for (const g of perGrid) nodes.set(nodeKey.source(g.entity), g.wh.reduce((s, _, h) => s + money(g.wh, h), 0));
+  for (const g of perGrid) nodes.set(nodeKey.source(g.entity), g.wh.reduce((s, v, h) => s + (v / 1000) * g.prices[h], 0));
 
-  const total = grid.reduce((s, _, h) => s + money(grid, h), 0);
+  const total = perGrid.reduce((s, g) => s + g.wh.reduce((t, v, h) => t + (v / 1000) * g.prices[h], 0), 0);
   const battery = grid.reduce((s, v, h) => s + (Math.max(0, v - home[h]) / 1000) * p.prices[h], 0);
 
   let feedIn: number | undefined;
@@ -129,5 +148,5 @@ export function computeCosts(i: {
     feedIn = i.starts.reduce((s, _, h) => s + (back.reduce((t, b) => t + b[h], 0) / 1000) * fp.prices[h], 0);
     approx ||= fp.approx;
   }
-  return { nodes, fromGrid, energy, grid: total, battery, feedIn, approx };
+  return { nodes, fromGrid, energy, saved, grid: total, battery, feedIn, approx };
 }

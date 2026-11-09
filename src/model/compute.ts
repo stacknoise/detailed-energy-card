@@ -30,6 +30,8 @@ export interface ConsumerNode {
   thresholds?: ThresholdConfig[];
   /** icon of the node of a consumer directly under the home */
   icon?: string;
+  /** typical power (W) while it runs, for the suggestions of the surplus banner */
+  surplusW?: number;
 }
 /** Consumers the list shows: with `onlyActive` the ones at rest (under 1 W) are left out, unreadable sensors stay as warnings. */
 export function listedConsumers(consumers: ConsumerNode[], onlyActive: boolean): ConsumerNode[] {
@@ -106,6 +108,9 @@ export interface SourceNode {
   share: number;
   /** state of charge in percent (battery) */
   soc?: number;
+  /** battery: discharge limit and charge limit in percent from the config */
+  reserve?: number;
+  max?: number;
 }
 export interface EnergyModel {
   sources: SourceNode[];
@@ -166,7 +171,10 @@ function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean, place
   const noSensor = !c.entity && !c.energy_entity;
   const noEnergy = !noSensor && energy && !c.energy_entity;
   const noPower = !noSensor && !energy && !c.entity;
-  const r = noSensor || noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
+  let r = noSensor || noEnergy || noPower ? MISSING : read(energy ? c.energy_entity! : c.entity!);
+  // a difference consumer: the readable sensors in `minus_*` are taken off, the result is not below 0
+  const minus = (energy ? c.minus_energy_entities : c.minus_entities) ?? [];
+  if (r.valid && minus.length) r = { ...r, watts: Math.max(0, r.watts - minus.reduce((sum, id) => sum + (read(id).valid ? Math.max(0, read(id).watts) : 0), 0)) };
   // `entity` is the key of the consumer: its power sensor, else its energy counter
   const key = c.entity || c.energy_entity || `nosensor:${place}`;
   return {
@@ -182,6 +190,7 @@ function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean, place
     switchEntity: c.switch_entity || undefined,
     confirmSwitch: c.confirm_switch || undefined,
     icon: c.icon,
+    surplusW: c.surplus_w,
   };
 }
 
@@ -246,6 +255,8 @@ export function computeModel(
       reverse: flow < 0,
       share: 0,
       soc: soc?.valid ? soc.watts : undefined,
+      reserve: type === "battery" ? s.reserve_percent : undefined,
+      max: type === "battery" ? s.max_percent : undefined,
     };
   });
 

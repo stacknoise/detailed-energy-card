@@ -72,6 +72,14 @@ describe("costs", () => {
     expect(c.battery).toBe(0);
   });
 
+  it("books what solar and battery delivered as saved, so that cost and saved make the energy at the grid price", () => {
+    const c = costs(0.3);
+    // oven: 1 kWh x 75 % x 0.30 in the first hour, nothing in the second (all from the grid)
+    expect(c.saved.get(nodeKey.consumer("sensor.ofen"))).toBeCloseTo(0.225);
+    const ofen = c.nodes.get(nodeKey.consumer("sensor.ofen"))! + c.saved.get(nodeKey.consumer("sensor.ofen"))!;
+    expect(ofen).toBeCloseTo((1400 / 1000) * 0.3);
+  });
+
   it("uses the price of each hour", () => {
     const c = costs(0, { price: { rows: [{ start: 0, wh: 0.38 }, { start: H, wh: 0.19 }] } });
     expect(c.nodes.get(nodeKey.consumer("sensor.ofen"))).toBeCloseTo(1 * 0.25 * 0.38 + 0.4 * 1 * 0.19);
@@ -110,5 +118,39 @@ describe("costs", () => {
     const starts = hours(6);
     const c = computeCosts({ cfg: CFG, rows: data, starts, end: 6 * H, until: 6 * H, price: { rows: [{ start: 0, wh: 0.3 }] } })!;
     expect(c.approx).toBe(true);
+  });
+});
+
+describe("several grid meters with their own tariff", () => {
+  const cfg: EnergyCardConfig = {
+    type: "x",
+    home: { total_energy_entity: "sensor.home" },
+    sources: [
+      { entity: "sensor.grid", energy_entity: "sensor.grid_in", type: "grid" },
+      { entity: "sensor.hp", energy_entity: "sensor.hp_in", type: "grid", price: 0.2 },
+    ],
+    rooms: [{ area_id: "kueche", consumers: [{ entity: "sensor.ofen", energy_entity: "sensor.ofen_e" }] }],
+  };
+  const data = new Map<string, EnergyRow[]>([
+    ["sensor.home", rows(2000)],
+    ["sensor.grid_in", rows(1000)],
+    ["sensor.hp_in", rows(1000)],
+    ["sensor.ofen_e", rows(500)],
+  ]);
+  const costs = (extra: Partial<Parameters<typeof computeCosts>[0]> = {}) =>
+    computeCosts({ cfg, rows: data, starts: hours(1), end: H, until: H, price: { fixed: 0.4 }, gridPrices: new Map([["sensor.hp", { fixed: 0.2 }]]), ...extra })!;
+
+  it("charges every meter its own price and the nodes the mean weighted by what each delivered", () => {
+    const c = costs();
+    expect(c.nodes.get(nodeKey.source("sensor.grid"))).toBeCloseTo(0.4);
+    expect(c.nodes.get(nodeKey.source("sensor.hp"))).toBeCloseTo(0.2);
+    expect(c.grid).toBeCloseTo(0.6);
+    // the oven: 0.5 kWh at the mean price 0.30
+    expect(c.nodes.get(nodeKey.consumer("sensor.ofen"))).toBeCloseTo(0.15);
+    expect(c.nodes.get(nodeKey.home)).toBeCloseTo(0.6);
+  });
+  it("needs no general price when every meter has a tariff", () => {
+    const c = costs({ price: undefined, gridPrices: new Map([["sensor.grid", { fixed: 0.4 }], ["sensor.hp", { fixed: 0.2 }]]) });
+    expect(c.grid).toBeCloseTo(0.6);
   });
 });

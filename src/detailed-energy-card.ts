@@ -6,12 +6,18 @@ import { collectEnergyIds, collectEntityIds, hasEnergy, hasPrice, validateConfig
 import { runAction, type ActionConfig, type ActionDeps, type NodeActions } from "./model/actions";
 import { periodLabel } from "./model/browse";
 import { BASE_LOAD_NIGHTS, STANDBY_HOURS, baseLoad, homePowerIds, homePowerRows, runsContinuously } from "./model/standby";
-import { computeCosts, type CostResult } from "./model/costs";
-import { energyReader, firstWeekdayIndex, loadStatSeries, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
+import { computeCosts, type CostResult, type PriceInput } from "./model/costs";
+import { energyReader, firstWeekdayIndex, loadStatSeries, localDate, localMidnight, localTime, offeredPeriods, periodRange, statPeriodFor, type EnergyPeriod } from "./model/energy";
 import { EnergyStore, type EnergyQuery } from "./model/energy-store";
 import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type ConsumerNode, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
+import { SOURCE_COLORS, batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
+import { FORECAST_REFRESH_MS, forecastBars, parseSolarForecast } from "./model/forecast";
+import { ORIGIN_KINDS, computeOrigin, originKinds, BEST_HOURS, type OriginResult, type OriginKind } from "./model/origin";
+import { budgetStatus, yearPace } from "./model/budget";
+import { plausibilityHints } from "./model/hints";
+import { SURPLUS_DEFAULT_W, dayTiles, surplusDevices, surplusOf, type DayTile, type Surplus } from "./model/day";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
 import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
@@ -20,7 +26,7 @@ import "./heatmap-card";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { Gesture } from "./view/gesture";
-import { MAX_LEVEL, TreeView, equalizePills, type ActionBinding, type ResolvedSelection, type TreeContext } from "./view/tree";
+import { MAX_LEVEL, TreeView, equalizePills, type ActionBinding, type ResolvedSelection, type SourceNote, type TreeContext } from "./view/tree";
 import { SankeyView, type SankeyContext } from "./view/sankey";
 import { buildSankey, type SankeyGraphNode } from "./model/sankey";
 import { renderTimeline, type TimelineContext, type TimelineKpi, type TimelineStack } from "./view/timeline";
@@ -78,6 +84,18 @@ export class DetailedEnergyCard extends LitElement {
   private _second = new Map<string, number>();
   /** costs of the shown period (power mode: today), with the amounts of the cost statistics of Home Assistant */
   private _costs?: { result: CostResult; ha?: number; haFeedIn?: number };
+  /** the mix of the sources (options.show_source_mix / home_color_by_source) and the source whose color the home value has */
+  private _mix?: MixSegment[];
+  private _dominant?: string;
+  /** the feed-in while the surplus banner is shown (options.show_surplus), and the tiles of today (options.show_day_values) */
+  private _surplus?: Surplus;
+  private _day?: DayTile[];
+  /** the solar forecast by hour (options.show_pv_forecast), when it was asked for last, and a request on its way */
+  private _forecast?: Map<number, number>;
+  private _forecastAt = 0;
+  private _forecastBusy = false;
+  /** where the energy of the nodes comes from (options.show_origin) */
+  private _origin?: OriginResult;
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
@@ -214,10 +232,17 @@ export class DetailedEnergyCard extends LitElement {
     } else {
       this._model = computeModel(cfg, powerReader(states), socReader(states), names);
     }
+    const o = this._config.options;
+    this._mix = o?.show_source_mix || o?.home_color_by_source || o?.lines_by_source ? sourceMix(this._model) : undefined;
+    this._dominant = o?.home_color_by_source && this._mix ? dominantSource(this._mix, this._dominant) : undefined;
     // the second value: the energy of today in the power mode (once it is loaded), the power now in the energy mode
     const kind = this._secondKind();
     const today = kind === "today" ? this._energyStore.values(this._todayQuery()) : undefined;
     this._costs = this._computeCosts();
+    this._surplus = this._mode === "power" && o?.show_surplus ? surplusOf(this._model, o.surplus_min_w ?? SURPLUS_DEFAULT_W, !!this._surplus, this._priceNow("price", "price_entity"), this._priceNow("feed_in_price", "feed_in_price_entity")) : undefined;
+    this._origin = this._originOn ? this._computeOrigin() : undefined;
+    const dayEnergy = this._dayOn ? this._energyStore.values(this._todayQuery()) : undefined;
+    this._day = dayEnergy ? dayTiles(computeModel(cfg, energyReader(dayEnergy), socReader(states), names, true)) : undefined;
     this._second =
       kind === "power"
         ? nodeValues(computeModel(cfg, powerReader(states), socReader(states), names))
@@ -383,7 +408,10 @@ export class DetailedEnergyCard extends LitElement {
     const v = this._second.get(key);
     if (v === undefined) return undefined;
     const kind = this._secondKind();
-    if (kind === "cost") return this._money(v);
+    if (kind === "cost") {
+      const saved = this._config?.options?.show_savings ? this._costs?.result.saved.get(key) : undefined;
+      return this._money(v) + (saved !== undefined && saved >= 0.005 ? ` · ${this._t("saved_short").replace("{0}", this._money(saved))}` : "");
+    }
     return this._t(kind === "today" ? "second_today" : "second_power").replace("{0}", this._fmtAs(kind === "today" ? "energy" : "power", v));
   }
 
@@ -396,7 +424,13 @@ export class DetailedEnergyCard extends LitElement {
     return this._t("cost_tip")
       .replace("{0}", this._fmtAs("energy", energy))
       .replace("{1}", this._fmtAs("energy", r.fromGrid.get(key) ?? 0))
-      .replace("{2}", this._money(r.nodes.get(key)!));
+      .replace("{2}", this._money(r.nodes.get(key)!)) + this._savedTip(key);
+  }
+
+  /** "\nGespart 0,32 €, weil Solar und Akku es lieferten" (options.show_savings), or an empty text. */
+  private _savedTip(key: string): string {
+    const saved = this._config?.options?.show_savings ? this._costs?.result.saved.get(key) : undefined;
+    return saved !== undefined && saved >= 0.005 ? `\n${this._t("saved_tip").replace("{0}", this._money(saved))}` : "";
   }
 
   // ---------- costs ----------
@@ -422,14 +456,32 @@ export class DetailedEnergyCard extends LitElement {
     };
   }
 
+  /** The hourly energy of all counters in the cost period (the base of the costs and of the origin). */
+  private _hourlyQuery(): EnergyQuery {
+    return { ids: collectEnergyIds(this._config!), period: this._costPeriod, offset: this._off || undefined, stat: "hour", incremental: true };
+  }
+
+  /** The origin can be shown: the option is on, there are energy counters of at least two kinds of sources, and the list is shown. */
+  private get _originOn(): boolean {
+    const cfg = this._config;
+    return !!cfg?.options?.show_origin && !this._compact && cfg.options.show_consumers !== false && originKinds(cfg).length > 0;
+  }
+
+  private _computeOrigin(): OriginResult | undefined {
+    const rows = this._energyStore.series(this._hourlyQuery());
+    if (!rows || !this._config) return undefined;
+    const b = periodBounds(this._costPeriod, new Date(), this._timeZone, this._firstWeekday, this._off);
+    return computeOrigin({ cfg: this._config, rows, starts: bucketStarts(b.start, b.end, "hour", this._timeZone), end: b.end.getTime(), timeZone: this._timeZone });
+  }
+
   /** Hourly energy and prices of the cost period (loaded incrementally) and the cost statistics of Home Assistant. */
   private _costQueries(): EnergyQuery[] {
     if (!this._costsOn) return [];
     const cfg = this._config!;
     const period = this._costPeriod;
     const offset = this._off || undefined;
-    const out: EnergyQuery[] = [{ ids: collectEnergyIds(cfg), period, offset, stat: "hour", incremental: true }];
-    const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity].filter((e): e is string => !!e);
+    const out: EnergyQuery[] = [this._hourlyQuery()];
+    const prices = [cfg.options?.price_entity, cfg.options?.feed_in_price_entity, ...(cfg.sources ?? []).map((s) => s.price_entity)].filter((e): e is string => !!e);
     if (prices.length) out.push({ ids: prices, period, offset, stat: "hour", kind: "mean", incremental: true });
     const ha = Object.values(this._haCostIds()).filter((e): e is string => !!e);
     if (ha.length) out.push({ ids: ha, period, offset, kind: "change" });
@@ -448,13 +500,19 @@ export class DetailedEnergyCard extends LitElement {
     const priceRows = priceQ ? this._energyStore.series(priceQ) : undefined;
     const now = new Date();
     const b = periodBounds(this._costPeriod, now, this._timeZone, this._firstWeekday, this._off);
+    const gridPrices = new Map<string, PriceInput>();
+    for (const s of cfg.sources ?? []) {
+      if (s.price !== undefined) gridPrices.set(s.entity, { fixed: s.price });
+      else if (s.price_entity) gridPrices.set(s.entity, { rows: priceRows?.get(s.price_entity) });
+    }
     const result = computeCosts({
       cfg,
       rows,
       starts: bucketStarts(b.start, b.end, "hour", this._timeZone),
       end: b.end.getTime(),
       until: this._off < 0 ? b.end.getTime() : now.getTime(),
-      price: o.price !== undefined ? { fixed: o.price } : { rows: o.price_entity ? priceRows?.get(o.price_entity) : undefined },
+      price: o.price !== undefined ? { fixed: o.price } : o.price_entity ? { rows: priceRows?.get(o.price_entity) } : undefined,
+      gridPrices,
       feedInPrice:
         o.feed_in_price !== undefined
           ? { fixed: o.feed_in_price }
@@ -483,14 +541,41 @@ export class DetailedEnergyCard extends LitElement {
     if (!this._config || !this._hass) return;
     const query = this._energyQuery();
     // in the power mode the energy of today is loaded for the second value, in the same rhythm
-    const wanted = query ? [query] : this._secondKind() === "today" ? [this._todayQuery()] : [];
+    const wanted = query ? [query] : this._secondKind() === "today" || this._dayOn ? [this._todayQuery()] : [];
     // the timeline also needs the previous period and, for a week or a month, the day today is compared with
     if (this._showsTimeline) wanted.push(...this._timelineQueries());
+    this._ensureForecast();
     // the costs need the hours of their period and the prices
     wanted.push(...this._costQueries());
+    // the origin needs the same hours of energy; when the costs load them already, the query is shared
+    if (this._originOn && !this._costsOn) wanted.push(this._hourlyQuery());
     // base load and standby look at the hourly means of power sensors
     wanted.push(...this._powerStatQueries());
+    if (this._budgetOn) wanted.push(this._yearQuery());
     this._energyStore.want(wanted);
+  }
+
+  // ---------- solar forecast ----------
+
+  /** Asks Home Assistant for the solar forecast of the Energy dashboard when the timeline shows it and the last answer is old. */
+  private _ensureForecast(): void {
+    if (!this._config?.options?.show_pv_forecast || !this._showsTimeline || !this._hass || this._forecastBusy) return;
+    if (this._forecast && Date.now() - this._forecastAt < FORECAST_REFRESH_MS) return;
+    this._forecastBusy = true;
+    this._forecastAt = Date.now();
+    this._hass
+      .callWS<unknown>({ type: "energy/solar_forecast" })
+      .then((r) => {
+        this._forecast = parseSolarForecast(r);
+      })
+      .catch(() => {
+        // no forecast integration: the timeline stays without the line
+        this._forecast = new Map();
+      })
+      .finally(() => {
+        this._forecastBusy = false;
+        this.requestUpdate();
+      });
   }
 
   // ---------- base load and standby ----------
@@ -557,7 +642,9 @@ export class DetailedEnergyCard extends LitElement {
     const now = new Date();
     const { start, end } = q.hours
       ? { start: new Date(Math.floor((now.getTime() - q.hours * 3_600_000) / 3_600_000) * 3_600_000), end: now }
-      : periodRange(q.period, now, this._timeZone, this._firstWeekday, q.offset);
+      : q.year
+        ? { start: localMidnight(localDate(now, this._timeZone)[0], 1, 1, this._timeZone), end: now }
+        : periodRange(q.period, now, this._timeZone, this._firstWeekday, q.offset);
     const from = since !== undefined && since >= start.getTime() ? since : undefined;
     const series = await loadStatSeries(this._hass!, q.ids, from !== undefined ? new Date(from) : start, end, q.stat ?? statPeriodFor(q.period), q.kind);
     return { series, since: from };
@@ -639,7 +726,14 @@ export class DetailedEnergyCard extends LitElement {
     ];
     // a period that is over is compared as a whole, only the running one needs the hours of the day
     if (period !== "today" && o === 0) out.push({ ids, period: "today", offset: -comparisonDayBack(period, new Date(), this._timeZone) });
+    if (this._yearOn) out.push({ ids, period, offset: o - (period === "week" ? 52 : 12) });
     return out;
+  }
+
+  /** options.compare_last_year and the timeline shows a week or a month. */
+  private get _yearOn(): boolean {
+    const p = this._timelinePeriod;
+    return !!this._config?.options?.compare_last_year && this._showsTimeline && (p === "week" || p === "month");
   }
 
   /** Values per bar of a period, or undefined while its rows are not there. */
@@ -656,7 +750,11 @@ export class DetailedEnergyCard extends LitElement {
     const now = new Date();
     const period = this._timelinePeriod;
     const unit = bucketUnitFor(period);
-    const [q, qPrev, qDay] = this._timelineQueries();
+    const queries = this._timelineQueries();
+    const [q, qPrev] = queries;
+    // the order is: running, previous, the day compared with (a running week or month), the year ago
+    const qDay = this._timelinePeriod !== "today" && this._off === 0 ? queries[2] : undefined;
+    const qYear = this._yearOn ? queries[queries.length - 1] : undefined;
     const o = this._off;
     const cur = periodBounds(period, now, tz, fw, o);
     const prev = periodBounds(period, now, tz, fw, o - 1);
@@ -664,6 +762,10 @@ export class DetailedEnergyCard extends LitElement {
     const prevStarts = bucketStarts(prev.start, prev.end, unit, tz);
     const series = this._series(q, starts, cur.end.getTime());
     const prevSeries = this._series(qPrev, prevStarts, prev.end.getTime());
+    // the same week / month a year ago: bars by position, so a month of another length just has more or fewer bars
+    const yearB = qYear ? periodBounds(period, now, tz, fw, qYear.offset ?? 0) : undefined;
+    const yearStarts = yearB ? bucketStarts(yearB.start, yearB.end, unit, tz) : undefined;
+    const yearSeries = qYear && yearStarts && yearB ? this._series(qYear, yearStarts, yearB.end.getTime()) : undefined;
     const zeros = starts.map(() => 0);
 
     // the stack follows the selection: the floors of the home, the rooms of a floor, the consumers of a room
@@ -744,6 +846,16 @@ export class DetailedEnergyCard extends LitElement {
         const vs = o < 0 ? this._t("tl_vs").replace("{0}", before) : period === "today" ? this._t("tl_vs_day").replace("{0}", fullHour) : this._t(period === "week" ? "tl_vs_week" : "tl_vs_month");
         kpis.push({ value: `${pct > 0 ? "+" : pct < 0 ? "−" : "±"}${Math.abs(pct)} %`, label: vs, tone: pct > 0 ? "up" : pct < 0 ? "down" : undefined });
       }
+      // against the same days of the last year: the days that are over (the running day only partly counts, so it is left out)
+      const yearValues = shown(yearSeries);
+      if (yearValues?.some((v) => v > 0)) {
+        const upTo = o < 0 ? values.length : Math.max(0, starts.findIndex((t, i) => nowMs >= t && nowMs < (starts[i + 1] ?? cur.end.getTime())));
+        const then = yearValues.slice(0, upTo).reduce((s, v) => s + v, 0);
+        if (upTo > 0 && then > 0) {
+          const pct = Math.round((values.slice(0, upTo).reduce((s, v) => s + v, 0) / then - 1) * 100);
+          kpis.push({ value: `${pct > 0 ? "+" : pct < 0 ? "−" : "±"}${Math.abs(pct)} %`, label: this._t(period === "week" ? "tl_vs_year_week" : "tl_vs_year_month"), tone: pct > 0 ? "up" : pct < 0 ? "down" : undefined });
+        }
+      }
       const peak = peakIndex(values);
       if (peak >= 0) kpis.push({ value: this._fmtAs("energy", values[peak]), label: this._t("tl_peak").replace("{0}", barTime(peak)) });
     }
@@ -756,6 +868,11 @@ export class DetailedEnergyCard extends LitElement {
       stacks,
       previous: shown(prevSeries),
       previousLabel: this._t(prevKey),
+      lastYear: shown(yearSeries)?.some((v) => v > 0) ? shown(yearSeries) : undefined,
+      lastYearLabel: this._t(period === "week" ? "tl_year_week" : "tl_year_month"),
+      // only the running period: the forecast looks ahead from today
+      forecast: cfg.options?.show_pv_forecast && o === 0 && this._forecast ? forecastBars(this._forecast, starts, cur.end.getTime()) : undefined,
+      forecastLabel: this._t("tl_forecast"),
       kpis,
       axisLabel: (i) =>
         unit === "hour"
@@ -934,6 +1051,11 @@ export class DetailedEnergyCard extends LitElement {
       energy: this._mode === "energy",
       focus: this._focus && !this._compact,
       compact: this._compact,
+      mix: cfg.options?.show_source_mix ? this._mix : undefined,
+      linesBySource: cfg.options?.lines_by_source,
+      lineMix: cfg.options?.lines_by_source ? this._mix : undefined,
+      homeColor: this._mix?.find((m) => m.entity === this._dominant)?.color,
+      ...this._sourceNotes(cfg, model),
       thresholds: this._thresholds,
       home,
       fmt: (w) => this._fmt(w),
@@ -946,6 +1068,175 @@ export class DetailedEnergyCard extends LitElement {
       moreInfo: (id) => this._moreInfo(id),
       bind: (key, actions, fallback) => this._bind(key, actions, fallback),
     };
+  }
+
+  /** The tiles of today can be shown: the option is on, the mode is Now, the card is not compact and there are energy sensors. */
+  private get _dayOn(): boolean {
+    const cfg = this._config;
+    return !!cfg?.options?.show_day_values && this._mode === "power" && !this._compact && hasEnergy(cfg);
+  }
+
+  /** The yearly budget can be shown: the option is set, the mode is Now, the card is not compact and there are energy sensors. */
+  private get _budgetOn(): boolean {
+    const cfg = this._config;
+    return !!cfg?.options?.year_budget_kwh && this._mode === "power" && !this._compact && hasEnergy(cfg);
+  }
+
+  /** The daily rows from the first of January until now, for the yearly budget. */
+  private _yearQuery(): EnergyQuery {
+    return { ids: collectEnergyIds(this._config!), period: "month", stat: "day", year: true };
+  }
+
+  /** The bar of the yearly budget (options.year_budget_kwh): the use since January against the straight pace through the year. */
+  private _renderBudget(): TemplateResult | typeof nothing {
+    if (!this._budgetOn) return nothing;
+    const rows = this._energyStore.series(this._yearQuery());
+    if (!rows) return nothing;
+    const tz = this._timeZone;
+    const now = new Date();
+    const y = localDate(now, tz)[0];
+    const start = localMidnight(y, 1, 1, tz);
+    const starts = bucketStarts(start, now, "day", tz);
+    const used = treeSeries(this._config!, rows, starts, now.getTime()).home?.reduce((s, v) => s + v, 0);
+    if (used === undefined) return nothing;
+    const b = budgetStatus(used, this._config!.options!.year_budget_kwh!, yearPace(now, start, localMidnight(y + 1, 1, 1, tz)));
+    const pct = (v: number) => `${Math.round(v * 100)} %`;
+    const text = this._t("budget_text").replace("{0}", this._fmtAs("energy", b.usedKwh * 1000)).replace("{1}", this._fmtAs("energy", b.budgetKwh * 1000)).replace("{2}", pct(b.share));
+    const pace = this._t("budget_pace").replace("{0}", pct(b.pace)).replace("{1}", this._fmtAs("energy", b.projectedKwh * 1000));
+    return html`<div class="budget" role="status">
+      <div class="day-title">${this._t("budget_title")}</div>
+      <div class="budget-bar ${b.over ? "over" : ""}" style=${`--used:${Math.min(100, b.share * 100)}%;--pace:${b.pace * 100}%`}><i class="used"></i><i class="pace"></i></div>
+      <div class="budget-text">${text}</div>
+      <div class="budget-pace ${b.over ? "over" : ""}">${pace}</div>
+    </div>`;
+  }
+
+  /** A price per kWh from the option (fixed or the state of the price sensor); undefined when it is not set or not readable. */
+  private _priceNow(fixed: "price" | "feed_in_price", entity: "price_entity" | "feed_in_price_entity"): number | undefined {
+    const o = this._config?.options;
+    if (o?.[fixed] !== undefined) return o[fixed];
+    const id = o?.[entity];
+    const v = id ? Number(this._hass?.states[id]?.state) : NaN;
+    return Number.isFinite(v) ? v : undefined;
+  }
+
+  /** The banner "surplus" above the diagram (options.show_surplus): the power fed into the grid and what using it at home saves. */
+  private _renderSurplus(): TemplateResult | typeof nothing {
+    const s = this._surplus;
+    if (!s || this._compact) return nothing;
+    const saving = s.savedPerHour !== undefined && s.savedPerHour > 0 ? ` ${this._t("surplus_saving").replace("{0}", this._money(s.savedPerHour))}` : "";
+    const title = this._t("surplus_title").replace("{0}", this._fmt(s.watts));
+    const text = this._t("surplus_text") + saving;
+    const devices = this._config?.options?.surplus_devices && this._model ? surplusDevices(this._model, s.watts) : [];
+    const chips = devices.map((d) => {
+      const name = this._consumerName({ entity: d.entity, name: d.name } as ConsumerNode);
+      const label = html`${name} <span class="surplus-w">${this._fmtAs("power", d.watts)}</span>`;
+      return d.switchEntity
+        ? html`<button class="surplus-chip" @click=${() => this._toggleSwitch(d.switchEntity!, d.confirmSwitch === true)}>${label}</button>`
+        : html`<span class="surplus-chip">${label}</span>`;
+    });
+    return html`<div class="surplus" role="status">
+      <ha-icon icon=${"mdi:white-balance-sunny"}></ha-icon>
+      <div>
+        <div class="surplus-title">${title}</div>
+        <div class="surplus-text">${text}</div>
+        ${chips.length ? html`<div class="surplus-devices"><span class="surplus-text">${this._t("surplus_devices")}</span>${chips}</div>` : nothing}
+      </div>
+    </div>`;
+  }
+
+  /** Hints about readings that do not add up (options.show_hints): only in the mode Now and not in the compact view. */
+  private _renderHints(): TemplateResult | typeof nothing {
+    if (!this._config?.options?.show_hints || this._mode !== "power" || this._compact || !this._model) return nothing;
+    const hints = plausibilityHints(this._model);
+    if (!hints.length) return nothing;
+    const text = (h: (typeof hints)[number]): string =>
+      h.kind === "balance"
+        ? this._t(h.value > 0 ? "hint_balance_more" : "hint_balance_less").replace("{0}", this._fmt(Math.abs(h.value)))
+        : h.kind === "rooms"
+          ? this._t("hint_rooms").replace("{0}", this._fmt(h.value))
+          : this._t("hint_unavailable").replace("{0}", String(h.value));
+    return html`<div class="hints" role="status">${hints.map((h) => html`<div class="hint"><ha-icon icon=${"mdi:alert-outline"}></ha-icon><span>${text(h)}</span></div>`)}</div>`;
+  }
+
+  /** The bar of today's values under the diagram (options.show_day_values). */
+  private _renderDay(): TemplateResult | typeof nothing {
+    const tiles = this._day;
+    if (!this._dayOn || !tiles?.length) return nothing;
+    const label = (t: DayTile): string => (t.kind === "autarky" ? `${Math.round((t.share ?? 0) * 100)} %` : t.kind === "battery" ? `+${this._fmtAs("energy", t.wh)} / −${this._fmtAs("energy", t.whOut ?? 0)}` : this._fmtAs("energy", t.wh));
+    const color: Record<DayTile["kind"], string> = { solar: SOURCE_COLORS.solar, import: SOURCE_COLORS.grid, export: SOURCE_COLORS.grid, battery: SOURCE_COLORS.battery, home: "var(--_accent)", autarky: "var(--_accent)" };
+    return html`<div class="today-values">
+      ${this._config?.options?.show_day_title === false ? nothing : html`<div class="day-title">${this._t("day_title")}</div>`}
+      <div class="day-tiles">
+        ${tiles.map((t) => html`<div class="day-tile"><span class="day-name" style=${`color:${color[t.kind]}`}>● ${this._t(`day_${t.kind}` as Key)}</span><span class="day-value">${label(t)}</span></div>`)}
+      </div>
+    </div>`;
+  }
+
+  /** "17:06", with the weekday when it is not today: the clock time a forecast ends at, in the time zone of Home Assistant. */
+  private _clock(at: number): string {
+    const lang = this._hass?.locale?.language ?? this._hass?.language;
+    const tz = this._timeZone;
+    const time = new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(at);
+    const day = (t: number) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(t);
+    if (day(at) === day(Date.now())) return time;
+    return `${new Intl.DateTimeFormat(lang, { weekday: "short", timeZone: tz }).format(at)} ${time}`;
+  }
+
+  /** "55 min" or "10 h 5 min" */
+  private _span(minutes: number): string {
+    const m = Math.max(1, Math.round(minutes));
+    return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  }
+
+  /**
+   * The notes under the sources (options.show_battery_forecast, options.show_solar_split): only in the mode Now and
+   * not in the compact view. `noteLine` is set as soon as a source can have a note, also while it has none, so the
+   * diagram does not jump.
+   */
+  private _sourceNotes(cfg: EnergyCardConfig, model: EnergyModel): { notes?: Map<string, SourceNote>; noteLine?: boolean } {
+    const o = cfg.options;
+    if (this._mode === "energy" || this._compact || (!o?.show_battery_forecast && !o?.show_solar_split && !o?.show_battery_bar)) return {};
+    const notes = new Map<string, SourceNote>();
+    let line = false;
+    if (o.show_battery_bar) {
+      for (const s of model.sources) {
+        if (s.type !== "battery") continue;
+        line = true;
+        if (s.soc === undefined || !s.valid) continue;
+        const soc = Math.min(100, Math.max(0, s.soc));
+        notes.set(s.entity, { kind: "text", text: "", title: `${Math.round(soc)} %`, bar: { soc, reserve: s.reserve ?? 0, max: s.max ?? 100 } });
+      }
+    }
+    if (o.show_battery_forecast) {
+      for (const s of model.sources) {
+        const capacity = cfg.sources?.find((c) => c.entity === s.entity)?.capacity_kwh;
+        if (s.type !== "battery" || !capacity) continue;
+        line = true;
+        const prev = notes.get(s.entity);
+        const bar = prev?.kind === "text" ? prev.bar : undefined;
+        const f = batteryForecast(s, capacity, Date.now());
+        if (f) notes.set(s.entity, { kind: "text", text: this._t(f.kind === "full" ? "battery_full_at" : "battery_empty_at").replace("{0}", this._clock(f.at)), title: this._t("battery_in").replace("{0}", this._span(f.minutes)), bar });
+      }
+    }
+    if (o.show_solar_split) {
+      const first = model.sources.find((s) => s.type === "solar");
+      if (first) {
+        line = true;
+        const sp = solarSplit(model);
+        if (sp) {
+          const pct = (w: number) => Math.round((w / sp.produced) * 100);
+          notes.set(first.entity, {
+            kind: "split",
+            home: pct(sp.home),
+            battery: pct(sp.battery),
+            grid: pct(sp.grid),
+            title: this._t("split_title").replace("{0}", this._fmt(sp.home)).replace("{1}", this._fmt(sp.battery)).replace("{2}", this._fmt(sp.grid)),
+          });
+        }
+      }
+    }
+    return { notes, noteLine: line };
   }
 
   private get _homeName(): string {
@@ -1002,7 +1293,7 @@ export class DetailedEnergyCard extends LitElement {
       : room;
 
     return html`
-      <ha-card style=${colorVars(cfg.colors)}>
+      <ha-card class=${this._width > 0 && this._width < 400 ? "narrow" : ""} style=${colorVars(cfg.colors)}>
         <header>
           <div>
             ${cfg.title ? html`<h2>${cfg.title}</h2>` : nothing}
@@ -1011,12 +1302,16 @@ export class DetailedEnergyCard extends LitElement {
           ${this._renderBadges(cfg, model)}
         </header>
         ${this._renderSwitches(cfg)}
+        ${this._renderHints()}
+        ${this._renderSurplus()}
         ${this._showsTimeline
           ? renderTimeline(this._timelineContext(model, sel))
           : this._showsSankey
             ? this._sankey.render()
             : this._tree.render(this._treeContext(cfg, model, sel, home))}
-        ${this._compact || this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
+        ${this._renderDay()}
+        ${this._renderBudget()}
+        ${this._compact || this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room), room ? nodeKey.room(room.id) : allRooms && floor ? nodeKey.floor(floor.id) : nodeKey.home)}
       </ha-card>
     `;
   }
@@ -1046,9 +1341,11 @@ export class DetailedEnergyCard extends LitElement {
     const r = c.result;
     const approx = c.ha === undefined && r.approx;
     const feedIn = c.haFeedIn ?? r.feedIn;
+    const savedHome = this._config?.options?.show_savings ? r.saved.get(nodeKey.home) : undefined;
     const text =
       `${this._t("costs")} ${approx ? "≈ " : ""}${this._money(c.ha ?? r.grid)}` +
-      (feedIn !== undefined ? ` · ${this._t("feed_in_pay")} ${this._money(feedIn)}` : "");
+      (feedIn !== undefined ? ` · ${this._t("feed_in_pay")} ${this._money(feedIn)}` : "") +
+      (savedHome !== undefined && savedHome >= 0.005 ? ` · ${this._t("saved")} ${this._money(savedHome)}` : "");
     const tips: string[] = [];
     if (r.battery >= 0.005) tips.push(this._t("costs_battery").replace("{0}", this._money(r.battery)));
     if (approx) tips.push(this._t("costs_approx"));
@@ -1087,7 +1384,38 @@ export class DetailedEnergyCard extends LitElement {
     </div>`;
   }
 
-  private _renderDetail(room: RoomNode | undefined, remainder: Remainder | undefined): TemplateResult {
+  /** The ring, the legend and the hint "least grid power" for the shown node (options.show_origin). */
+  private _renderOrigin(key: string): TemplateResult | typeof nothing {
+    const o = this._origin?.nodes.get(key);
+    if (!this._originOn || !o) return nothing;
+    const kinds = ORIGIN_KINDS.filter((k) => o.share[k] >= 0.005);
+    let at = 0;
+    const stops = kinds.map((k) => {
+      const from = at;
+      at += o.share[k] * 100;
+      return `${SOURCE_COLORS[k]} ${from.toFixed(2)}% ${at.toFixed(2)}%`;
+    });
+    const best = this._origin?.best;
+    const pad = (h: number) => String(h % 24);
+    return html`<div class="origin">
+      <div class="origin-main">
+        <span class="origin-ring" style=${`background:conic-gradient(from 0deg, ${stops.join(", ")})`} role="img" aria-label=${kinds.map((k) => `${this._t(`origin_${k}` as Key)} ${Math.round(o.share[k] * 100)} %`).join(", ")}></span>
+        <div class="origin-legend">
+          ${kinds.map((k) => html`<div><span style=${`color:${SOURCE_COLORS[k]}`}>●</span> ${this._t(`origin_${k}` as Key)} <b>${Math.round(o.share[k] * 100)} %</b> <span class="muted">${this._fmtAs("energy", o.wh[k])}</span></div>`)}
+        </div>
+      </div>
+      ${best ? html`<div class="origin-best"><ha-icon icon=${"mdi:clock-outline"}></ha-icon><span>${this._t("origin_best").replace("{0}", pad(best.fromHour)).replace("{1}", pad(best.fromHour + BEST_HOURS)).replace("{2}", String(Math.round(best.gridShare * 100)))}</span></div>` : nothing}
+    </div>`;
+  }
+
+  /** The bar of a consumer split by origin, as wide as `fraction` of the row (options.show_origin); undefined without a known origin. */
+  private _originBar(entity: string, fraction: number): TemplateResult | undefined {
+    const o = this._origin?.nodes.get(nodeKey.consumer(entity));
+    if (!this._originOn || !o) return undefined;
+    return html`<span class="bar origin"><div class="origin-strip" style=${`width:${Math.max(0, Math.min(1, fraction)) * 100}%`}>${ORIGIN_KINDS.filter((k) => o.share[k] > 0).map((k: OriginKind) => html`<i style=${`width:${o.share[k] * 100}%;background:${SOURCE_COLORS[k]}`}></i>`)}</div></span>`;
+  }
+
+  private _renderDetail(room: RoomNode | undefined, remainder: Remainder | undefined, originKey = nodeKey.home): TemplateResult {
     if (!room) {
       return html`<div class="detail empty">${this._t("no_rooms")}</div>`;
     }
@@ -1107,6 +1435,7 @@ export class DetailedEnergyCard extends LitElement {
             <span class="muted"> · ${this._fmt(room.watts)}</span></span>
           <span class="muted">${onlyActive ? `${sorted.length} / ${room.consumers.length}` : room.consumers.length} ${this._t("consumers")}</span>
         </div>
+        ${this._renderOrigin(originKey)}
         ${sorted.length === 0 && !(room.consumers.length === 0 && room.meter?.metered)
           ? html`<div class="empty">${this._t(room.consumers.length === 0 ? "no_consumers" : "no_active_consumers")}</div>`
           : nothing}
@@ -1122,7 +1451,7 @@ export class DetailedEnergyCard extends LitElement {
             <button class="row ${c.valid || c.noPower ? "" : "warn"} ${c.noPower || (c.valid && isIdle(c.watts)) ? "idle" : ""}"
               @click=${() => b.click()} @pointerdown=${() => b.down()} @pointerup=${() => b.up()} @pointerleave=${() => b.up()} @pointercancel=${() => b.up()} @contextmenu=${(e: Event) => b.contextmenu(e)}>
               <span class="name">${name}${standby.has(c.entity) ? html` <ha-icon class="standby" icon="mdi:infinity" title=${this._t("runs_always").replace("{0}", this._fmtAs("power", standbyWatts))}></ha-icon>` : nothing}${c.noSensor || c.noEnergy || c.noPower || showIds ? html`<small>${c.noSensor ? this._t("no_sensor") : c.noEnergy ? this._t("no_energy") : c.noPower ? this._t("no_power") : c.entity}</small>` : nothing}</span>
-              <span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>
+              ${this._originBar(c.entity, c.watts / max) ?? html`<span class="bar" style=${styleMap({ "--level": String(level), ...(barWidth !== undefined ? { "--bar-h": `${barWidth}px` } : {}) })}><div style=${styleMap({ width: `${(c.watts / max) * 100}%`, background: barColor })}></div></span>`}
               <span class="val">${c.valid ? this._fmt(c.watts) : "–"}</span>
               ${second ? html`<span class="val2" title=${this._secondTitle(nodeKey.consumer(c.entity)) ?? nothing}>${this._secondLabel(nodeKey.consumer(c.entity)) ?? ""}</span>` : nothing}
               ${switches ? this._renderSwitch(c.switchEntity, c.confirmSwitch === true) : nothing}

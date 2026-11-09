@@ -122,6 +122,62 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
       await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
+  {
+    scenario: "mix",
+    file: "card-source-mix",
+    // the ring and the legend at the home, the battery says how long it lasts, the solar power goes into the home; a fixed clock gives the same time
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .second.note").first()).toBeVisible();
+    },
+  },
+  {
+    scenario: "surplus",
+    file: "card-solar-surplus",
+    // a solar surplus: the battery charges and says when it is full, the split names home, battery and grid
+    clock: "2026-10-13T11:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .second.note.split")).toBeVisible();
+    },
+  },
+  {
+    scenario: "devices",
+    file: "card-overview",
+    // lines in source colors (strands below the home), the surplus banner with device suggestions and the values of today
+    clock: "2026-10-13T11:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .surplus")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .day-tile").first()).toBeVisible();
+    },
+  },
+  {
+    scenario: "strands",
+    file: "card-source-lines",
+    // the lines take the colors of the sources; below the home they run as strands in the mix
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+    },
+  },
+  {
+    scenario: "origin",
+    file: "card-origin",
+    // the origin of the power of the home and of every consumer, and the hours with the least grid import
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .origin-best")).toBeVisible();
+    },
+  },
+  {
+    scenario: "forecast",
+    file: "card-pv-forecast",
+    // the timeline of today with the forecast of the solar production as a dashed line
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card path.forecast")).toBeVisible();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",
@@ -156,7 +212,7 @@ async function fixClock(page: import("@playwright/test").Page, at: string): Prom
 const CARD_IMAGE_HEIGHT = 910;
 /** a little of the page around the card, so that it reads as a card and not as a cut-out */
 const IMAGE_MARGIN = 12;
-const natural = new Set(["card-hero"]);
+const natural = new Set(["card-hero", "card-overview", "card-origin"]);
 
 for (const { scenario, file, clock, width, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {

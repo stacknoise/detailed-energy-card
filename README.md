@@ -8,7 +8,7 @@ The Energy dashboard of Home Assistant tells you *how much* you use. This card s
 
 <img src="https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-hero.png?v=5" alt="The card: solar, battery and grid flow into the home, on to the floors, the rooms of the ground floor and the consumers of the kitchen" width="380">
 
-*Current version: **1.4.2** · [What's new](https://github.com/stacknoise/detailed-energy-card/blob/main/CHANGELOG.md)*
+*Current version: **1.5.0** · [What's new](https://github.com/stacknoise/detailed-energy-card/blob/main/CHANGELOG.md)*
 
 ## Why you'll like it
 
@@ -18,6 +18,7 @@ The Energy dashboard of Home Assistant tells you *how much* you use. This card s
 - 📅 **Today, this week, this month.** Switch from *Now* to the energy used, and browse back to yesterday or last month.
 - 💶 **What did it cost?** Fixed price or a dynamic tariff such as Tibber: the card shows the costs of every room and device.
 - ☀️ **Self-sufficiency and self-consumption** at a glance, plus feed-in and battery charging.
+- 🎨 **Sources at a glance** (optional). A ring around the home shows where the power comes from, the battery tells you when it is full or empty, and the solar power shows where it goes. Lines in the colors of the sources, a surplus banner and tiles with today's values are optional too.
 - 🔍 **Find the energy hogs.** Base load of your home, devices that never switch off, and a heatmap of *when* you use electricity.
 - 📊 **Three ways to look at it:** the tree, a Sankey diagram and a timeline of the day.
 - 🎛️ **Act right away.** Turn a device off from the list, or give any element your own tap actions.
@@ -60,6 +61,42 @@ Click a floor to see its rooms, click a room to see its devices. Click again to 
 | Feed-in, charging and self-consumption | Base load and devices that never switch off |
 | --- | --- |
 | ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png?v=5) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png?v=5) |
+
+### Sources at a glance (optional)
+
+Four switches in the editor, all off until you turn them on: a ring around the home with the share of solar, battery and grid, the home in the color of the largest source, the battery forecast (*Full at 17:06*, *Lasts until 06:06*) and the split of the solar power into home, battery and grid.
+
+| The mix of the sources, and how long the battery lasts | A solar surplus: the battery charges, the rest goes into the grid |
+| --- | --- |
+| ![Ring around the home with solar, battery and grid, the battery says when it lasts until](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-mix.png?v=5) | ![Solar surplus: the battery says when it is full, the solar power is split into home, battery and grid](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-solar-surplus.png?v=5) |
+
+### Overview (optional)
+
+Three more switches: the lines in the colors of the sources (below the home as strands in the mix), a banner while power is fed into the grid that says what using it yourself would save (and, if you give consumers a typical power, which idle ones could use it), and tiles with the values of today under the diagram.
+
+| Surplus banner and the values of today | Lines in the colors of the sources |
+| --- | --- |
+| ![Surplus banner, the solar line in orange and tiles with today's solar, grid, feed-in, battery, home and self-sufficiency](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-overview.png?v=6) | ![Lines in the colors of the sources, below the home as strands in the mix](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-lines.png?v=5) |
+
+### Where does the power come from? (optional)
+
+One more switch: in the list a ring shows how much of the power of the shown room, floor or home was solar, battery or grid, every bar is split the same way, and a hint names the hours with the least grid import, the best time for big loads.
+
+| Origin of the power per consumer, and the best hours |
+| --- |
+| ![Ring with solar and grid, bars split by origin and the hint for the hours with the least grid import](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-origin.png?v=5) |
+
+### Solar forecast in the timeline (optional)
+
+One more switch: the timeline of today gets a dashed line with the forecast of the solar production, taken from the solar forecast of your Energy dashboard.
+
+| Timeline of today with the solar forecast |
+| --- |
+| ![Timeline of today with a dashed orange line for the solar forecast](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-pv-forecast.png?v=5) |
+
+### More options for the ones who want them
+
+All of them are off until you switch them on: a yearly budget as a bar with the use since January, the straight pace and a projection; the same day of the last year as a marker in the timeline of a week and a month; savings next to the costs; a hint when readings do not add up; and suggestions for idle devices in the surplus banner. Grid meters can have their own tariff, and a consumer can be the difference of a meter and the devices behind it. See [docs/configuration.md](docs/configuration.md).
 
 ### More ways to see it
 

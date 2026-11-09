@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.5.0
+
+### Added
+
+Four options that show where the power comes from and where it goes. All are off by default, nothing changes until you turn them on (in the editor under *General*, or in YAML under `options`).
+
+- `options.show_source_mix`: a ring around the home circle shows the share of solar, battery and grid in the power delivered, with a legend. The colors are solar orange, battery pink and grid blue; an own `color` of a source comes first. In the compact view only the ring is drawn.
+- `options.home_color_by_source`: icon, border and glow of the home circle take the color of the source with the largest share; it changes only when another source is at least 5 percentage points ahead.
+- `options.show_battery_forecast` with the new `capacity_kwh` of a battery source: under the battery it says *Full at 17:06* while it charges and *Lasts until 06:06* while it discharges, at the power of the moment. The mode *Now* only.
+- `options.show_solar_split`: under the solar source, the percentage of the solar power that goes into the home, the battery and the grid. The mode *Now* only.
+- The editor has the four switches under *General* and the field *Capacity (kWh)* at a battery source; the dev page has the scenarios `mix` and `surplus`.
+
+Solar forecast:
+
+- `options.show_pv_forecast`: a dashed orange line with the forecast of the solar production in the timeline of the running period, from the solar forecast of the Energy dashboard of Home Assistant (Forecast.Solar, Solcast). Without such a forecast nothing is drawn. The editor has the switch; the dev page has the scenario `forecast`.
+
+Origin of the power:
+
+- `options.show_origin`: in the list of consumers a ring shows where the power of the selected room, floor or home comes from (solar, battery, grid), every consumer bar is split by origin, and a hint names the three hours with the least grid import. It uses the hourly values of the energy counters of at least two kinds of sources (for a battery the energy discharged). Today, in the energy mode the chosen period. The editor has the switch; the dev page has the scenario `origin`.
+
+Battery limits and a charge bar:
+
+- `options.show_battery_bar`: under a battery with a state of charge, a small bar with the charge. The new `reserve_percent` (discharge limit) and `max_percent` (charge limit) of a battery source are hatched zones in it, and the battery forecast now counts only the usable part between them. The mode *Now* only. The editor has the switch and the two fields; the dev page has the scenario `battery`.
+
+Three more options for the overview, also off by default:
+
+- `options.lines_by_source`: the lines of the active paths take the colors of the sources instead of the thresholds; below the home they run as thin strands side by side, one per source, as wide as its share. The mode *Now* only.
+- `options.show_savings`: next to the costs, what solar and battery saved (energy not from the grid times the price of the hour), in the cost badge and per node with `secondary_value: cost`.
+- `options.surplus_devices` with `surplus_w` on consumers: the surplus banner suggests up to three idle consumers that fit into the surplus (a chip with a switch turns it on).
+- `options.show_surplus` with `surplus_min_w` (default 500 W): a banner while that much power goes into the grid, with what using it at home saves per hour (price minus feed-in compensation, when a price is set). It stays until 80 % of the limit. The mode *Now* only.
+- `options.show_day_title: false` hides the heading "Today so far" above the tiles of `show_day_values`.
+- `options.show_day_values`: tiles under the diagram with today's solar, grid import, feed-in, battery charged and discharged, home consumption and self-sufficiency; needs energy counters. The mode *Now* only.
+- The editor has the switches (and the field *Surplus from (W)*) under *General*; the dev page has the scenarios `today` and `strands`.
+
+More options, all off by default and only for the ones who switch them on:
+
+- `options.year_budget_kwh`: a bar under the diagram with the use since January against a yearly budget, the straight pace and a projection.
+- `options.compare_last_year`: in the timeline of a week and a month a marker per bar for the same day a year ago and the change against the same days of the last year in the head.
+- Grid sources can have their own tariff (`price` / `price_entity`), for example a heat pump meter; the costs use each meter's price.
+- Difference consumers (`minus_entities`, `minus_energy_entities`): a consumer minus the sensors listed there, in the live value and hour by hour in the timeline.
+- `options.show_hints`: a hint under the header when readings do not add up (sources against home, rooms above the home meter, unreadable sources).
+
+Fixed:
+
+- The solar forecast was missing in the week and the month view (a day bar counted only when its first hour was in the forecast), the header badges ran out of the card at 320 px, and source labels and notes now stay inside their slot on narrow cards.
+
 ## 1.4.2
 
 ### Changed

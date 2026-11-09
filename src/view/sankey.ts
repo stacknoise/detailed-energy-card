@@ -35,6 +35,14 @@ export function columnHeight(graph: SankeyGraph): number {
 export const LABEL_MIN_SHARE = 0.03;
 /** px kept free right of the last column for its labels */
 export const LABEL_RESERVE = 96;
+/** On a narrow card the labels of the last column get more room, so that names are not cut. */
+export const LABEL_RESERVE_NARROW = 118;
+/** Cards narrower than this px count as narrow. */
+export const NARROW_PX = 400;
+/** The room kept free right of the last column for a card of width `w`. */
+export function labelReserve(w: number): number {
+  return w < NARROW_PX ? LABEL_RESERVE_NARROW : LABEL_RESERVE;
+}
 const SLIDE_MS = 420;
 const LINE = 12;
 
@@ -98,7 +106,7 @@ export class SankeyView {
       links: c.graph.links,
       width: Math.max(260, c.width),
       height: columnHeight(c.graph),
-      reserve: LABEL_RESERVE,
+      reserve: labelReserve(Math.max(260, c.width)),
     });
     this._layout = layout;
     const to = geometry(layout);
@@ -152,7 +160,7 @@ export class SankeyView {
       seen.set(n.col, k + 1);
       color.set(n.id, n.color && n.color !== "theme" ? n.color : stackColor(k));
     }
-    const span = l.columns > 1 ? (W - LABEL_RESERVE - l.nodeWidth) / (l.columns - 1) : 0;
+    const span = l.columns > 1 ? (W - labelReserve(W) - l.nodeWidth) / (l.columns - 1) : 0;
 
     const bands = l.links.map((b) => {
       const geo = g(`l:${b.id}`) ?? [b.y0, b.y1, b.h, 1];
@@ -184,7 +192,7 @@ export class SankeyView {
       const data = byId.get(n.id)!;
       const [y, h, o] = g(`n:${n.id}`) ?? [n.y, n.h, 1];
       if (h < l.height * LABEL_MIN_SHARE || o < 0.5) return nothing;
-      const room = (n.col === l.columns - 1 ? LABEL_RESERVE : span) - l.nodeWidth - 8;
+      const room = (n.col === l.columns - 1 ? labelReserve(W) : span) - l.nodeWidth - 8;
       const x = n.x + l.nodeWidth + 5;
       const two = h >= 2 * LINE + 2;
       const name = fit(data.name, room);
