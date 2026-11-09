@@ -58,6 +58,10 @@ export const cardStyles = css`
     gap: 12px;
     margin-bottom: 16px;
   }
+  /* children may shrink below their content, so the badges wrap instead of leaving the card (320 px) */
+  header > * {
+    min-width: 0;
+  }
   h2 {
     margin: 0;
     font-size: 1.3em;
@@ -141,7 +145,8 @@ export const cardStyles = css`
     padding: 6px 12px;
     font-size: 0.85em;
     font-weight: 600;
-    white-space: nowrap;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
   .scroll {
     overflow-x: auto;

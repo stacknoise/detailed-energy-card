@@ -24,15 +24,20 @@ export function parseSolarForecast(result: unknown): Map<number, number> {
 
 /**
  * The forecast per bar of a period: the sum of its hours, undefined for a bar the forecast does not cover (it
- * reaches a few days ahead and the running day). A bar counts as covered when its first hour is known.
+ * reaches a few days ahead and the running day). A bar counts as covered when any of its hours is known (the forecast has no night hours, so a day bar starts with the sunrise).
  */
 export function forecastBars(hours: Map<number, number>, starts: number[], end: number): Array<number | undefined> {
   if (!hours.size) return starts.map(() => undefined);
   return starts.map((start, i) => {
     const stop = starts[i + 1] ?? end;
-    if (!hours.has(start - (start % 3_600_000))) return undefined;
     let sum = 0;
-    for (let t = start - (start % 3_600_000); t < stop; t += 3_600_000) sum += hours.get(t) ?? 0;
-    return sum;
+    let known = false;
+    for (let t = start - (start % 3_600_000); t < stop; t += 3_600_000) {
+      const v = hours.get(t);
+      if (v === undefined) continue;
+      known = true;
+      sum += v;
+    }
+    return known ? sum : undefined;
   });
 }

@@ -34,7 +34,8 @@ describe("forecastBars", () => {
   });
   it("sums the hours of a day bar", () => {
     const starts = [day, day + 24 * H];
-    expect(forecastBars(hours, starts, day + 48 * H)).toEqual([undefined, undefined]);
+    // no night hours in the forecast: a day bar counts as soon as one of its hours is known
+    expect(forecastBars(hours, starts, day + 48 * H)).toEqual([1300, undefined]);
     const full = new Map(Array.from({ length: 24 }, (_, h) => [day + h * H, 100] as const));
     expect(forecastBars(full, starts, day + 48 * H)).toEqual([2400, undefined]);
   });
