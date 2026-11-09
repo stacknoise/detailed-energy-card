@@ -127,6 +127,14 @@ export interface OptionsConfig {
   show_battery_forecast?: boolean;
   /** under a solar source: where its power goes right now, into the home, the battery and the grid (default off) */
   show_solar_split?: boolean;
+  /** the lines take the colors of the sources instead of the thresholds; below the home they run as strands in the mix (default off) */
+  lines_by_source?: boolean;
+  /** a banner while more than `surplus_min_w` watts are fed into the grid, with what using it at home would save (default off) */
+  show_surplus?: boolean;
+  /** the feed-in in watts from which the surplus banner appears (default 500) */
+  surplus_min_w?: number;
+  /** a bar of today's values under the diagram: solar, grid, feed-in, battery, home and self-sufficiency (default off; needs energy sensors) */
+  show_day_values?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
@@ -286,12 +294,16 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "lines_by_source", "show_surplus", "show_day_values"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;
   if (standby !== undefined && (typeof standby !== "number" || !Number.isFinite(standby) || standby <= 0)) {
     throw new ConfigError("options.standby_watts must be a number greater than 0 (watts)");
+  }
+  const surplus = options.surplus_min_w;
+  if (surplus !== undefined && (typeof surplus !== "number" || !Number.isFinite(surplus) || surplus <= 0)) {
+    throw new ConfigError("options.surplus_min_w must be a number greater than 0 (watts)");
   }
   // a price is fixed or comes from a sensor, never both
   for (const [fixed, entity] of [["price", "price_entity"], ["feed_in_price", "feed_in_price_entity"]] as const) {

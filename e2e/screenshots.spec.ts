@@ -142,6 +142,24 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
       await expect(page.locator("detailed-energy-card .second.note.split")).toBeVisible();
     },
   },
+  {
+    scenario: "today",
+    file: "card-overview",
+    // lines in source colors (strands below the home), the surplus banner and the values of today
+    clock: "2026-10-13T11:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .surplus")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .day-tile").first()).toBeVisible();
+    },
+  },
+  {
+    scenario: "strands",
+    file: "card-source-lines",
+    // the lines take the colors of the sources; below the home they run as strands in the mix
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",
@@ -176,7 +194,7 @@ async function fixClock(page: import("@playwright/test").Page, at: string): Prom
 const CARD_IMAGE_HEIGHT = 910;
 /** a little of the page around the card, so that it reads as a card and not as a cut-out */
 const IMAGE_MARGIN = 12;
-const natural = new Set(["card-hero"]);
+const natural = new Set(["card-hero", "card-overview"]);
 
 for (const { scenario, file, clock, width, before } of shots) {
   test(`screenshot ${file}`, async ({ page }) => {

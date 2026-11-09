@@ -615,6 +615,60 @@ export const cardStyles = css`
     min-height: 12px;
     white-space: nowrap;
   }
+  /* options.show_surplus: banner while power is fed into the grid */
+  .surplus {
+    align-items: center;
+    background: color-mix(in srgb, #ff9800 18%, var(--_bg, transparent));
+    border: 1px solid color-mix(in srgb, #ff9800 45%, transparent);
+    border-radius: 10px;
+    display: flex;
+    gap: 12px;
+    margin: 4px 16px 0;
+    padding: 10px 14px;
+  }
+  .surplus ha-icon {
+    --mdc-icon-size: 28px;
+    color: #ffb74d;
+    flex: none;
+  }
+  .surplus-title {
+    color: #ffb74d;
+    font-weight: 700;
+  }
+  .surplus-text {
+    color: var(--_muted);
+    font-size: 0.85em;
+  }
+  /* options.show_day_values: tiles of today's values */
+  .day {
+    border-top: 1px solid var(--_line, rgba(128, 128, 128, 0.25));
+    margin: 8px 16px 0;
+    padding-top: 10px;
+  }
+  .day-title {
+    color: var(--_muted);
+    font-size: 0.8em;
+    margin-bottom: 6px;
+  }
+  .day-tiles {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+  .day-tile {
+    background: color-mix(in srgb, var(--_text, currentColor) 7%, transparent);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+  }
+  .day-name {
+    font-size: 0.75em;
+  }
+  .day-value {
+    font-weight: 500;
+  }
   /* note under a source: the forecast of a battery, the split of the solar power */
   .second.note.split {
     align-items: center;

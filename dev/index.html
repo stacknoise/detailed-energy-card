@@ -462,6 +462,19 @@
         ]),
         options: mixOptions,
       };
+      // Lines in source colors, surplus banner and the values of today (the options of the package "overview"): the solar surplus with energy counters and prices.
+      scenarios.today = {
+        ...scenarios.surplus,
+        home: { total_entity: "sensor.total_s", total_energy_entity: "sensor.e_total_s" },
+        sources: scenarios.surplus.sources.map((src) => ({
+          ...src,
+          energy_entity: energyId(src.entity),
+          ...(src.type === "grid" ? { energy_entity_return: "sensor.e_netz_s_einspeisung" } : src.type === "battery" ? { energy_entity_return: "sensor.e_akku_s_geladen" } : {}),
+        })),
+        options: { ...mixOptions, lines_by_source: true, show_surplus: true, show_day_values: true, price: 0.31, feed_in_price: 0.08 },
+      };
+      // Strands: with several sources delivering, the lines below the home run side by side in the colors of the mix.
+      scenarios.strands = { ...scenarios.mix, options: { unit: "kW", lines_by_source: true, show_source_mix: true } };
       // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
       scenarios.secondary = { ...scenarios.energy, options: { unit: "kW", mode: "power", secondary_value: "auto" } };
       // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a
@@ -497,6 +510,8 @@
         "sensor.e_uv_eg": 12.6, "sensor.e_kueche_zaehler": 9.1, "sensor.e_flur_zaehler": 0.4,
         // the other direction (scenario "feedin"): fed into the grid, charged into the battery
         "sensor.e_netz_einspeisung": 3.8, "sensor.e_akku_geladen": 2.4,
+        // scenario "today": the sources of the solar surplus with their counters
+        "sensor.e_pv_s": 14.2, "sensor.e_akku_s": 4.2, "sensor.e_akku_s_geladen": 6.1, "sensor.e_netz_s": 2.1, "sensor.e_netz_s_einspeisung": 6.3, "sensor.e_total_s": 12.0,
       };
 
       // names for the entity pickers of the editor view, and the energy counters

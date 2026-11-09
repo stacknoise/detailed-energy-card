@@ -51,6 +51,10 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Home value in the color of the largest source | `options.home_color_by_source` | `false` | Icon, border and glow of the home circle take the color of the source with the largest share. |
 | Battery forecast (full at / lasts until) | `options.show_battery_forecast` | `false` | Under a battery with a state of charge and a capacity: when it is full (charging) or empty (discharging). Mode *Now* only. |
 | Split of the solar power | `options.show_solar_split` | `false` | Under the solar source: the percentage of the power that goes into the home, the battery and the grid. Mode *Now* only. |
+| Lines in source colors | `options.lines_by_source` | `false` | The lines of the active paths take the color of the source instead of the threshold color; below the home they run as strands in the mix. Mode *Now* only. |
+| Surplus banner | `options.show_surplus` | `false` | A banner while more than `surplus_min_w` watts go into the grid, with what using it at home would save per hour. Mode *Now* only. |
+| Surplus from (W) | `options.surplus_min_w` | `500` | The feed-in from which the banner appears; it stays until 80 % of it. |
+| Today's values under the diagram | `options.show_day_values` | `false` | Tiles: solar, grid import, feed-in, battery ±, home and self-sufficiency of today. Needs energy counters. Mode *Now* only. |
 
 ### Sources (`sources[]`)
 
@@ -164,6 +168,22 @@ options:
   home_color_by_source: true
   show_battery_forecast: true
   show_solar_split: true
+```
+
+**Overview.** Three more options, all off by default and independent of each other. They work in the mode *Now* and not in the compact view (the colored lines also work there).
+
+- `options.lines_by_source: true` colors the lines of the active paths like the sources: the line from a source has its color, and below the home the lines run as thin strands side by side, one per source, as wide as its share in the mix. With only one source delivering, the lines below the home have its color. Idle and unselected lines stay muted, and thresholds apply as before while the option is off.
+- `options.show_surplus: true` shows a banner while more than `options.surplus_min_w` watts (default 500) go into the grid: *3.40 kW surplus. Goes into the grid.* With `price` or `price_entity` it adds what using the power at home saves per hour: the price per kWh minus the feed-in compensation (`feed_in_price` or `feed_in_price_entity`, if set), times the power. The banner stays until the feed-in falls below 80 % of the limit, so it does not flicker.
+- `options.show_day_values: true` adds tiles with the values of today under the diagram: solar produced, drawn from the grid, fed in (with `energy_entity_return` on the grid), battery charged and discharged (with `energy_entity_return` on the battery), home consumption and self-sufficiency. A tile whose counter is missing is left out. It needs energy counters (`energy_entity`) and loads the statistics of today every 5 minutes, like the second value.
+
+```yaml
+options:
+  lines_by_source: true
+  show_surplus: true
+  surplus_min_w: 800
+  show_day_values: true
+  price: 0.31
+  feed_in_price: 0.08
 ```
 
 **Browsing:** in the energy mode the arrows ‹ › next to the period buttons go back to earlier days, weeks and months and forward again up to the running one; the card then names the period ("Yesterday", "Mon 19.10.", "KW 43", "September"). Values, costs and all views follow; the timeline compares a finished period with the whole period before it. The position is not remembered.

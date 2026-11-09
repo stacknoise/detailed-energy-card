@@ -5,7 +5,7 @@ import type { EnergyCardConfig } from "../model/config";
 import { nodeKey, type ConsumerNode, type EnergyModel, type MeterInfo, type RoomNode, type SourceNode } from "../model/compute";
 import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
-import { mixGradient, type MixSegment } from "../model/mix";
+import { SOURCE_COLORS, mixGradient, type MixSegment } from "../model/mix";
 import type { Key } from "../localize";
 import { Tween, focusTargets, type Pos } from "./focus";
 import { computeLayout, floorsStacked, pillMaxWidth, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
@@ -105,6 +105,10 @@ export interface TreeContext {
   mix?: MixSegment[];
   /** options.home_color_by_source: the color of the home circle (icon, border and glow) */
   homeColor?: string;
+  /** options.lines_by_source: the lines of the active paths take the colors of the sources (power mode); below the home they run as strands in `mix` */
+  linesBySource?: boolean;
+  /** the mix of the sources for the strands (set with `linesBySource`, whether or not the ring is shown) */
+  lineMix?: MixSegment[];
   /** notes under the sources by entity; `noteLine` keeps the line free under the sources that have none */
   notes?: Map<string, SourceNote>;
   noteLine?: boolean;
@@ -273,26 +277,45 @@ export class TreeView {
     const shareOf = (v: number, total: number) => 1 + Math.min(1, Math.max(0, total > 0 ? v / total : 0)) * 5;
     const produced = model.sources.reduce((sum, s) => sum + Math.max(0, s.watts), 0);
     // a line belongs to the level of the node it leads to
-    const line = (lvl: ThresholdLevel, own: ThresholdConfig[] | undefined, d: string, watts: number, active: boolean, reverse = false, opacity = 1) => {
+    const bySource = !!c.linesBySource && !energy;
+    const lineMix = c.lineMix ?? [];
+    const single = lineMix.length === 1 ? lineMix[0].color : undefined;
+    const line = (lvl: ThresholdLevel, own: ThresholdConfig[] | undefined, d: string, watts: number, active: boolean, reverse = false, opacity = 1, sourceColor?: string) => {
       const dur = energy ? null : flowDuration(watts);
       // only lines of the selected path take the threshold color, the others stay muted
       const list = elementThresholds(own, thresholds[lvl]);
-      const color = !energy && active && !isIdle(watts) ? thresholdColor(list, watts) : undefined;
-      const level = color ? Math.min(thresholdLevel(list, watts), MAX_LEVEL) : 0;
+      const lit = !energy && active && !isIdle(watts);
+      // the color of the source replaces the threshold color; below the home it is the mix of the sources
+      const fromSource = bySource && lit ? sourceColor ?? (lvl !== "source" ? single : undefined) : undefined;
+      const color = fromSource ?? (lit ? thresholdColor(list, watts) : undefined);
+      const level = color && !fromSource ? Math.min(thresholdLevel(list, watts), MAX_LEVEL) : 0;
       // a width set on the reached range replaces the width that follows the power
-      const width = energy ? shareOf(watts, lvl === "source" ? produced : model.homeWatts) : (color ? thresholdWidth(list, watts) : undefined) ?? strokeWidth(watts) + level * 0.75;
-      return svg`<path
+      const width = energy ? shareOf(watts, lvl === "source" ? produced : model.homeWatts) : (color && !fromSource ? thresholdWidth(list, watts) : undefined) ?? strokeWidth(watts) + level * 0.75;
+      const path = (dx: number, w: number, stroke: string | undefined) => svg`<path
         class="line ${active ? "active" : ""} ${dur && animate ? "flowing" : ""} ${reverse ? "reverse" : ""}"
         d=${d}
-        stroke-width=${width}
-        style=${(dur ? `--dur:${dur}s;` : "") + (color ? `stroke:${color};` : "") + (opacity < 1 ? `opacity:${opacity}` : "")}
+        stroke-width=${w}
+        transform=${dx ? `translate(${dx} 0)` : nothing}
+        style=${(dur ? `--dur:${dur}s;` : "") + (stroke ? `stroke:${stroke};` : "") + (opacity < 1 ? `opacity:${opacity}` : "")}
       />`;
+      // below the home: one strand per source, as thick as its share, side by side
+      if (bySource && lit && lvl !== "source" && lineMix.length > 1) {
+        const widths = lineMix.map((m) => Math.max(0.7, width * m.share));
+        const total = widths.reduce((a, b) => a + b, 0);
+        let at = -total / 2;
+        return svg`${lineMix.map((m, i) => {
+          const dx = at + widths[i] / 2;
+          at += widths[i];
+          return path(dx, widths[i], m.color);
+        })}`;
+      }
+      return path(0, width, color);
     };
     const parts: TemplateResult[] = [];
     model.sources.forEach((s, i) => {
       // in the energy mode the width follows the balance of delivered and returned energy
       const w = energy ? Math.abs(s.flow) : s.watts;
-      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), w, Math.abs(w) >= 1, s.reverse));
+      parts.push(line("source", s.thresholds, curve(l.sourceXs[i], l.sourceH, l.homeX, l.yHome), w, Math.abs(w) >= 1, s.reverse, 1, s.color ?? SOURCE_COLORS[s.type]));
     });
     const homeBottom = l.yHome + l.homeH;
     let roomFromX = l.homeX;

@@ -12,7 +12,8 @@ import { EnergyStore, type EnergyQuery } from "./model/energy-store";
 import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type ConsumerNode, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
-import { batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
+import { SOURCE_COLORS, batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
+import { SURPLUS_DEFAULT_W, dayTiles, surplusOf, type DayTile, type Surplus } from "./model/day";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
 import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
@@ -82,6 +83,9 @@ export class DetailedEnergyCard extends LitElement {
   /** the mix of the sources (options.show_source_mix / home_color_by_source) and the source whose color the home value has */
   private _mix?: MixSegment[];
   private _dominant?: string;
+  /** the feed-in while the surplus banner is shown (options.show_surplus), and the tiles of today (options.show_day_values) */
+  private _surplus?: Surplus;
+  private _day?: DayTile[];
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
@@ -219,12 +223,15 @@ export class DetailedEnergyCard extends LitElement {
       this._model = computeModel(cfg, powerReader(states), socReader(states), names);
     }
     const o = this._config.options;
-    this._mix = o?.show_source_mix || o?.home_color_by_source ? sourceMix(this._model) : undefined;
+    this._mix = o?.show_source_mix || o?.home_color_by_source || o?.lines_by_source ? sourceMix(this._model) : undefined;
     this._dominant = o?.home_color_by_source && this._mix ? dominantSource(this._mix, this._dominant) : undefined;
     // the second value: the energy of today in the power mode (once it is loaded), the power now in the energy mode
     const kind = this._secondKind();
     const today = kind === "today" ? this._energyStore.values(this._todayQuery()) : undefined;
     this._costs = this._computeCosts();
+    this._surplus = this._mode === "power" && o?.show_surplus ? surplusOf(this._model, o.surplus_min_w ?? SURPLUS_DEFAULT_W, !!this._surplus, this._priceNow("price", "price_entity"), this._priceNow("feed_in_price", "feed_in_price_entity")) : undefined;
+    const dayEnergy = this._dayOn ? this._energyStore.values(this._todayQuery()) : undefined;
+    this._day = dayEnergy ? dayTiles(computeModel(cfg, energyReader(dayEnergy), socReader(states), names, true)) : undefined;
     this._second =
       kind === "power"
         ? nodeValues(computeModel(cfg, powerReader(states), socReader(states), names))
@@ -490,7 +497,7 @@ export class DetailedEnergyCard extends LitElement {
     if (!this._config || !this._hass) return;
     const query = this._energyQuery();
     // in the power mode the energy of today is loaded for the second value, in the same rhythm
-    const wanted = query ? [query] : this._secondKind() === "today" ? [this._todayQuery()] : [];
+    const wanted = query ? [query] : this._secondKind() === "today" || this._dayOn ? [this._todayQuery()] : [];
     // the timeline also needs the previous period and, for a week or a month, the day today is compared with
     if (this._showsTimeline) wanted.push(...this._timelineQueries());
     // the costs need the hours of their period and the prices
@@ -942,6 +949,8 @@ export class DetailedEnergyCard extends LitElement {
       focus: this._focus && !this._compact,
       compact: this._compact,
       mix: cfg.options?.show_source_mix ? this._mix : undefined,
+      linesBySource: cfg.options?.lines_by_source,
+      lineMix: cfg.options?.lines_by_source ? this._mix : undefined,
       homeColor: this._mix?.find((m) => m.entity === this._dominant)?.color,
       ...this._sourceNotes(cfg, model),
       thresholds: this._thresholds,
@@ -956,6 +965,51 @@ export class DetailedEnergyCard extends LitElement {
       moreInfo: (id) => this._moreInfo(id),
       bind: (key, actions, fallback) => this._bind(key, actions, fallback),
     };
+  }
+
+  /** The tiles of today can be shown: the option is on, the mode is Now, the card is not compact and there are energy sensors. */
+  private get _dayOn(): boolean {
+    const cfg = this._config;
+    return !!cfg?.options?.show_day_values && this._mode === "power" && !this._compact && hasEnergy(cfg);
+  }
+
+  /** A price per kWh from the option (fixed or the state of the price sensor); undefined when it is not set or not readable. */
+  private _priceNow(fixed: "price" | "feed_in_price", entity: "price_entity" | "feed_in_price_entity"): number | undefined {
+    const o = this._config?.options;
+    if (o?.[fixed] !== undefined) return o[fixed];
+    const id = o?.[entity];
+    const v = id ? Number(this._hass?.states[id]?.state) : NaN;
+    return Number.isFinite(v) ? v : undefined;
+  }
+
+  /** The banner "surplus" above the diagram (options.show_surplus): the power fed into the grid and what using it at home saves. */
+  private _renderSurplus(): TemplateResult | typeof nothing {
+    const s = this._surplus;
+    if (!s || this._compact) return nothing;
+    const saving = s.savedPerHour !== undefined && s.savedPerHour > 0 ? ` ${this._t("surplus_saving").replace("{0}", this._money(s.savedPerHour))}` : "";
+    const title = this._t("surplus_title").replace("{0}", this._fmt(s.watts));
+    const text = this._t("surplus_text") + saving;
+    return html`<div class="surplus" role="status">
+      <ha-icon icon=${"mdi:white-balance-sunny"}></ha-icon>
+      <div>
+        <div class="surplus-title">${title}</div>
+        <div class="surplus-text">${text}</div>
+      </div>
+    </div>`;
+  }
+
+  /** The bar of today's values under the diagram (options.show_day_values). */
+  private _renderDay(): TemplateResult | typeof nothing {
+    const tiles = this._day;
+    if (!this._dayOn || !tiles?.length) return nothing;
+    const label = (t: DayTile): string => (t.kind === "autarky" ? `${Math.round((t.share ?? 0) * 100)} %` : t.kind === "battery" ? `+${this._fmtAs("energy", t.wh)} / −${this._fmtAs("energy", t.whOut ?? 0)}` : this._fmtAs("energy", t.wh));
+    const color: Record<DayTile["kind"], string> = { solar: SOURCE_COLORS.solar, import: SOURCE_COLORS.grid, export: SOURCE_COLORS.grid, battery: SOURCE_COLORS.battery, home: "var(--_accent)", autarky: "var(--_accent)" };
+    return html`<div class="day">
+      <div class="day-title">${this._t("day_title")}</div>
+      <div class="day-tiles">
+        ${tiles.map((t) => html`<div class="day-tile"><span class="day-name" style=${`color:${color[t.kind]}`}>● ${this._t(`day_${t.kind}` as Key)}</span><span class="day-value">${label(t)}</span></div>`)}
+      </div>
+    </div>`;
   }
 
   /** "17:06", with the weekday when it is not today: the clock time a forecast ends at, in the time zone of Home Assistant. */
@@ -1076,11 +1130,13 @@ export class DetailedEnergyCard extends LitElement {
           ${this._renderBadges(cfg, model)}
         </header>
         ${this._renderSwitches(cfg)}
+        ${this._renderSurplus()}
         ${this._showsTimeline
           ? renderTimeline(this._timelineContext(model, sel))
           : this._showsSankey
             ? this._sankey.render()
             : this._tree.render(this._treeContext(cfg, model, sel, home))}
+        ${this._renderDay()}
         ${this._compact || this._config?.options?.show_consumers === false ? nothing : this._renderDetail(detailRoom, listRemainder(model, allRooms ? floor : undefined, room))}
       </ha-card>
     `;

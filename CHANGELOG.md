@@ -12,6 +12,13 @@ Four options that show where the power comes from and where it goes. All are off
 - `options.show_solar_split`: under the solar source, the percentage of the solar power that goes into the home, the battery and the grid. The mode *Now* only.
 - The editor has the four switches under *General* and the field *Capacity (kWh)* at a battery source; the dev page has the scenarios `mix` and `surplus`.
 
+Three more options for the overview, also off by default:
+
+- `options.lines_by_source`: the lines of the active paths take the colors of the sources instead of the thresholds; below the home they run as thin strands side by side, one per source, as wide as its share. The mode *Now* only.
+- `options.show_surplus` with `surplus_min_w` (default 500 W): a banner while that much power goes into the grid, with what using it at home saves per hour (price minus feed-in compensation, when a price is set). It stays until 80 % of the limit. The mode *Now* only.
+- `options.show_day_values`: tiles under the diagram with today's solar, grid import, feed-in, battery charged and discharged, home consumption and self-sufficiency; needs energy counters. The mode *Now* only.
+- The editor has the switches (and the field *Surplus from (W)*) under *General*; the dev page has the scenarios `today` and `strands`.
+
 ## 1.4.2
 
 ### Changed

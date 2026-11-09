@@ -537,6 +537,45 @@ test.describe("energy mode", () => {
     });
   });
 
+  test.describe("overview: source-colored lines, surplus banner, values of today (all off by default)", () => {
+    test("without the options nothing of it is drawn", async ({ page }) => {
+      await open(page, "surplus");
+      await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
+    });
+
+    test("the banner names the surplus and what using it saves, the tiles show today", async ({ page }) => {
+      await open(page, "today");
+      await expect(page.locator("detailed-energy-card .surplus")).toContainText("3,40 kW Überschuss");
+      await expect(page.locator("detailed-energy-card .surplus")).toContainText("spart etwa");
+      await expect(page.locator("detailed-energy-card .day-tile")).toHaveCount(6);
+      await expect(page.locator("detailed-energy-card .day")).toContainText("14,2 kWh");
+      await expect(page.locator("detailed-energy-card .day")).toContainText("Autarkie");
+    });
+
+    test("the line from the solar source has its color, and each option works on its own", async ({ page }) => {
+      await open(page, "today");
+      const colors = await page.locator("detailed-energy-card path.line.active").evaluateAll((els) => els.map((e) => getComputedStyle(e).stroke));
+      expect(colors).toContain("rgb(255, 152, 0)");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { unit: "kW", lines_by_source: true } });
+      });
+      await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
+    });
+
+    test("the compact view leaves them out", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=today&width=360");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, compact: true } });
+      });
+      await expect(page.locator("detailed-energy-card .surplus")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
+    });
+  });
+
   test.describe("compact view", () => {
     test("shows sources, home and floors only: no room row, no list, no view switch", async ({ page }) => {
       await page.goto("/dev/index.html?scenario=compact&width=360");
