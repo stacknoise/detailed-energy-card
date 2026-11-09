@@ -169,6 +169,15 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
       await expect(page.locator("detailed-energy-card .origin-best")).toBeVisible();
     },
   },
+  {
+    scenario: "forecast",
+    file: "card-pv-forecast",
+    // the timeline of today with the forecast of the solar production as a dashed line
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card path.forecast")).toBeVisible();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",

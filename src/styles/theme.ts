@@ -499,6 +499,13 @@ export const cardStyles = css`
     stroke-dasharray: 2 2;
     stroke-width: 0.9;
   }
+  .chart .forecast {
+    fill: none;
+    stroke: #ff9800;
+    stroke-dasharray: 5 3;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
   .chart .now {
     stroke: var(--_accent);
     stroke-width: 1;
@@ -539,6 +546,13 @@ export const cardStyles = css`
     display: inline-block;
     height: 10px;
     width: 10px;
+  }
+  .forecast-key i {
+    background: none !important;
+    border-top: 2px dashed #ff9800;
+    border-radius: 0;
+    height: 0;
+    margin-top: 5px;
   }
   .prev-key i {
     border: 1px dashed var(--_muted);

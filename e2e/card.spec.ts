@@ -552,6 +552,27 @@ test.describe("energy mode", () => {
     });
   });
 
+  test.describe("solar forecast in the timeline (off by default)", () => {
+    test("without the option the timeline has no forecast line", async ({ page }) => {
+      await open(page, "timeline");
+      await expect(page.locator("detailed-energy-card svg.chart")).toBeVisible();
+      await expect(page.locator("detailed-energy-card path.forecast")).toHaveCount(0);
+    });
+
+    test("a dashed line shows the forecast of the solar production, with a legend entry", async ({ page }) => {
+      await open(page, "forecast");
+      await expect(page.locator("detailed-energy-card path.forecast")).toHaveCount(1);
+      await expect(page.locator("detailed-energy-card .forecast-key")).toContainText("PV-Prognose");
+    });
+
+    test("a missing forecast leaves the timeline as it is", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=forecast&forecast=error");
+      await expect(page.locator("detailed-energy-card svg.chart")).toBeVisible();
+      await expect(page.locator("detailed-energy-card path.forecast")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .forecast-key")).toHaveCount(0);
+    });
+  });
+
   test.describe("origin of the power (off by default)", () => {
     test("without the option the list has no ring and the bars keep their color", async ({ page }) => {
       await open(page, "energy");

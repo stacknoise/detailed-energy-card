@@ -86,6 +86,14 @@ One more switch: in the list a ring shows how much of the power of the shown roo
 | --- |
 | ![Ring with solar and grid, bars split by origin and the hint for the hours with the least grid import](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-origin.png?v=5) |
 
+### Solar forecast in the timeline (optional)
+
+One more switch: the timeline of today gets a dashed line with the forecast of the solar production, taken from the solar forecast of your Energy dashboard.
+
+| Timeline of today with the solar forecast |
+| --- |
+| ![Timeline of today with a dashed orange line for the solar forecast](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-pv-forecast.png?v=5) |
+
 ### More ways to see it
 
 | Timeline of the day | Sankey diagram |

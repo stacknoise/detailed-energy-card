@@ -12,6 +12,10 @@ Four options that show where the power comes from and where it goes. All are off
 - `options.show_solar_split`: under the solar source, the percentage of the solar power that goes into the home, the battery and the grid. The mode *Now* only.
 - The editor has the four switches under *General* and the field *Capacity (kWh)* at a battery source; the dev page has the scenarios `mix` and `surplus`.
 
+Solar forecast:
+
+- `options.show_pv_forecast`: a dashed orange line with the forecast of the solar production in the timeline of the running period, from the solar forecast of the Energy dashboard of Home Assistant (Forecast.Solar, Solcast). Without such a forecast nothing is drawn. The editor has the switch; the dev page has the scenario `forecast`.
+
 Origin of the power:
 
 - `options.show_origin`: in the list of consumers a ring shows where the power of the selected room, floor or home comes from (solar, battery, grid), every consumer bar is split by origin, and a hint names the three hours with the least grid import. It uses the hourly values of the energy counters of at least two kinds of sources (for a battery the energy discharged). Today, in the energy mode the chosen period. The editor has the switch; the dev page has the scenario `origin`.

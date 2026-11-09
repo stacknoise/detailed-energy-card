@@ -417,6 +417,8 @@
       };
       // Timeline (like mock B3): the energy of the day per hour, stacked by floor, yesterday dashed.
       scenarios.timeline = { ...scenarios.energy, options: { unit: "kW", mode: "energy", view: "timeline", views: ["tree", "timeline"] } };
+      // The solar forecast in the timeline of today (the dev data sends the forecast of the Energy dashboard).
+      scenarios.forecast = { ...scenarios.energy, options: { unit: "kW", mode: "energy", period: "today", view: "timeline", views: ["tree", "timeline"], show_pv_forecast: true } };
       // Actions and switches (package P15): the sun navigates and, held, opens the battery; a double tap on OG runs a
       // script; two consumers have a switch, the heating asks before it is turned off.
       scenarios.actions = {
@@ -632,6 +634,20 @@
         entities: registryEntities,
         devices: registryDevices,
         callWS: async (m) => {
+          if (m.type === "energy/solar_forecast") {
+            if (params.get("forecast") === "error") throw new Error("no forecast");
+            // a bell around 13 o'clock for today and the next two days, like Forecast.Solar sends it: Wh per hour by time stamp
+            const wh_hours = {};
+            const midnight = new Date();
+            midnight.setHours(0, 0, 0, 0);
+            for (let d = 0; d < 3; d++) {
+              for (let h = 5; h <= 20; h++) {
+                const t = new Date(midnight.getTime() + (d * 24 + h) * 3600000);
+                wh_hours[t.toISOString()] = Math.round(2400 * Math.exp(-((h - 13) ** 2) / 10) * (d === 1 ? 0.7 : 1));
+              }
+            }
+            return { demo_entry: { wh_hours } };
+          }
           if (m.type === "energy/get_prefs") {
             if (params.get("prefs") === "empty") throw { code: "not_found", message: "No prefs." };
             if (params.get("prefs") === "error") throw new Error("boom");

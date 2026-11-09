@@ -25,6 +25,9 @@ export interface TimelineContext {
   /** the shown element in the previous period, per bar (same index), drawn dashed */
   previous?: number[];
   previousLabel: string;
+  /** options.show_pv_forecast: the forecast of the solar production per bar (undefined where it does not reach), drawn as a dashed line */
+  forecast?: Array<number | undefined>;
+  forecastLabel?: string;
   kpis: TimelineKpi[];
   /** text on the x axis under a bar, or undefined for none */
   axisLabel(i: number): string | undefined;
@@ -66,7 +69,8 @@ export function renderTimeline(c: TimelineContext): TemplateResult {
   const n = c.stacks[0]?.values.length ?? c.previous?.length ?? 0;
   const W = Math.max(280, c.width);
   const totals = Array.from({ length: n }, (_, i) => c.stacks.reduce((s, st) => s + (st.values[i] ?? 0), 0));
-  const max = niceMax(Math.max(0, ...totals, ...(c.previous ?? [])));
+  const forecast = c.forecast ?? [];
+  const max = niceMax(Math.max(0, ...totals, ...(c.previous ?? []), ...forecast.map((v) => v ?? 0)));
   const bw = n ? (W - LEFT - RIGHT) / n : 0;
   const y = (v: number) => H - BOTTOM - (v / max) * (H - BOTTOM - TOP);
   const parts: TemplateResult[] = [];
@@ -90,6 +94,18 @@ export function renderTimeline(c: TimelineContext): TemplateResult {
     const label = c.axisLabel(i);
     if (label) parts.push(svg`<text class="axis" x=${LEFT + i * bw} y=${H - 5}>${label}</text>`);
   }
+  // the forecast: a dashed line through the middle of the bars it covers, broken where it does not reach
+  let line = "";
+  let open = false;
+  forecast.slice(0, n).forEach((v, i) => {
+    if (v === undefined) {
+      open = false;
+      return;
+    }
+    line += `${open ? "L" : "M"}${LEFT + (i + 0.5) * bw} ${y(v)} `;
+    open = true;
+  });
+  if (line) parts.push(svg`<path class="forecast" d=${line}></path>`);
   if (c.nowIndex >= 0 && c.nowIndex < n) {
     const x = LEFT + (c.nowIndex + 1) * bw;
     parts.push(svg`<line class="now" x1=${x} x2=${x} y1=${TOP} y2=${H - BOTTOM}></line><text class="now-label" x=${x + 4} y=${TOP + 9}>${c.nowLabel}</text>`);
@@ -109,6 +125,7 @@ export function renderTimeline(c: TimelineContext): TemplateResult {
           </button>`,
         )}
         ${c.previous ? html`<span class="legend-item prev-key"><i></i>${c.previousLabel}</span>` : nothing}
+        ${forecast.some((v) => v !== undefined) ? html`<span class="legend-item forecast-key"><i></i>${c.forecastLabel}</span>` : nothing}
       </div>
     </div>
   `;

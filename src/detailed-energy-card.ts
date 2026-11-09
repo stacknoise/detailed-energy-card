@@ -13,6 +13,7 @@ import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
 import { SOURCE_COLORS, batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
+import { FORECAST_REFRESH_MS, forecastBars, parseSolarForecast } from "./model/forecast";
 import { ORIGIN_KINDS, computeOrigin, originKinds, BEST_HOURS, type OriginResult, type OriginKind } from "./model/origin";
 import { SURPLUS_DEFAULT_W, dayTiles, surplusOf, type DayTile, type Surplus } from "./model/day";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
@@ -87,6 +88,10 @@ export class DetailedEnergyCard extends LitElement {
   /** the feed-in while the surplus banner is shown (options.show_surplus), and the tiles of today (options.show_day_values) */
   private _surplus?: Surplus;
   private _day?: DayTile[];
+  /** the solar forecast by hour (options.show_pv_forecast), when it was asked for last, and a request on its way */
+  private _forecast?: Map<number, number>;
+  private _forecastAt = 0;
+  private _forecastBusy = false;
   /** where the energy of the nodes comes from (options.show_origin) */
   private _origin?: OriginResult;
   private _ro?: ResizeObserver;
@@ -522,6 +527,7 @@ export class DetailedEnergyCard extends LitElement {
     const wanted = query ? [query] : this._secondKind() === "today" || this._dayOn ? [this._todayQuery()] : [];
     // the timeline also needs the previous period and, for a week or a month, the day today is compared with
     if (this._showsTimeline) wanted.push(...this._timelineQueries());
+    this._ensureForecast();
     // the costs need the hours of their period and the prices
     wanted.push(...this._costQueries());
     // the origin needs the same hours of energy; when the costs load them already, the query is shared
@@ -529,6 +535,29 @@ export class DetailedEnergyCard extends LitElement {
     // base load and standby look at the hourly means of power sensors
     wanted.push(...this._powerStatQueries());
     this._energyStore.want(wanted);
+  }
+
+  // ---------- solar forecast ----------
+
+  /** Asks Home Assistant for the solar forecast of the Energy dashboard when the timeline shows it and the last answer is old. */
+  private _ensureForecast(): void {
+    if (!this._config?.options?.show_pv_forecast || !this._showsTimeline || !this._hass || this._forecastBusy) return;
+    if (this._forecast && Date.now() - this._forecastAt < FORECAST_REFRESH_MS) return;
+    this._forecastBusy = true;
+    this._forecastAt = Date.now();
+    this._hass
+      .callWS<unknown>({ type: "energy/solar_forecast" })
+      .then((r) => {
+        this._forecast = parseSolarForecast(r);
+      })
+      .catch(() => {
+        // no forecast integration: the timeline stays without the line
+        this._forecast = new Map();
+      })
+      .finally(() => {
+        this._forecastBusy = false;
+        this.requestUpdate();
+      });
   }
 
   // ---------- base load and standby ----------
@@ -794,6 +823,9 @@ export class DetailedEnergyCard extends LitElement {
       stacks,
       previous: shown(prevSeries),
       previousLabel: this._t(prevKey),
+      // only the running period: the forecast looks ahead from today
+      forecast: cfg.options?.show_pv_forecast && o === 0 && this._forecast ? forecastBars(this._forecast, starts, cur.end.getTime()) : undefined,
+      forecastLabel: this._t("tl_forecast"),
       kpis,
       axisLabel: (i) =>
         unit === "hour"
