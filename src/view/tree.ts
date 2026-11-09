@@ -258,7 +258,7 @@ export class TreeView {
       <div class="scroll">
         <div class="graph ${c.compact ? "compact" : ""}" style=${styleMap({ width: `${layout.width}px`, height: `${layout.height}px`, "--pill-max": `${pillMaxWidth(layout)}px` })}>
           ${this._renderLines(c, layout, floorViews, roomViews, directViews, allRooms, allFloors)}
-          ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i]))}
+          ${model.sources.map((s, i) => this._renderSource(c, s, layout.sourceXs[i], sourceSlot(layout.sourceXs, layout.width)))}
           ${this._renderHome(c, layout, allFloors || (!model.floors.length && allRooms))}
           ${model.floors.map((f, i) => this._renderFloor(c, f.id, f.name, f.icon, f.watts, f.color, floorViews[i], i === sel.floor, allFloors && !c.compact, f.meter, f.actions, f.meterEntity, this._stackFloors(c)))}
           ${model.consumers.map((x, i) => this._renderDirect(c, x, directViews[i], layout, !model.floors.length))}
@@ -342,7 +342,8 @@ export class TreeView {
     return html`<svg class="lines" width=${l.width} height=${l.height}>${parts}</svg>`;
   }
 
-  private _renderSource(c: TreeContext, s: SourceNode, x: number): TemplateResult {
+  /** `slot` is the width px one source has; a source label never grows wider than that. */
+  private _renderSource(c: TreeContext, s: SourceNode, x: number, slot: number): TemplateResult {
     // the energy mode shows what the source delivered (import, discharged); the other direction has a line of its own
     const reverse = !c.energy && s.reverse;
     const suffix =
@@ -361,7 +362,7 @@ export class TreeView {
     return html`
       <button
         class="node ${s.valid ? "" : "warn"}"
-        style=${styleMap({ left: `${x}px`, top: "0px", "--node-color": s.color ?? "" })}
+        style=${styleMap({ left: `${x}px`, top: "0px", "max-width": `${Math.min(120, Math.max(60, slot - 4))}px`, "--node-color": s.color ?? "" })}
         title=${s.valid ? s.name : `${s.name}: ${c.t(s.noEnergy ? "no_energy" : "unavailable")}`}
         @click=${b.click}
         @pointerdown=${b.down}
@@ -519,4 +520,12 @@ export class TreeView {
       </button>
     `;
   }
+}
+
+/** The width in px one source has: the smallest distance between two sources, or the whole width for one. */
+export function sourceSlot(xs: number[], width: number): number {
+  if (xs.length < 2) return width;
+  let min = Infinity;
+  for (let i = 1; i < xs.length; i++) min = Math.min(min, xs[i] - xs[i - 1]);
+  return min;
 }
