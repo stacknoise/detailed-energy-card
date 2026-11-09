@@ -62,6 +62,12 @@ export const cardStyles = css`
   header > * {
     min-width: 0;
   }
+  /* the title keeps its width: the badges wrap beside it instead of running over it */
+  header > div:first-child {
+    flex: none;
+    max-width: 60%;
+    min-width: min-content;
+  }
   h2 {
     margin: 0;
     font-size: 1.3em;
@@ -900,6 +906,18 @@ export const cardStyles = css`
   }
   ha-card.narrow .second.note {
     font-size: 0.72em;
+  }
+  /* four sources on a narrow card: very little room each, the note never runs into the neighbour */
+  .node.tight .second.note {
+    font-size: 0.66em;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .node.tight .soc-bar {
+    margin-right: 2px;
+    width: 16px;
   }
   ha-card.narrow .second.note.split {
     gap: 2px;

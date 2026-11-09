@@ -361,7 +361,7 @@ export class TreeView {
     const b = press(c.bind(nodeKey.source(s.entity), s.actions, () => c.moreInfo(s.entity)));
     return html`
       <button
-        class="node ${s.valid ? "" : "warn"}"
+        class="node ${s.valid ? "" : "warn"} ${slot < TIGHT_SLOT_PX ? "tight" : ""}"
         style=${styleMap({ left: `${x}px`, top: "0px", "max-width": `${Math.min(120, Math.max(60, slot - 4))}px`, "--node-color": s.color ?? "" })}
         title=${s.valid ? s.name : `${s.name}: ${c.t(s.noEnergy ? "no_energy" : "unavailable")}`}
         @click=${b.click}
@@ -521,6 +521,9 @@ export class TreeView {
     `;
   }
 }
+
+/** A source with less room than this (px) gets the smaller notes. */
+export const TIGHT_SLOT_PX = 100;
 
 /** The width in px one source has: the smallest distance between two sources, or the whole width for one. */
 export function sourceSlot(xs: number[], width: number): number {
