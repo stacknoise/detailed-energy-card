@@ -143,9 +143,9 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
     },
   },
   {
-    scenario: "today",
+    scenario: "devices",
     file: "card-overview",
-    // lines in source colors (strands below the home), the surplus banner and the values of today
+    // lines in source colors (strands below the home), the surplus banner with device suggestions and the values of today
     clock: "2026-10-13T11:30:00Z",
     before: async (page) => {
       await expect(page.locator("detailed-energy-card .surplus")).toBeVisible();

@@ -57,6 +57,7 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Lines in source colors | `options.lines_by_source` | `false` | The lines of the active paths take the color of the source instead of the threshold color; below the home they run as strands in the mix. Mode *Now* only. |
 | Surplus banner | `options.show_surplus` | `false` | A banner while more than `surplus_min_w` watts go into the grid, with what using it at home would save per hour. Mode *Now* only. |
 | Surplus from (W) | `options.surplus_min_w` | `500` | The feed-in from which the banner appears; it stays until 80 % of it. |
+| Suggest devices in the banner | `options.surplus_devices` | `false` | The banner names up to three idle consumers with a `surplus_w` that the surplus could run. Only with `show_surplus`. |
 | Today's values under the diagram | `options.show_day_values` | `false` | Tiles: solar, grid import, feed-in, battery ±, home and self-sufficiency of today. Needs energy counters. Mode *Now* only. |
 | Heading "Today so far" | `options.show_day_title` | `true` | `false` hides the heading above the tiles of today; the tiles stay. |
 
@@ -186,6 +187,7 @@ options:
 
 - `options.lines_by_source: true` colors the lines of the active paths like the sources: the line from a source has its color, and below the home the lines run as thin strands side by side, one per source, as wide as its share in the mix. With only one source delivering, the lines below the home have its color. Idle and unselected lines stay muted, and thresholds apply as before while the option is off.
 - `options.show_surplus: true` shows a banner while more than `options.surplus_min_w` watts (default 500) go into the grid: *3.40 kW surplus. Goes into the grid.* With `price` or `price_entity` it adds what using the power at home saves per hour: the price per kWh minus the feed-in compensation (`feed_in_price` or `feed_in_price_entity`, if set), times the power. The banner stays until the feed-in falls below 80 % of the limit, so it does not flicker.
+- `options.surplus_devices: true` adds a line *Start now?* to the surplus banner with up to three consumers that are idle (under 10 W) and whose typical power fits into the surplus, the biggest first. A consumer needs `surplus_w`, the power in watts it draws while running (for example `2000` for a dishwasher). A consumer with a `switch_entity` shows as a button that turns it on.
 - `options.show_day_values: true` adds tiles with the values of today under the diagram: solar produced, drawn from the grid, fed in (with `energy_entity_return` on the grid), battery charged and discharged (with `energy_entity_return` on the battery), home consumption and self-sufficiency. A tile whose counter is missing is left out. It needs energy counters (`energy_entity`) and loads the statistics of today every 5 minutes, like the second value.
 
 ```yaml
@@ -193,6 +195,7 @@ options:
   lines_by_source: true
   show_surplus: true
   surplus_min_w: 800
+  surplus_devices: true   # optional: suggest idle consumers that have surplus_w
   show_day_values: true
   show_day_title: false   # optional: hide the heading "Today so far"
   price: 0.31

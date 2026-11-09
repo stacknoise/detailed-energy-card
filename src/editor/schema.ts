@@ -50,6 +50,8 @@ export const HELP: Record<string, EditorKey> = {
   "options.surplus_min_w": "help_surplus_min_w",
   "options.show_day_values": "help_show_day_values",
   "options.show_day_title": "help_show_day_title",
+  "options.surplus_devices": "help_surplus_devices",
+  surplus_w: "help_surplus_w",
   capacity_kwh: "help_capacity_kwh",
   reserve_percent: "help_reserve_percent",
   max_percent: "help_max_percent",
@@ -114,6 +116,7 @@ export const GENERAL: Field[] = [
   { path: "options.show_surplus", selector: { boolean: {} }, label: "field_show_surplus", default: false },
   { path: "options.surplus_min_w", selector: { number: { min: 1, step: 50, mode: "box", unit_of_measurement: "W" } }, label: "field_surplus_min_w", when: (cfg: any) => !!cfg?.options?.show_surplus },
   { path: "options.show_day_values", selector: { boolean: {} }, label: "field_show_day_values", default: false },
+  { path: "options.surplus_devices", selector: { boolean: {} }, label: "field_surplus_devices", default: false, when: (c: any) => !!c?.options?.show_surplus },
   { path: "options.show_day_title", selector: { boolean: {} }, label: "field_show_day_title", default: true },
   { path: "options.show_consumers", selector: { boolean: {} }, label: "field_show_consumers", default: true },
   {
@@ -393,6 +396,7 @@ export const consumerFields = (exclude: string[] = [], direct = false): Field[] 
   },
   { path: "switch_entity", selector: { entity: { domain: ["switch", "input_boolean", "light", "fan"] } }, label: "field_switch_entity" },
   { path: "confirm_switch", selector: { boolean: {} }, label: "field_confirm_switch", default: false, when: (c: any) => !!c?.switch_entity },
+  { path: "surplus_w", selector: { number: { min: 1, step: 10, mode: "box", unit_of_measurement: "W" } }, label: "field_surplus_w" },
   ...actionFields,
 ];
 

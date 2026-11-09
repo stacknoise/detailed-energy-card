@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeModel, type Reader } from "../src/model/compute";
 import { validateConfig, type EnergyCardConfig } from "../src/model/config";
-import { SURPLUS_DEFAULT_W, SURPLUS_KEEP, dayTiles, surplusOf } from "../src/model/day";
+import { SURPLUS_DEFAULT_W, SURPLUS_KEEP, dayTiles, surplusDevices, surplusOf } from "../src/model/day";
 
 const reader = (values: Record<string, number>): Reader => (id) => (id in values ? { watts: values[id], valid: true } : { watts: 0, valid: false });
 
@@ -71,5 +71,29 @@ describe("options of the overview package", () => {
   it("want a surplus limit above 0", () => {
     expect(() => validateConfig({ ...base, options: { surplus_min_w: 800 } })).not.toThrow();
     for (const bad of [0, -5, "500", NaN]) expect(() => validateConfig({ ...base, options: { surplus_min_w: bad } })).toThrow(/surplus_min_w must be a number greater than 0/);
+  });
+});
+
+describe("surplusDevices", () => {
+  const withDevices = validateConfig({
+    type: "x",
+    sources: cfg.sources,
+    floors: [{ floor_id: "eg", rooms: [{ area_id: "kueche", consumers: [{ entity: "sensor.spuel", surplus_w: 2000 }, { entity: "sensor.kaffee", name: "Kaffee", surplus_w: 1200, switch_entity: "switch.kaffee" }, { entity: "sensor.herd" }] }] }],
+    consumers: [{ entity: "sensor.licht", surplus_w: 60 }, { entity: "sensor.ofen", surplus_w: 2500 }, { entity: "sensor.tv", surplus_w: 100 }],
+  });
+  const model = (surplus: number, extra: Record<string, number> = {}) =>
+    computeModel(withDevices, reader({ "sensor.pv": 4000, "sensor.grid": -surplus, "sensor.spuel": 0, "sensor.kaffee": 0, "sensor.herd": 0, "sensor.licht": 0, "sensor.ofen": 0, "sensor.tv": 0, ...extra }));
+  it("names idle consumers that fit, the biggest first, at most three", () => {
+    expect(surplusDevices(model(3000), 3000).map((d) => d.entity)).toEqual(["sensor.ofen", "sensor.spuel", "sensor.kaffee"]);
+    expect(surplusDevices(model(1300), 1300).map((d) => d.entity)).toEqual(["sensor.kaffee", "sensor.tv", "sensor.licht"]);
+  });
+  it("leaves out running consumers and ones that do not fit, and passes the switch on", () => {
+    const d = surplusDevices(model(1300, { "sensor.kaffee": 900 }), 1300);
+    expect(d.map((x) => x.entity)).toEqual(["sensor.tv", "sensor.licht"]);
+    expect(surplusDevices(model(50), 50)).toEqual([]);
+    expect(surplusDevices(model(3000), 3000).find((x) => x.entity === "sensor.kaffee")).toMatchObject({ name: "Kaffee", switchEntity: "switch.kaffee", watts: 1200 });
+  });
+  it("rejects a typical power that is not a positive number", () => {
+    expect(() => validateConfig({ type: "x", sources: cfg.sources, consumers: [{ entity: "sensor.a", surplus_w: 0 }] })).toThrow(/surplus_w/);
   });
 });

@@ -628,6 +628,15 @@ test.describe("energy mode", () => {
       await expect(page.locator("detailed-energy-card .day")).toHaveCount(0);
     });
 
+    test("the banner suggests idle devices that fit, and a chip with a switch turns it on", async ({ page }) => {
+      await open(page, "devices");
+      const chips = page.locator("detailed-energy-card .surplus-chip");
+      await expect(chips).toHaveCount(2);
+      await expect(chips.first()).toContainText("Kaffeemaschine");
+      await open(page, "today");
+      await expect(page.locator("detailed-energy-card .surplus-chip")).toHaveCount(0);
+    });
+
     test("the heading of the tiles can be hidden", async ({ page }) => {
       await open(page, "today");
       await expect(page.locator("detailed-energy-card .day-title")).toHaveCount(1);

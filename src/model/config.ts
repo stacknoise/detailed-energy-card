@@ -48,6 +48,8 @@ export interface ConsumerConfig extends ActionFields {
   confirm_switch?: boolean;
   /** icon of the node of a consumer directly under the home (default mdi:flash) */
   icon?: string;
+  /** typical power (W) while it runs: with `options.surplus_devices` the surplus banner suggests it when it is idle and the surplus is enough */
+  surplus_w?: number;
 }
 
 /** Rooms are Home Assistant areas; name and icon are resolved from the area registry. */
@@ -147,6 +149,8 @@ export interface OptionsConfig {
   show_day_values?: boolean;
   /** the heading "Today so far" above the tiles of today; default true */
   show_day_title?: boolean;
+  /** the surplus banner names idle consumers with `surplus_w` that the surplus could run (default off) */
+  surplus_devices?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
@@ -257,6 +261,9 @@ function checkConsumer(c: unknown, where: string): void {
   if (isObj(c)) checkActions(c, where);
   if (isObj(c) && c.switch_entity !== undefined && c.switch_entity !== "") checkSwitch(c.switch_entity, `${where}.switch_entity`);
   if (isObj(c)) checkBool(c.confirm_switch, `${where}.confirm_switch`);
+  if (isObj(c) && c.surplus_w !== undefined && (typeof c.surplus_w !== "number" || !Number.isFinite(c.surplus_w) || c.surplus_w <= 0)) {
+    throw new ConfigError(`${where}.surplus_w must be a number greater than 0 (W)`);
+  }
 }
 
 const UNITS = ["auto", "W", "kW"];
@@ -306,7 +313,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values", "show_day_title"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split", "show_battery_bar", "show_origin", "show_pv_forecast", "lines_by_source", "show_surplus", "show_day_values", "show_day_title", "surplus_devices"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;

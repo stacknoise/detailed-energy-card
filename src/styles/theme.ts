@@ -712,6 +712,29 @@ export const cardStyles = css`
     color: var(--_muted);
     font-size: 0.85em;
   }
+  /* options.surplus_devices: idle consumers the surplus could run */
+  .surplus-devices {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    margin-top: 4px;
+  }
+  .surplus-chip {
+    background: color-mix(in srgb, var(--_accent) 18%, transparent);
+    border: none;
+    border-radius: 10px;
+    color: var(--_text);
+    font: inherit;
+    font-size: 0.8em;
+    padding: 2px 8px;
+  }
+  button.surplus-chip {
+    cursor: pointer;
+  }
+  .surplus-w {
+    color: var(--_muted);
+  }
   /* options.show_day_values: tiles of today's values */
   .day {
     border-top: 1px solid var(--_line, rgba(128, 128, 128, 0.25));

@@ -15,7 +15,7 @@ import { powerReader, socReader } from "./model/readers";
 import { SOURCE_COLORS, batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
 import { FORECAST_REFRESH_MS, forecastBars, parseSolarForecast } from "./model/forecast";
 import { ORIGIN_KINDS, computeOrigin, originKinds, BEST_HOURS, type OriginResult, type OriginKind } from "./model/origin";
-import { SURPLUS_DEFAULT_W, dayTiles, surplusOf, type DayTile, type Surplus } from "./model/day";
+import { SURPLUS_DEFAULT_W, dayTiles, surplusDevices, surplusOf, type DayTile, type Surplus } from "./model/day";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
 import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
@@ -1045,11 +1045,20 @@ export class DetailedEnergyCard extends LitElement {
     const saving = s.savedPerHour !== undefined && s.savedPerHour > 0 ? ` ${this._t("surplus_saving").replace("{0}", this._money(s.savedPerHour))}` : "";
     const title = this._t("surplus_title").replace("{0}", this._fmt(s.watts));
     const text = this._t("surplus_text") + saving;
+    const devices = this._config?.options?.surplus_devices && this._model ? surplusDevices(this._model, s.watts) : [];
+    const chips = devices.map((d) => {
+      const name = this._consumerName({ entity: d.entity, name: d.name } as ConsumerNode);
+      const label = html`${name} <span class="surplus-w">${this._fmtAs("power", d.watts)}</span>`;
+      return d.switchEntity
+        ? html`<button class="surplus-chip" @click=${() => this._toggleSwitch(d.switchEntity!, d.confirmSwitch === true)}>${label}</button>`
+        : html`<span class="surplus-chip">${label}</span>`;
+    });
     return html`<div class="surplus" role="status">
       <ha-icon icon=${"mdi:white-balance-sunny"}></ha-icon>
       <div>
         <div class="surplus-title">${title}</div>
         <div class="surplus-text">${text}</div>
+        ${chips.length ? html`<div class="surplus-devices"><span class="surplus-text">${this._t("surplus_devices")}</span>${chips}</div>` : nothing}
       </div>
     </div>`;
   }

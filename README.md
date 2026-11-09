@@ -72,11 +72,11 @@ Four switches in the editor, all off until you turn them on: a ring around the h
 
 ### Overview (optional)
 
-Three more switches: the lines in the colors of the sources (below the home as strands in the mix), a banner while power is fed into the grid that says what using it yourself would save, and tiles with the values of today under the diagram.
+Three more switches: the lines in the colors of the sources (below the home as strands in the mix), a banner while power is fed into the grid that says what using it yourself would save (and, if you give consumers a typical power, which idle ones could use it), and tiles with the values of today under the diagram.
 
 | Surplus banner and the values of today | Lines in the colors of the sources |
 | --- | --- |
-| ![Surplus banner, the solar line in orange and tiles with today's solar, grid, feed-in, battery, home and self-sufficiency](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-overview.png?v=5) | ![Lines in the colors of the sources, below the home as strands in the mix](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-lines.png?v=5) |
+| ![Surplus banner, the solar line in orange and tiles with today's solar, grid, feed-in, battery, home and self-sufficiency](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-overview.png?v=6) | ![Lines in the colors of the sources, below the home as strands in the mix](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-lines.png?v=5) |
 
 ### Where does the power come from? (optional)
 

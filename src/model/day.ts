@@ -1,4 +1,4 @@
-import type { EnergyModel } from "./compute";
+import type { ConsumerNode, EnergyModel } from "./compute";
 
 /** Banner "surplus": from this feed-in power (W) on, when `options.surplus_min_w` is not set. */
 export const SURPLUS_DEFAULT_W = 500;
@@ -58,4 +58,32 @@ export function dayTiles(model: EnergyModel): DayTile[] {
   if (model.homeWatts > 0) out.push({ kind: "home", wh: model.homeWatts });
   if (model.autarky !== null) out.push({ kind: "autarky", wh: 0, share: model.autarky });
   return out;
+}
+
+/** A consumer the surplus could run. */
+export interface SurplusDevice {
+  entity: string;
+  name?: string;
+  /** typical power in watts */
+  watts: number;
+  switchEntity?: string;
+  confirmSwitch?: boolean;
+}
+
+/** At most this many devices are suggested. */
+export const SURPLUS_DEVICES_MAX = 3;
+/** A consumer is idle below this power (W). */
+export const SURPLUS_IDLE_W = 10;
+
+/**
+ * Idle consumers with a typical power (`surplus_w`) that fits into the surplus: the biggest ones that fit come
+ * first, at most `SURPLUS_DEVICES_MAX`. Consumers under rooms (with or without floors) and directly under the home are all considered.
+ */
+export function surplusDevices(model: EnergyModel, surplusW: number): SurplusDevice[] {
+  const all: ConsumerNode[] = [...model.floors.flatMap((f) => f.rooms.flatMap((r) => r.consumers)), ...model.rooms.flatMap((r) => r.consumers), ...model.consumers];
+  return all
+    .filter((c) => c.valid && !c.noSensor && c.surplusW !== undefined && c.surplusW <= surplusW && c.watts < SURPLUS_IDLE_W)
+    .sort((a, b) => (b.surplusW ?? 0) - (a.surplusW ?? 0))
+    .slice(0, SURPLUS_DEVICES_MAX)
+    .map((c) => ({ entity: c.entity, name: c.name, watts: c.surplusW ?? 0, switchEntity: c.switchEntity, confirmSwitch: c.confirmSwitch }));
 }

@@ -481,6 +481,20 @@
         })),
         options: { ...mixOptions, lines_by_source: true, show_surplus: true, show_day_values: true, price: 0.31, feed_in_price: 0.08 },
       };
+      // Surplus banner with suggestions: the idle coffee machine (1.2 kW) and lighting (60 W) fit into the surplus, the oven does not run.
+      scenarios.devices = {
+        ...scenarios.today,
+        floors: scenarios.today.floors.map((f) => ({
+          ...f,
+          rooms: (f.rooms ?? []).map((r) => ({
+            ...r,
+            consumers: (r.consumers ?? []).map((cn) =>
+              cn.entity === "sensor.kaffee" ? { ...cn, surplus_w: 1200, switch_entity: "switch.kaffee" } : cn.entity === "sensor.flur" ? { ...cn, surplus_w: 60 } : cn.entity === "sensor.backofen" ? { ...cn, surplus_w: 2500 } : cn,
+            ),
+          })),
+        })),
+        options: { ...scenarios.today.options, surplus_devices: true },
+      };
       // Origin of the power in the list: the energy counters of solar, battery and grid with their hourly shapes.
       scenarios.origin = { ...scenarios.energy, options: { unit: "kW", mode: "power", show_origin: true } };
       // Strands: with several sources delivering, the lines below the home run side by side in the colors of the mix.

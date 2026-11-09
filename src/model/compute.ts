@@ -30,6 +30,8 @@ export interface ConsumerNode {
   thresholds?: ThresholdConfig[];
   /** icon of the node of a consumer directly under the home */
   icon?: string;
+  /** typical power (W) while it runs, for the suggestions of the surplus banner */
+  surplusW?: number;
 }
 /** Consumers the list shows: with `onlyActive` the ones at rest (under 1 W) are left out, unreadable sensors stay as warnings. */
 export function listedConsumers(consumers: ConsumerNode[], onlyActive: boolean): ConsumerNode[] {
@@ -185,6 +187,7 @@ function computeConsumer(c: ConsumerConfig, read: Reader, energy: boolean, place
     switchEntity: c.switch_entity || undefined,
     confirmSwitch: c.confirm_switch || undefined,
     icon: c.icon,
+    surplusW: c.surplus_w,
   };
 }
 
