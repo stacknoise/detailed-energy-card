@@ -481,6 +481,62 @@ test.describe("energy mode", () => {
     });
   });
 
+  test.describe("source mix, forecast and split (all off by default)", () => {
+    test("without the options nothing of it is drawn and the sources keep their height", async ({ page }) => {
+      await open(page, "floors");
+      await expect(page.locator("detailed-energy-card .circle.home.mixring")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .mix-legend")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .second.note")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .circle.home.sourcecolor")).toHaveCount(0);
+    });
+
+    test("a ring and a legend show the mix, the battery says when it is empty, the split goes to the home", async ({ page }) => {
+      await open(page, "mix");
+      await expect(page.locator("detailed-energy-card .circle.home.mixring")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("PV 80 %");
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("Batterie 11 %");
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("Netz 8 %");
+      // PV leads: the home circle has its color
+      await expect(page.locator("detailed-energy-card .circle.home.sourcecolor")).toHaveCSS("color", "rgb(255, 152, 0)");
+      await expect(node(page, "Batterie").locator(".note")).toContainText("Reicht bis");
+      // the solar power goes only into the home: 100 %
+      await expect(node(page, "PV").locator(".note.split")).toContainText("100");
+    });
+
+    test("with a surplus the battery says when it is full and the split names battery and grid", async ({ page }) => {
+      await open(page, "surplus");
+      await expect(node(page, "Batterie").locator(".note")).toContainText("Voll um");
+      await expect(node(page, "PV").locator(".note.split")).toHaveText(/16\s*29\s*55\s*%/);
+      // a charging battery and feed-in do not deliver: PV is the whole mix
+      await expect(page.locator("detailed-energy-card .mix-legend")).toContainText("PV 100 %");
+      await expect(page.locator("detailed-energy-card .mix-legend .mix-row")).toHaveCount(1);
+    });
+
+    test("the notes keep the sources aligned, and each option works on its own", async ({ page }) => {
+      await open(page, "mix");
+      const heights = await page.locator("detailed-energy-card button.node:has(.circle.source)").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+      expect(new Set(heights).size).toBe(1);
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { unit: "kW", show_source_mix: true } });
+      });
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .second.note")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .circle.home.sourcecolor")).toHaveCount(0);
+    });
+
+    test("the compact view keeps the ring and drops the legend and the notes", async ({ page }) => {
+      await page.goto("/dev/index.html?scenario=mix&width=360");
+      await page.evaluate(() => {
+        const el = document.querySelector("detailed-energy-card") as unknown as { _config: { options?: object }; setConfig(c: object): void };
+        el.setConfig({ ...el._config, options: { ...el._config.options, compact: true } });
+      });
+      await expect(page.locator("detailed-energy-card .circle.home.mixring")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .mix-legend")).toHaveCount(0);
+      await expect(page.locator("detailed-energy-card .second.note")).toHaveCount(0);
+    });
+  });
+
   test.describe("compact view", () => {
     test("shows sources, home and floors only: no room row, no list, no view switch", async ({ page }) => {
       await page.goto("/dev/index.html?scenario=compact&width=360");

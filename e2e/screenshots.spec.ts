@@ -122,6 +122,26 @@ const shots: Array<{ scenario: string; file: string; /** card width in px (the d
       await page.locator(`detailed-energy-card button.node[title=${t("Küche")}]`).click();
     },
   },
+  {
+    scenario: "mix",
+    file: "card-source-mix",
+    // the ring and the legend at the home, the battery says how long it lasts, the solar power goes into the home; a fixed clock gives the same time
+    clock: "2026-10-13T17:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .second.note").first()).toBeVisible();
+    },
+  },
+  {
+    scenario: "surplus",
+    file: "card-solar-surplus",
+    // a solar surplus: the battery charges and says when it is full, the split names home, battery and grid
+    clock: "2026-10-13T11:30:00Z",
+    before: async (page) => {
+      await expect(page.locator("detailed-energy-card .mix-legend")).toBeVisible();
+      await expect(page.locator("detailed-energy-card .second.note.split")).toBeVisible();
+    },
+  },
   { scenario: "floors", file: "card-all-rooms" },
   {
     scenario: "floors",

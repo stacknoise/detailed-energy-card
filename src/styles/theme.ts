@@ -262,6 +262,63 @@ export const cardStyles = css`
     font-size: 0.85em;
     align-content: center;
   }
+  /* options.show_source_mix: a ring of the shares of the sources over the border of the home circle (the circle keeps its size) */
+  .circle.home.mixring::before {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 50%;
+    background: var(--mix);
+    padding: 4px;
+    pointer-events: none;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
+  .compact .circle.home.mixring::before {
+    padding: 3px;
+  }
+  /* options.home_color_by_source: icon, border and glow of the home circle in the color of the largest source (set as the text color) */
+  .circle.home.sourcecolor {
+    border-color: currentColor;
+    box-shadow: 0 0 18px color-mix(in srgb, currentColor 40%, transparent);
+  }
+  .mix-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    right: calc(100% + 10px);
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--_muted);
+    font-size: 0.75em;
+    font-weight: 400;
+    line-height: 14px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .mix-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .mix-row i {
+    border-radius: 50%;
+    flex: none;
+    height: 8px;
+    width: 8px;
+  }
+  .mix-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mix-row b {
+    color: var(--primary-text-color, inherit);
+    font-weight: 600;
+  }
   /* own meter of a room or a floor: a small icon at the circle / after the value; a warning in the warning color */
   .circle {
     position: relative;
@@ -557,6 +614,20 @@ export const cardStyles = css`
     line-height: 12px;
     min-height: 12px;
     white-space: nowrap;
+  }
+  /* note under a source: the forecast of a battery, the split of the solar power */
+  .second.note.split {
+    align-items: center;
+    display: inline-flex;
+    gap: 5px;
+  }
+  .second.note .part {
+    align-items: center;
+    display: inline-flex;
+    gap: 1px;
+  }
+  .second.note ha-icon {
+    --mdc-icon-size: 12px;
   }
   .pill .second {
     display: block;

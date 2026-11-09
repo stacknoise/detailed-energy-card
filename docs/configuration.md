@@ -47,6 +47,10 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Currency (empty: the one of Home Assistant) | `options.currency` | of Home Assistant | Three-letter currency code, for example `EUR`. |
 | Show base load | `options.show_base_load` | `false` | Badge *Base load*: the lowest hourly mean of the home between 1 and 5 o'clock in the last 7 nights. |
 | Always-on from (W) | `options.standby_watts` | none | Consumers that never fell below this power in the last 24 hours get a symbol. |
+| Source mix as a ring around the home | `options.show_source_mix` | `false` | A ring around the home circle shows how much solar, battery and grid contribute to the power delivered, with a legend. |
+| Home value in the color of the largest source | `options.home_color_by_source` | `false` | Icon, border and glow of the home circle take the color of the source with the largest share. |
+| Battery forecast (full at / lasts until) | `options.show_battery_forecast` | `false` | Under a battery with a state of charge and a capacity: when it is full (charging) or empty (discharging). Mode *Now* only. |
+| Split of the solar power | `options.show_solar_split` | `false` | Under the solar source: the percentage of the power that goes into the home, the battery and the grid. Mode *Now* only. |
 
 ### Sources (`sources[]`)
 
@@ -60,6 +64,7 @@ All options are optional unless marked *required*. Everything can be set in the 
 | Energy sensor (kWh, optional) | `energy_entity` | none | Energy counter (kWh) for the energy mode. |
 | Energy sensor of the other direction (feed-in or charged, kWh, optional) | `energy_entity_return` | none | Counter of the other direction (grid feed-in, battery charged); not for `solar`. |
 | State of charge (SoC) | `soc_entity` | none | State of charge of a battery, in %. |
+| Capacity (kWh) | `capacity_kwh` | none | Usable capacity of a battery in kWh. Needed for `options.show_battery_forecast`. Only for the type `battery`. |
 | Invert sign | `invert` | `false` | Turn the sign of the sensor around. |
 | Tap action (default: select, or details) | `tap_action`, `hold_action`, `double_tap_action` | none | Own actions of this source, see *Actions*; `thresholds` sets own thresholds. |
 
@@ -139,6 +144,27 @@ The *Self-sufficiency* badge (share of the consumption not drawn from the grid) 
 **Energy mode (kWh):** **The switch *Now | Today | Week | Month* appears in the card as soon as one element has an energy sensor** (an `energy_entity` on a source, floor, room or consumer, or `home.total_energy_entity`); until then the editor shows a hint under *General*. Besides the power now the card can show how much energy each part used today, this week or this month. Give sources, floors, rooms and consumers an `energy_entity` (a `sensor.*` energy counter with `device_class: energy`, in Wh, kWh or MWh) next to their power `entity`, and optionally `home.total_energy_entity` for "Unassigned" and the self-sufficiency badge. The values come from the long-term statistics of Home Assistant (the sensors need a `state_class` of `total` or `total_increasing`, and the recorder must keep them); the card needs no `utility_meter` helpers. Day, week and month start at midnight in the time zone of Home Assistant, the week on the first weekday of your locale. Lines show the share of the home's consumption instead of a flow, there are no thresholds and no animation in this mode. An element without `energy_entity` is shown as unavailable ("No energy sensor configured"). An energy counter only counts in one direction: give the grid its import counter as `energy_entity` and, optionally, its export counter as `energy_entity_return` (a battery: discharged and charged; also for `generic` sources, not for solar). The node keeps the import as its value and shows the other direction in a small line below ("feed-in 3.8 kWh", "charged 2.4 kWh"); the line follows the balance. Options: `options.mode` (`power` or `energy`, what the card shows when it loads), `options.energy_periods` (a list of `today`, `week`, `month` the switch offers; default all) and `options.secondary_value` (a second, smaller value under every node and in the consumer list: `today` shows the energy of today in the mode *Now*, `power` the power now in the energy mode, `auto` the other value of whichever mode is shown, `cost` the costs, see below; default `none`; a node without a value for the second line leaves it empty instead of showing 0 kWh), `options.view` (`tree`, `sankey` or `timeline`, the chart shown at start) and `options.views` (the charts the view switch offers, e.g. `[tree, sankey, timeline]`; without it there is no switch).
 
 **Base load and standby:** `options.show_base_load: true` adds a badge *Base load 185 W*: the lowest hourly mean of the home's power between 1 and 5 o'clock in the last 7 nights (`home.total_entity`, else the sum of the sources). `options.standby_watts: 5` marks consumers whose hourly mean did not fall below 5 W in the last 24 hours with an infinity symbol ("runs all the time"). Both read the long-term statistics of the power sensors (they need a `state_class: measurement`), once an hour; without statistics, or with less than 20 hours of them for a consumer, nothing is shown. Both are off by default and work in both modes.
+
+**Sources at a glance.** Four options, all off by default and independent of each other. The colors are solar orange, battery pink and grid blue, as in the Energy dashboard of Home Assistant; an own `color` of a source comes first.
+
+- `options.show_source_mix: true` draws a ring around the home circle: each source gets a segment as wide as its share of the power delivered (solar, a discharging battery, grid import; in the energy mode the energy of the period). A legend with the names and percentages sits to the left of the circle. A charging battery and feed-in deliver nothing and are left out. In the compact view only the ring is drawn.
+- `options.home_color_by_source: true` colors the home circle (icon, border, glow) like the source with the largest share. The color changes only when another source is at least 5 percentage points ahead, so it does not flicker when two sources are close.
+- `options.show_battery_forecast: true` adds a line under a battery: *Full at 17:06* while it charges, *Lasts until 06:06* while it discharges (with the weekday when it is not today; the tooltip says how long). It needs the state of charge (`soc_entity`) and the usable capacity (`capacity_kwh`, in kWh) of that battery and calculates with the power of the moment: the time is a guess that changes with the load. It stays out while the battery is idle (under 20 W), full or empty, and when the time is more than 48 hours away. The reserve of the battery is not taken into account.
+- `options.show_solar_split: true` adds a line under the solar source with three percentages and symbols: how much of the power goes into the home, the battery and the grid right now. The tooltip names the powers. The measured flows come first (charging power of the batteries, feed-in), the rest goes into the home, so it works without a sensor for the home. Parts of 0 % and a production under 50 W are left out.
+
+The battery forecast and the split show only in the mode *Now* and not in the compact view. As soon as a source can have such a line, all sources get one line more (also while it is empty), so the diagram does not jump.
+
+```yaml
+sources:
+  - { entity: sensor.pv_power, type: solar }
+  - { entity: sensor.battery_power, type: battery, soc_entity: sensor.battery_soc, capacity_kwh: 10 }
+  - { entity: sensor.grid_power, type: grid }
+options:
+  show_source_mix: true
+  home_color_by_source: true
+  show_battery_forecast: true
+  show_solar_split: true
+```
 
 **Browsing:** in the energy mode the arrows ‹ › next to the period buttons go back to earlier days, weeks and months and forward again up to the running one; the card then names the period ("Yesterday", "Mon 19.10.", "KW 43", "September"). Values, costs and all views follow; the timeline compares a finished period with the whole period before it. The position is not remembered.
 

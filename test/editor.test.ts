@@ -19,6 +19,7 @@ const FULL: EnergyCardConfig = {
   sources: [
     { entity: "sensor.grid", energy_entity: "sensor.grid_import", energy_entity_return: "sensor.grid_export", type: "grid", tap_action: { action: "more-info" }, hold_action: { action: "toggle", confirmation: true }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/0" } },
     { entity: "sensor.pv", energy_entity: "sensor.pv_energy", name: "PV", type: "solar", icon: "mdi:solar-power", color: "#f2c94c", soc_entity: "sensor.soc", invert: false, thresholds: [{ from: 100, color: "#ff9800", width: 3 }] },
+    { entity: "sensor.battery", type: "battery", soc_entity: "sensor.battery_soc", capacity_kwh: 10 },
   ],
   floors: [
     {
@@ -49,7 +50,7 @@ const FULL: EnergyCardConfig = {
       consumer: [{ from: 300, color: "#ff9800", width: 3 }],
     },
   },
-  options: { unit: "auto", decimals: 2, animation: true, show_self_consumption: true, show_unassigned: true, show_consumers: true, only_active_consumers: false, show_entity_ids: true, remember_selection: true, storage_id: "main", wrap_rooms: false, focus_selected: false, mode: "power", energy_periods: ["today", "week"], secondary_value: "auto", view: "tree", views: ["tree", "timeline"], price: 0.32, price_entity: "sensor.price", currency: "EUR", feed_in_price: 0.08, feed_in_price_entity: "sensor.feed_in_price", show_base_load: true, standby_watts: 5, compact: false },
+  options: { unit: "auto", decimals: 2, animation: true, show_self_consumption: true, show_unassigned: true, show_consumers: true, only_active_consumers: false, show_entity_ids: true, remember_selection: true, storage_id: "main", wrap_rooms: false, focus_selected: false, mode: "power", energy_periods: ["today", "week"], secondary_value: "auto", view: "tree", views: ["tree", "timeline"], price: 0.32, price_entity: "sensor.price", currency: "EUR", feed_in_price: 0.08, feed_in_price_entity: "sensor.feed_in_price", show_base_load: true, standby_watts: 5, compact: false, show_source_mix: true, home_color_by_source: true, show_battery_forecast: true, show_solar_split: true },
 };
 
 describe("editor coverage", () => {

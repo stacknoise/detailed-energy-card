@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+Four options that show where the power comes from and where it goes. All are off by default, nothing changes until you turn them on (in the editor under *General*, or in YAML under `options`).
+
+- `options.show_source_mix`: a ring around the home circle shows the share of solar, battery and grid in the power delivered, with a legend. The colors are solar orange, battery pink and grid blue; an own `color` of a source comes first. In the compact view only the ring is drawn.
+- `options.home_color_by_source`: icon, border and glow of the home circle take the color of the source with the largest share; it changes only when another source is at least 5 percentage points ahead.
+- `options.show_battery_forecast` with the new `capacity_kwh` of a battery source: under the battery it says *Full at 17:06* while it charges and *Lasts until 06:06* while it discharges, at the power of the moment. The mode *Now* only.
+- `options.show_solar_split`: under the solar source, the percentage of the solar power that goes into the home, the battery and the grid. The mode *Now* only.
+- The editor has the four switches under *General* and the field *Capacity (kWh)* at a battery source; the dev page has the scenarios `mix` and `surplus`.
+
 ## 1.4.2
 
 ### Changed

@@ -190,6 +190,12 @@
         "sensor.soc": { state: "76", attributes: { unit_of_measurement: "%", device_class: "battery" } },
         "sensor.netz": s(350),
         "sensor.total": s(4250),
+        // the scenario "surplus": solar surplus, the battery charges, the rest is fed into the grid
+        "sensor.pv_s": s(6200),
+        "sensor.akku_s": s(-1800),
+        "sensor.soc_s": { state: "78", attributes: { unit_of_measurement: "%", device_class: "battery" } },
+        "sensor.netz_s": s(-3400),
+        "sensor.total_s": s(1000),
         "sensor.backofen": s(820),
         "sensor.spuel": s(310),
         "sensor.kuehl": s(120),
@@ -441,6 +447,21 @@
       scenarios.sankey = { ...scenarios.feedin, options: { unit: "kW", mode: "energy", view: "sankey", views: ["tree", "sankey", "timeline"] } };
       // Base load and standby (package P11): the badge in the head, the fridge runs all the time.
       scenarios.standby = { ...scenarios.floors, options: { unit: "W", show_base_load: true, standby_watts: 5 } };
+      // Source mix, battery forecast and split of the solar power (the four options of the package "sources"), on the default data: the battery discharges.
+      const withCapacity = (list) => list.map((src) => (src.type === "battery" ? { ...src, capacity_kwh: 10 } : src));
+      const mixOptions = { unit: "kW", show_source_mix: true, home_color_by_source: true, show_battery_forecast: true, show_solar_split: true };
+      scenarios.mix = { ...scenarios.floors, sources: withCapacity(scenarios.floors.sources), options: mixOptions };
+      // The same with a solar surplus: the battery charges ("Full at ..."), the rest goes into the grid.
+      scenarios.surplus = {
+        ...scenarios.floors,
+        home: { total_entity: "sensor.total_s" },
+        sources: withCapacity([
+          { entity: "sensor.pv_s", type: "solar" },
+          { entity: "sensor.akku_s", type: "battery", soc_entity: "sensor.soc_s" },
+          { entity: "sensor.netz_s", type: "grid" },
+        ]),
+        options: mixOptions,
+      };
       // Second value (like mock A1): the power now with the energy of today below; in the energy mode the other way round.
       scenarios.secondary = { ...scenarios.energy, options: { unit: "kW", mode: "power", secondary_value: "auto" } };
       // Own meters of floors and rooms (like mock A2): EG in its distribution board, the kitchen with a

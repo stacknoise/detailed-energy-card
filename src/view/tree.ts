@@ -5,6 +5,7 @@ import type { EnergyCardConfig } from "../model/config";
 import { nodeKey, type ConsumerNode, type EnergyModel, type MeterInfo, type RoomNode, type SourceNode } from "../model/compute";
 import type { Selection } from "../model/selection";
 import { elementThresholds, isIdle, thresholdColor, thresholdLevel, thresholdWidth, type ThresholdConfig, type ThresholdLevel } from "../model/thresholds";
+import { mixGradient, type MixSegment } from "../model/mix";
 import type { Key } from "../localize";
 import { Tween, focusTargets, type Pos } from "./focus";
 import { computeLayout, floorsStacked, pillMaxWidth, curve, roomPath, flowDuration, strokeWidth, type Layout } from "./layout";
@@ -70,7 +71,11 @@ export interface ResolvedSelection {
   room?: number;
 }
 
-/** What the tree view needs from the card for one frame. */
+/** A note under a source (options.show_battery_forecast, options.show_solar_split). */
+export type SourceNote =
+  | { kind: "text"; text: string; title?: string }
+  | { kind: "split"; home: number; battery: number; grid: number; title: string };
+
 /** What a node listens to: a click, and for a hold action the press and its end. */
 export interface ActionBinding {
   click(): void;
@@ -79,6 +84,7 @@ export interface ActionBinding {
   contextmenu(e: Event): void;
 }
 
+/** What the tree view needs from the card for one frame. */
 export interface TreeContext {
   config: EnergyCardConfig;
   model: EnergyModel;
@@ -95,6 +101,13 @@ export interface TreeContext {
   consumerName(c: ConsumerNode): string;
   /** the compact view: smaller circles, a click on a node opens the dialog of its sensor */
   compact?: boolean;
+  /** options.show_source_mix: the shares of the sources, drawn as a ring around the home and as a legend */
+  mix?: MixSegment[];
+  /** options.home_color_by_source: the color of the home circle (icon, border and glow) */
+  homeColor?: string;
+  /** notes under the sources by entity; `noteLine` keeps the line free under the sources that have none */
+  notes?: Map<string, SourceNote>;
+  noteLine?: boolean;
   /** the nodes show a second value (options.secondary_value): one line more */
   secondary: boolean;
   /** the second line of a node by nodeKey, undefined when it has none */
@@ -172,6 +185,7 @@ export class TreeView {
       wrap: c.config.options?.wrap_rooms === true,
       secondary: c.secondary,
       returnLine: c.energy && model.sources.some((s) => s.returnCounter),
+      noteLine: !!c.noteLine,
       compact: c.compact,
       stackFloors: this._stackFloors(c),
       direct: model.consumers.length,
@@ -341,13 +355,25 @@ export class TreeView {
           : c.energy && c.model.sources.some((x) => x.returnCounter)
             ? html`<span class="second back"></span>`
             : nothing}
+        ${this._renderNote(c, c.notes?.get(s.entity))}
         ${secondLine(c, nodeKey.source(s.entity))}
       </button>
     `;
   }
 
+  /** The line under a source with the forecast of a battery or the split of the solar power; an empty line keeps the sources aligned. */
+  private _renderNote(c: TreeContext, note: SourceNote | undefined): TemplateResult | typeof nothing {
+    if (!c.noteLine) return nothing;
+    if (!note) return html`<span class="second note"></span>`;
+    if (note.kind === "text") return html`<span class="second note" title=${note.title ?? nothing}>${note.text}</span>`;
+    const part = (icon: string, pct: number, color: string) =>
+      pct > 0 ? html`<span class="part"><ha-icon icon=${icon} style=${`color:${color}`}></ha-icon>${pct}</span>` : nothing;
+    return html`<span class="second note split" title=${note.title}>${part("mdi:home", note.home, "var(--_accent)")}${part("mdi:battery-charging", note.battery, "#f06292")}${part("mdi:transmission-tower-export", note.grid, "#488fc2")}<span>%</span></span>`;
+  }
+
   /** Clicking the home selects everything: all floors, or all rooms without floors. */
   private _renderHome(c: TreeContext, l: Layout, everything: boolean): TemplateResult {
+    const gradient = c.mix ? mixGradient(c.mix) : undefined;
     return html`
       <button
         class="node"
@@ -356,10 +382,13 @@ export class TreeView {
         title=${c.home}
         @click=${() => (c.compact ? undefined : c.select(c.model.floors.length ? { floor: null } : { room: null }))}
       >
-        <span class="circle home">
+        <span class="circle home ${gradient ? "mixring" : ""} ${c.homeColor ? "sourcecolor" : ""}" style=${styleMap({ "--mix": gradient ?? "", color: c.homeColor ?? "" })}>
           <ha-icon icon="mdi:home"></ha-icon>
           <span>${c.fmt(c.model.homeWatts)}</span>
         </span>
+        ${c.mix?.length && !c.compact
+          ? html`<span class="mix-legend" title=${c.t("mix_title")}>${c.mix.map((m) => html`<span class="mix-row"><i style=${`background:${m.color}`}></i><span class="mix-name">${m.name}</span> <b>${Math.round(m.share * 100)} %</b></span>`)}</span>`
+          : nothing}
         ${c.secondary && c.second(nodeKey.home) ? html`<span class="second home-second" title=${c.secondTitle?.(nodeKey.home) ?? nothing}>${c.second(nodeKey.home)}</span>` : nothing}
       </button>
     `;

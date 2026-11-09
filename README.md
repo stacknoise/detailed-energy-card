@@ -18,6 +18,7 @@ The Energy dashboard of Home Assistant tells you *how much* you use. This card s
 - 📅 **Today, this week, this month.** Switch from *Now* to the energy used, and browse back to yesterday or last month.
 - 💶 **What did it cost?** Fixed price or a dynamic tariff such as Tibber: the card shows the costs of every room and device.
 - ☀️ **Self-sufficiency and self-consumption** at a glance, plus feed-in and battery charging.
+- 🎨 **Sources at a glance** (optional). A ring around the home shows where the power comes from, the battery tells you when it is full or empty, and the solar power shows where it goes.
 - 🔍 **Find the energy hogs.** Base load of your home, devices that never switch off, and a heatmap of *when* you use electricity.
 - 📊 **Three ways to look at it:** the tree, a Sankey diagram and a timeline of the day.
 - 🎛️ **Act right away.** Turn a device off from the list, or give any element your own tap actions.
@@ -60,6 +61,14 @@ Click a floor to see its rooms, click a room to see its devices. Click again to 
 | Feed-in, charging and self-consumption | Base load and devices that never switch off |
 | --- | --- |
 | ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png?v=5) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png?v=5) |
+
+### Sources at a glance (optional)
+
+Four switches in the editor, all off until you turn them on: a ring around the home with the share of solar, battery and grid, the home in the color of the largest source, the battery forecast (*Full at 17:06*, *Lasts until 06:06*) and the split of the solar power into home, battery and grid.
+
+| The mix of the sources, and how long the battery lasts | A solar surplus: the battery charges, the rest goes into the grid |
+| --- | --- |
+| ![Ring around the home with solar, battery and grid, the battery says when it lasts until](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-mix.png?v=5) | ![Solar surplus: the battery says when it is full, the solar power is split into home, battery and grid](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-solar-surplus.png?v=5) |
 
 ### More ways to see it
 

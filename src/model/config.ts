@@ -19,6 +19,8 @@ export interface SourceConfig extends ActionFields {
   icon?: string;
   color?: string;
   soc_entity?: string;
+  /** usable capacity of a battery in kWh: with `options.show_battery_forecast` the card shows when it is full or empty */
+  capacity_kwh?: number;
   invert?: boolean;
   /** energy counter (kWh) for the energy mode */
   energy_entity?: string;
@@ -117,6 +119,14 @@ export interface OptionsConfig {
   show_base_load?: boolean;
   /** a consumer whose hourly mean did not fall below this many watts in the last 24 hours gets the symbol "runs all the time" (default off) */
   standby_watts?: number;
+  /** a ring around the home circle shows what share of the delivered power comes from each source, with a legend (default off) */
+  show_source_mix?: boolean;
+  /** the value in the home circle takes the color of the source with the largest share (default off) */
+  home_color_by_source?: boolean;
+  /** under a battery with `capacity_kwh` and a state of charge: "Full at 17:06" while charging, "Lasts until 06:06" while discharging (default off) */
+  show_battery_forecast?: boolean;
+  /** under a solar source: where its power goes right now, into the home, the battery and the grid (default off) */
+  show_solar_split?: boolean;
   /** periods the switch offers in the energy mode (default all) */
   energy_periods?: Array<"today" | "week" | "month">;
   /** what the card draws when it loads: the tree, the Sankey diagram or the timeline (default tree; the timeline needs an energy sensor) */
@@ -276,7 +286,7 @@ function checkOptions(options: unknown): void {
   if (id !== undefined && (typeof id !== "string" || !id || id.length > MAX_STORAGE_ID)) {
     throw new ConfigError(`options.storage_id must be text of 1 to ${MAX_STORAGE_ID} characters`);
   }
-  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact"]) {
+  for (const key of ["animation", "show_unassigned", "show_self_consumption", "show_consumers", "only_active_consumers", "show_entity_ids", "remember_selection", "wrap_rooms", "focus_selected", "show_base_load", "compact", "show_source_mix", "home_color_by_source", "show_battery_forecast", "show_solar_split"]) {
     checkBool(options[key], `options.${key}`);
   }
   const standby = options.standby_watts;
@@ -397,6 +407,12 @@ export function validateConfig(raw: unknown): EnergyCardConfig {
       throw new ConfigError(`sources[${i}].type: unknown type "${String(s.type)}"`);
     }
     if (s.soc_entity) checkEntity(s.soc_entity, `sources[${i}].soc_entity`);
+    if (s.capacity_kwh !== undefined) {
+      if (typeof s.capacity_kwh !== "number" || !Number.isFinite(s.capacity_kwh) || s.capacity_kwh <= 0) {
+        throw new ConfigError(`sources[${i}].capacity_kwh must be a number greater than 0 (kWh)`);
+      }
+      if (s.type !== "battery") throw new ConfigError(`sources[${i}].capacity_kwh: only for the type battery`);
+    }
     checkBool(s.invert, `sources[${i}].invert`);
     checkColor(s.color, `sources[${i}].color`);
     checkThresholds(s.thresholds, `sources[${i}].thresholds`);

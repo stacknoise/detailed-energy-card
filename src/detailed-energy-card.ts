@@ -12,6 +12,7 @@ import { EnergyStore, type EnergyQuery } from "./model/energy-store";
 import { computeModel, listRemainder, listedConsumers, nodeKey, nodeValues, type ConsumerNode, type EnergyModel, type Remainder, type RoomNode } from "./model/compute";
 import { formatEnergy, formatPower, type StateLike } from "./model/units";
 import { powerReader, socReader } from "./model/readers";
+import { batteryForecast, dominantSource, solarSplit, sourceMix, type MixSegment } from "./model/mix";
 import { elementThresholds, isIdle, resolveThresholds, thresholdColor, thresholdLevel, thresholdWidth } from "./model/thresholds";
 import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
@@ -20,7 +21,7 @@ import "./heatmap-card";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { Gesture } from "./view/gesture";
-import { MAX_LEVEL, TreeView, equalizePills, type ActionBinding, type ResolvedSelection, type TreeContext } from "./view/tree";
+import { MAX_LEVEL, TreeView, equalizePills, type ActionBinding, type ResolvedSelection, type SourceNote, type TreeContext } from "./view/tree";
 import { SankeyView, type SankeyContext } from "./view/sankey";
 import { buildSankey, type SankeyGraphNode } from "./model/sankey";
 import { renderTimeline, type TimelineContext, type TimelineKpi, type TimelineStack } from "./view/timeline";
@@ -78,6 +79,9 @@ export class DetailedEnergyCard extends LitElement {
   private _second = new Map<string, number>();
   /** costs of the shown period (power mode: today), with the amounts of the cost statistics of Home Assistant */
   private _costs?: { result: CostResult; ha?: number; haFeedIn?: number };
+  /** the mix of the sources (options.show_source_mix / home_color_by_source) and the source whose color the home value has */
+  private _mix?: MixSegment[];
+  private _dominant?: string;
   private _ro?: ResizeObserver;
   private _io?: IntersectionObserver;
   private _observed?: Element;
@@ -214,6 +218,9 @@ export class DetailedEnergyCard extends LitElement {
     } else {
       this._model = computeModel(cfg, powerReader(states), socReader(states), names);
     }
+    const o = this._config.options;
+    this._mix = o?.show_source_mix || o?.home_color_by_source ? sourceMix(this._model) : undefined;
+    this._dominant = o?.home_color_by_source && this._mix ? dominantSource(this._mix, this._dominant) : undefined;
     // the second value: the energy of today in the power mode (once it is loaded), the power now in the energy mode
     const kind = this._secondKind();
     const today = kind === "today" ? this._energyStore.values(this._todayQuery()) : undefined;
@@ -934,6 +941,9 @@ export class DetailedEnergyCard extends LitElement {
       energy: this._mode === "energy",
       focus: this._focus && !this._compact,
       compact: this._compact,
+      mix: cfg.options?.show_source_mix ? this._mix : undefined,
+      homeColor: this._mix?.find((m) => m.entity === this._dominant)?.color,
+      ...this._sourceNotes(cfg, model),
       thresholds: this._thresholds,
       home,
       fmt: (w) => this._fmt(w),
@@ -946,6 +956,61 @@ export class DetailedEnergyCard extends LitElement {
       moreInfo: (id) => this._moreInfo(id),
       bind: (key, actions, fallback) => this._bind(key, actions, fallback),
     };
+  }
+
+  /** "17:06", with the weekday when it is not today: the clock time a forecast ends at, in the time zone of Home Assistant. */
+  private _clock(at: number): string {
+    const lang = this._hass?.locale?.language ?? this._hass?.language;
+    const tz = this._timeZone;
+    const time = new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(at);
+    const day = (t: number) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(t);
+    if (day(at) === day(Date.now())) return time;
+    return `${new Intl.DateTimeFormat(lang, { weekday: "short", timeZone: tz }).format(at)} ${time}`;
+  }
+
+  /** "55 min" or "10 h 5 min" */
+  private _span(minutes: number): string {
+    const m = Math.max(1, Math.round(minutes));
+    return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  }
+
+  /**
+   * The notes under the sources (options.show_battery_forecast, options.show_solar_split): only in the mode Now and
+   * not in the compact view. `noteLine` is set as soon as a source can have a note, also while it has none, so the
+   * diagram does not jump.
+   */
+  private _sourceNotes(cfg: EnergyCardConfig, model: EnergyModel): { notes?: Map<string, SourceNote>; noteLine?: boolean } {
+    const o = cfg.options;
+    if (this._mode === "energy" || this._compact || (!o?.show_battery_forecast && !o?.show_solar_split)) return {};
+    const notes = new Map<string, SourceNote>();
+    let line = false;
+    if (o.show_battery_forecast) {
+      for (const s of model.sources) {
+        const capacity = cfg.sources?.find((c) => c.entity === s.entity)?.capacity_kwh;
+        if (s.type !== "battery" || !capacity) continue;
+        line = true;
+        const f = batteryForecast(s, capacity, Date.now());
+        if (f) notes.set(s.entity, { kind: "text", text: this._t(f.kind === "full" ? "battery_full_at" : "battery_empty_at").replace("{0}", this._clock(f.at)), title: this._t("battery_in").replace("{0}", this._span(f.minutes)) });
+      }
+    }
+    if (o.show_solar_split) {
+      const first = model.sources.find((s) => s.type === "solar");
+      if (first) {
+        line = true;
+        const sp = solarSplit(model);
+        if (sp) {
+          const pct = (w: number) => Math.round((w / sp.produced) * 100);
+          notes.set(first.entity, {
+            kind: "split",
+            home: pct(sp.home),
+            battery: pct(sp.battery),
+            grid: pct(sp.grid),
+            title: this._t("split_title").replace("{0}", this._fmt(sp.home)).replace("{1}", this._fmt(sp.battery)).replace("{2}", this._fmt(sp.grid)),
+          });
+        }
+      }
+    }
+    return { notes, noteLine: line };
   }
 
   private get _homeName(): string {
