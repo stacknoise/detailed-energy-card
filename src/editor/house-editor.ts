@@ -500,9 +500,13 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     const problems = validateLayout(cfg);
     const gridData = { "house.cols": cols, "house.rows": rows };
     const gridFields = HOUSE.filter((f) => f.path.startsWith("house."));
-    // the energy card sections (general, sources, structure) first, the floor plan, grid and preview below: they are used last
+    // the energy card sections (general, sources, structure) first, then the grid size, the floor plan and the preview: they are used last
     return html`
       <detailed-energy-card-editor .hass=${this.hass} .sections=${HOUSE_SECTIONS} .generalFields=${HOUSE_GENERAL_FIELDS} @config-changed=${(ev: CustomEvent) => this._onInner(ev)}></detailed-energy-card-editor>
+      <section>
+        <h3>${tr("house_ed_section_house")}</h3>
+        ${this._form(gridFields, cfg, gridData, (ev) => this._onGridForm(ev))}
+      </section>
       <section>
         <h3>${tr("house_ed_section_plan")}</h3>
         <div class="tabs" role="group" aria-label=${tr("house_ed_floor_group")}>
@@ -540,10 +544,6 @@ export class DetailedEnergy3DCardEditor extends LitElement {
           : nothing}
         ${this._notice ? html`<div class="warn">⚠ ${this._notice}</div>` : nothing}
         ${problems.map((p) => html`<div class="warn">⚠ ${p}</div>`)}
-      </section>
-      <section>
-        <h3>${tr("house_ed_section_house")}</h3>
-        ${this._form(gridFields, cfg, gridData, (ev) => this._onGridForm(ev))}
       </section>
       ${this._haPreview
         ? nothing

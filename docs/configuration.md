@@ -390,7 +390,7 @@ Of `options` the card reads `unit`, `decimals`, `animation`, `lines_by_source`, 
 
 ### Editor
 
-The editor of the 3D card has, from the top: the editor of the energy card with the sections the 3D card has (*General*, *Colors*, *Home*, *Sources*, *Structure*; the import wizard is left out), and below it the floor plan with a tab per floor, the form for the selected room, the grid size and a live preview of the card (the preview only where Home Assistant does not show its own beside the editor).
+The editor of the 3D card has, from the top: the editor of the energy card with the sections the 3D card has (*General*, *Colors*, *Home*, *Sources*, *Structure*; the import wizard is left out), and below it the grid size, the floor plan with a tab per floor, the form for the selected room and a live preview of the card (the preview only where Home Assistant does not show its own beside the editor).
 
 - **Add a room:** drag on a free area of the floor plan. The editor asks for the Home Assistant area (areas of the floor come first), or you make a custom room with a name.
 - **Move or resize:** drag a room, or drag the dot at its bottom right corner. A position that would overlap another room or leave the grid is refused and the last valid state stays.
