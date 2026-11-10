@@ -384,7 +384,7 @@ Of `options` the card reads `unit`, `decimals`, `animation`, `lines_by_source`, 
 
 - Solar sits on the roof, the grid is the pole in front, the battery and other sources are a box on the ground. A riser to the right of the house feeds the floors. The card does not know which source feeds which floor, so the split is proportional, like in the Sankey diagram.
 - Each floor and each room shows its name and power. Below 500 px of card width the room labels are left out and the list below carries the values; the floor values stay.
-- A tap on a floor or room selects it and fades the rest out; a tap on the selection clears it. Hold and double tap run the `hold_action` and `double_tap_action` of the element (see *Actions*); with a double tap action the tap waits a moment to tell the two apart. The selection is remembered under its own prefix, so the energy card keeps its own.
+- A tap on a floor or room selects it and fades the rest out (the other floors and rooms, but also the roof, solar, battery, pole and their lines); a tap on the selection clears it. Hold and double tap run the `hold_action` and `double_tap_action` of the element (see *Actions*); with a double tap action the tap waits a moment to tell the two apart. The selection is remembered under its own prefix, so the energy card keeps its own.
 - Floors and rooms are buttons for the keyboard (Tab, Enter or Space) with an `aria-label` of name and value. The list below the picture is the text alternative.
 - The flow lines move only with `options.animation` (on by default), not with *reduce motion* set in the system, and not while the card is out of view.
 

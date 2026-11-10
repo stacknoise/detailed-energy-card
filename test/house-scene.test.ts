@@ -107,10 +107,17 @@ describe("buildHouseScene: selection", () => {
     expect(byKey(s.labels)["label:bad"].dimmed).toBe(true);
     expect(byKey(s.flows)["floor:keller"].dimmed).toBe(true);
     expect(byKey(s.flows)["floor:eg"].dimmed).toBe(false);
-    // sources, roof and ground stay
-    expect(boxes.roof.dimmed).toBe(false);
+    // roof, solar, battery, pole, their labels and lines fade out too; the ground stays
+    expect(boxes.roof.dimmed).toBe(true);
+    expect(s.boxes.filter((b) => b.kind === "solar" || b.kind === "battery" || b.kind === "mast").every((b) => b.dimmed)).toBe(true);
+    expect(byKey(s.labels)["label:solar"].dimmed).toBe(true);
     expect(boxes.ground.dimmed).toBe(false);
-    expect(byKey(s.flows)["solar:roof"].dimmed).toBe(false);
+    expect(byKey(s.flows)["solar:roof"].dimmed).toBe(true);
+  });
+
+  it("dims nothing without a selection", () => {
+    const s = buildHouseScene(mockInput({}, {}));
+    expect(s.boxes.some((b) => b.dimmed) || s.labels.some((l) => l.dimmed) || s.flows.some((f) => f.dimmed)).toBe(false);
   });
 
   it("marks a room and dims its neighbours; the floor is the context", () => {
