@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>3D-Ansicht (AP3)</title>
+    <!--
+      Harness of the 3D graphic: draws the mock example (test/fixtures/house-scene.ts) with renderHouse.
+      ?w=400|700 width in px, ?theme=light|dark, ?sel=<floor_id or area_id>, ?animate=1, ?actions=1 (log hold/double in window.__log)
+    -->
+    <style>
+      body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+      body.light { --card-background-color: #ffffff; --primary-text-color: #161c26; --secondary-text-color: #566174; --divider-color: #d5dbe4; --primary-color: #488fc2; background: #f3f5f8; }
+      body.dark { --card-background-color: #161d27; --primary-text-color: #e8edf4; --secondary-text-color: #93a0b4; --divider-color: #2b3544; --primary-color: #488fc2; background: #0e131a; color-scheme: dark; }
+      #card { background: var(--card-background-color); border-radius: 14px; padding: 16px; box-sizing: border-box; }
+    </style>
+  </head>
+  <body>
+    <div id="card"></div>
+    <script type="module">
+      import { render } from "/node_modules/lit/index.js";
+      import { renderHouse } from "/src/view/house.ts";
+      import { NARROW_PX } from "/src/model/house.ts";
+      import { mockScene } from "/test/fixtures/house-scene.ts";
+
+      const q = new URLSearchParams(location.search);
+      const width = Number(q.get("w") ?? 700);
+      document.body.className = q.get("theme") === "dark" ? "dark" : "light";
+      const card = document.getElementById("card");
+      card.style.width = `${width}px`;
+      window.__log = [];
+      window.__selected = undefined;
+
+      function draw() {
+        const sel = window.__selected ?? q.get("sel");
+        const scene = mockScene();
+        for (const b of scene.boxes) {
+          if (!sel) break;
+          b.selected = b.floor_id === sel || b.area_id === sel;
+          b.dimmed = !b.selected && !!(b.floor_id || b.area_id);
+        }
+        render(
+          renderHouse(scene, {
+            narrow: width < NARROW_PX,
+            animate: q.get("animate") === "1",
+            lang: "de",
+            onSelect: (t) => {
+              window.__log.push(["select", t]);
+              window.__selected = t.area_id ?? t.floor_id;
+              draw();
+            },
+            onAction: q.get("actions") === "1" ? (t, kind) => window.__log.push([kind, t]) : undefined,
+            // ?actions=1&only=hold: only a hold action is configured, so a tap must not wait for a double tap
+            hasAction: q.get("only") ? (t, kind) => kind === q.get("only") : undefined,
+          }),
+          card,
+        );
+      }
+      draw();
+      window.__ready = true;
+    </script>
+  </body>
+</html>

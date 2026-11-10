@@ -13,7 +13,7 @@ export default defineConfig({
   },
   use: { baseURL: "http://localhost:4173", channel, viewport: { width: 512, height: 900 } },
   projects: [
-    { name: "e2e", testMatch: "card.spec.ts" },
+    { name: "e2e", testMatch: ["card.spec.ts", "house-view.spec.ts", "house-editor.spec.ts", "house-mock.spec.ts"] },
     // Not a regression test: renders the README screenshots. Run with `npm run screenshots`.
     {
       name: "screenshots",

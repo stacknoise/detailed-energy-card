@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.6.0
+
+### Added
+
+A second card in the same download, `custom:detailed-energy-3d-card` (**Add card → Detailed Energy 3D**): the home as floors in an isometric view. It is a card of its own, so nothing changes for the energy card and you see it only where you add it (it comes with version 1.6.0).
+
+- The graphic: solar panels on the roof, the grid as a pole in front, the battery in the basement, a riser to the floors. Dashed flow lines in the colors and widths of your thresholds (`options.lines_by_source` colors them by source); they move only with `options.animation` and without reduced motion. Floors and rooms show name and power; below 500 px the room labels are left out.
+- Tap a floor, a room or a power source (roof and panels, a battery block, the pole) to select it (the rest fades out; for a source the list shows where its power goes), hold and double tap run your actions. A room without its own hold or double tap action takes the one of its floor. Floors and rooms are buttons for the keyboard with an `aria-label`; the detail list below shows the consumers and is the text alternative. The selection is remembered under its own prefix `detailed-energy-house:`.
+- Configuration: that of the energy card plus `house.cols` / `house.rows` (grid, default 12 × 6) and `layout: { x, y, w, h }` on a room (whole cells). Rooms without a `layout` are placed automatically. Floors are stacked by the level of their Home Assistant floor. In the editor, rooms without a position are drawn dashed where the card places them, and turning off *Use floors* asks first when floor plan positions would be lost. The energy card ignores `layout`. A wrong layout is reported with its path.
+- The editor: a floor plan per floor (drag a room open, move it, resize it at the dot, snapping to cells, no overlaps; mouse, pen, touch, arrow keys and Shift plus arrow keys, Delete), a form for the selected room, the grid size, a live preview, and the editor of the energy card below it with only the sections the 3D card has.
+- Dev page: `?card=house` with the scenarios `house`, `house-auto`, `house-actions`, `house-invalid` and `&editor=1`; Playwright tests for the graphic, the editor and the comparison with the mock; screenshots `card-house.png` and `editor-house.png`. The README also shows pictures taken in a real Home Assistant (`docs/screenshots/house-ha-*.png`).
+- Documentation: new sections in the README, `docs/configuration.md`, `docs/development.md` and section 16 of the Entwicklungskonzept.
+
 ## 1.5.0
 
 ### Added

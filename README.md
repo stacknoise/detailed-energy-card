@@ -6,9 +6,9 @@
 
 The Energy dashboard of Home Assistant tells you *how much* you use. This card shows you *where*: a live diagram of your home that you can click through, floor by floor and room by room, until you find the device that is eating your power.
 
-<img src="https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-hero.png?v=5" alt="The card: solar, battery and grid flow into the home, on to the floors, the rooms of the ground floor and the consumers of the kitchen" width="380">
+<img src="https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-hero.png?v=6" alt="The card: solar, battery and grid flow into the home, on to the floors, the rooms of the ground floor and the consumers of the kitchen" width="380">
 
-*Current version: **1.5.0** · [What's new](https://github.com/stacknoise/detailed-energy-card/blob/main/CHANGELOG.md)*
+*Current version: **1.6.0** · [What's new](https://github.com/stacknoise/detailed-energy-card/blob/main/CHANGELOG.md)*
 
 ## Why you'll like it
 
@@ -20,7 +20,7 @@ The Energy dashboard of Home Assistant tells you *how much* you use. This card s
 - ☀️ **Self-sufficiency and self-consumption** at a glance, plus feed-in and battery charging.
 - 🎨 **Sources at a glance** (optional). A ring around the home shows where the power comes from, the battery tells you when it is full or empty, and the solar power shows where it goes. Lines in the colors of the sources, a surplus banner and tiles with today's values are optional too.
 - 🔍 **Find the energy hogs.** Base load of your home, devices that never switch off, and a heatmap of *when* you use electricity.
-- 📊 **Three ways to look at it:** the tree, a Sankey diagram and a timeline of the day.
+- 📊 **Three ways to look at it:** the tree, a Sankey diagram and a timeline of the day, plus a 3D view of your home as a card of its own.
 - 🎛️ **Act right away.** Turn a device off from the list, or give any element your own tap actions.
 - 📱 **Fits everywhere.** A compact view for phones and dashboard corners, follows your theme, in English and German.
 
@@ -38,7 +38,7 @@ The card is in the HACS default store.
 
 Already using the Energy dashboard of Home Assistant? Then the card can set itself up. Click **Import from Energy dashboard** at the top of the card editor: it picks up your grid, solar and battery, sorts your devices into floors and rooms by their areas and shows you a live preview before anything is saved.
 
-![Import wizard: the structure of the card proposed from the Energy dashboard](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-import.png?v=5)
+![Import wizard: the structure of the card proposed from the Energy dashboard](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-import.png?v=6)
 
 Everything else is in the visual editor too: colors, thresholds, costs, views and actions, each field with a short help text.
 
@@ -48,7 +48,7 @@ Everything else is in the visual editor too: colors, thresholds, costs, views an
 
 | Floors, rooms and consumers | A home without floors |
 | --- | --- |
-| ![Card with floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-with-floors.png?v=5) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-without-floors.png?v=5) |
+| ![Card with floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-with-floors.png?v=6) | ![Card without floors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-without-floors.png?v=6) |
 
 Click a floor to see its rooms, click a room to see its devices. Click again to go back up.
 
@@ -56,11 +56,11 @@ Click a floor to see its rooms, click a room to see its devices. Click again to 
 
 | Energy of today, this week or this month | Costs of every room and device |
 | --- | --- |
-| ![Card in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-energy.png?v=5) | ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png?v=5) |
+| ![Card in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-energy.png?v=6) | ![Costs badge and the costs of every node](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-costs.png?v=6) |
 
 | Feed-in, charging and self-consumption | Base load and devices that never switch off |
 | --- | --- |
-| ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png?v=5) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png?v=5) |
+| ![Feed-in and battery charging in the energy mode](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-feedin.png?v=6) | ![Base load badge and the infinity symbol at the fridge](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-standby.png?v=6) |
 
 ### Sources at a glance (optional)
 
@@ -68,7 +68,7 @@ Four switches in the editor, all off until you turn them on: a ring around the h
 
 | The mix of the sources, and how long the battery lasts | A solar surplus: the battery charges, the rest goes into the grid |
 | --- | --- |
-| ![Ring around the home with solar, battery and grid, the battery says when it lasts until](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-mix.png?v=5) | ![Solar surplus: the battery says when it is full, the solar power is split into home, battery and grid](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-solar-surplus.png?v=5) |
+| ![Ring around the home with solar, battery and grid, the battery says when it lasts until](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-mix.png?v=6) | ![Solar surplus: the battery says when it is full, the solar power is split into home, battery and grid](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-solar-surplus.png?v=6) |
 
 ### Overview (optional)
 
@@ -76,7 +76,7 @@ Three more switches: the lines in the colors of the sources (below the home as s
 
 | Surplus banner and the values of today | Lines in the colors of the sources |
 | --- | --- |
-| ![Surplus banner, the solar line in orange and tiles with today's solar, grid, feed-in, battery, home and self-sufficiency](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-overview.png?v=6) | ![Lines in the colors of the sources, below the home as strands in the mix](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-lines.png?v=5) |
+| ![Surplus banner, the solar line in orange and tiles with today's solar, grid, feed-in, battery, home and self-sufficiency](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-overview.png?v=6) | ![Lines in the colors of the sources, below the home as strands in the mix](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-source-lines.png?v=6) |
 
 ### Where does the power come from? (optional)
 
@@ -84,7 +84,7 @@ One more switch: in the list a ring shows how much of the power of the shown roo
 
 | Origin of the power per consumer, and the best hours |
 | --- |
-| ![Ring with solar and grid, bars split by origin and the hint for the hours with the least grid import](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-origin.png?v=5) |
+| ![Ring with solar and grid, bars split by origin and the hint for the hours with the least grid import](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-origin.png?v=6) |
 
 ### Solar forecast in the timeline (optional)
 
@@ -92,7 +92,23 @@ One more switch: the timeline of today gets a dashed line with the forecast of t
 
 | Timeline of today with the solar forecast |
 | --- |
-| ![Timeline of today with a dashed orange line for the solar forecast](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-pv-forecast.png?v=5) |
+| ![Timeline of today with a dashed orange line for the solar forecast](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-pv-forecast.png?v=6) |
+
+### The 3D card (optional)
+
+A second card that comes with the same download: **Add card → Detailed Energy 3D**. It shows your home as floors in an isometric view, with the solar panels on the roof, the grid pole in front and the battery in the basement. Dashed lines carry the power from the sources up the riser and into the floors, in the colors and widths of your thresholds. Tap a floor, a room or a power source (roof, battery, pole) and the rest fades out; the list below shows the consumers or, for a source, where its power goes, with the same numbers as the energy card.
+
+| Own layout | Automatic layout | A room selected |
+| --- | --- | --- |
+| ![3D card with floors, flow lines and the list of the floors below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/house-ha-layout.png?v=6) | ![3D card with automatically placed rooms](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/house-ha-auto.png?v=6) | ![The upper floor selected: the rest fades out and the consumers of the room are listed](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/house-ha-selected.png?v=6) |
+
+| The editor: options of the card | The editor: grid and floor plan |
+| --- | --- |
+| ![Editor of the 3D card: general options at the top, live preview at the right](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/house-ha-editor-general.png?v=6) | ![Editor of the 3D card: grid size and the floor plan with a tab per floor](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/house-ha-editor-floorplan.png?v=6) |
+
+The pictures were taken in a real Home Assistant (card and editor dialog).
+
+It is a card of its own, so nothing changes until you add it to a dashboard. It reads the same configuration as the energy card (`sources`, `floors`, `rooms`, `consumers`), so you can copy that over and only add where each room sits. The editor draws the rooms for you: drag on the floor plan to add a room, drag a room to move it, drag the dot in its corner to resize it, or type column, row, width and height. Rooms without a position are placed automatically. See [docs/configuration.md](docs/configuration.md#3d-card).
 
 ### More options for the ones who want them
 
@@ -102,11 +118,11 @@ All of them are off until you switch them on: a yearly budget as a bar with the 
 
 | Timeline of the day | Sankey diagram |
 | --- | --- |
-| ![Timeline of today stacked by room, yesterday dashed](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-timeline.png?v=5) | ![Sankey diagram of sources, floors, rooms and consumers](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-sankey.png?v=5) |
+| ![Timeline of today stacked by room, yesterday dashed](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-timeline.png?v=6) | ![Sankey diagram of sources, floors, rooms and consumers](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-sankey.png?v=6) |
 
 | Heatmap: when is electricity used? | Compact view for phones |
 | --- | --- |
-| ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png?v=5) | ![Compact view: sources, home and floors in small circles](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-compact.png?v=5) |
+| ![Heatmap card: a row per day, a column per hour](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-heatmap.png?v=6) | ![Compact view: sources, home and floors in small circles](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-compact.png?v=6) |
 
 The heatmap is a second card that comes with the same download: **Add card → Detailed Energy Heatmap**.
 
@@ -115,23 +131,23 @@ The heatmap is a second card that comes with the same download: **Add card → D
 
 | Colors by power, per level | Own meters of floors and rooms |
 | --- | --- |
-| ![Card with thresholds per level](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-thresholds.png?v=5) | ![Floors and rooms with their own meter](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-meters.png?v=5) |
+| ![Card with thresholds per level](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-thresholds.png?v=6) | ![Floors and rooms with their own meter](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-meters.png?v=6) |
 
 | Power now, energy of today below | Switches in the list |
 | --- | --- |
-| ![Power now with the energy of today below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-secondary.png?v=5) | ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png?v=5) |
+| ![Power now with the energy of today below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-secondary.png?v=6) | ![A toggle at the end of the row of a consumer with a switch](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-actions.png?v=6) |
 
 | All rooms of a floor | Many rooms in two rows |
 | --- | --- |
-| ![All rooms selected](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-all-rooms.png?v=5) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-many-rooms-wrapped.png?v=5) |
+| ![All rooms selected](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-all-rooms.png?v=6) | ![Many rooms wrapped](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-many-rooms-wrapped.png?v=6) |
 
 | Editor: general and options | Editor: thresholds |
 | --- | --- |
-| ![Editor: general](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-general.png?v=5) | ![Editor: thresholds](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-thresholds.png?v=5) |
+| ![Editor: general](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-general.png?v=6) | ![Editor: thresholds](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-thresholds.png?v=6) |
 
 | Editor: energy sensors | Editor: structure |
 | --- | --- |
-| ![Editor: energy sensors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-energy.png?v=5) | ![Editor: structure](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-structure.png?v=5) |
+| ![Editor: energy sensors](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-energy.png?v=6) | ![Editor: structure](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-structure.png?v=6) |
 
 </details>
 

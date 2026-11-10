@@ -1,5 +1,6 @@
 import { THRESHOLD_LEVELS } from "../model/thresholds";
 import type { EditorKey, Tr } from "../localize/editor";
+import { DEFAULT_COLS, DEFAULT_ROWS } from "../model/house";
 
 /**
  * Declarative description of every editor field. Each field maps 1:1 to a config path,
@@ -271,6 +272,27 @@ export const HEATMAP: Field[] = [
   { path: "price_entity", selector: { entity: { domain: "sensor" } }, label: "field_price_entity", check: "price", help: "help_price_entity", when: (cfg: any) => cfg?.price === undefined },
   { path: "currency", selector: { text: {} }, label: "field_currency", when: (cfg: any) => cfg?.price !== undefined || !!cfg?.price_entity },
 ];
+
+/** Smallest and largest grid of the 3D card in cells. */
+export const GRID_LIMITS = { cols: [4, 24], rows: [2, 12] } as const;
+
+/**
+ * Fields of the 3D card (`custom:detailed-energy-3d-card`) beyond those of the energy card: the grid of the house
+ * (`house.cols`, `house.rows`) and the position of a room on it (`layout.x|y|w|h`, edited on the room object).
+ * The ranges of the room fields depend on the grid, so they are built for it; `HOUSE` is the default grid.
+ */
+export const houseFields = (cols = DEFAULT_COLS, rows = DEFAULT_ROWS): Field[] => {
+  const cells = (min: number, max: number) => ({ number: { min, max, step: 1, mode: "box" } });
+  return [
+    { path: "house.cols", selector: cells(GRID_LIMITS.cols[0], GRID_LIMITS.cols[1]), label: "house_ed_cols", default: DEFAULT_COLS },
+    { path: "house.rows", selector: cells(GRID_LIMITS.rows[0], GRID_LIMITS.rows[1]), label: "house_ed_rows", default: DEFAULT_ROWS },
+    { path: "layout.x", selector: cells(0, cols - 1), label: "house_ed_x", required: true },
+    { path: "layout.y", selector: cells(0, rows - 1), label: "house_ed_y", required: true },
+    { path: "layout.w", selector: cells(1, cols), label: "house_ed_w", required: true },
+    { path: "layout.h", selector: cells(1, rows), label: "house_ed_h", required: true },
+  ];
+};
+export const HOUSE: Field[] = houseFields();
 
 /** The costs need an energy counter on the grid: without one the editor says so. */
 export const costsNeedGridCounter = (cfg: any): boolean =>

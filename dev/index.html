@@ -597,6 +597,29 @@
           title: T("Wann wird Strom verbraucht?", "When is electricity used?"),
           price_entity: params.get("price") === "0" ? undefined : "sensor.strompreis",
         });
+      } else if (params.get("card") === "house") {
+        // ?card=house: the 3D card. ?scenario=house (own layouts), house-auto (automatic layout, default),
+        // house-actions (hold and double tap), house-invalid (overlapping rooms). ?editor=1 shows its editor next to it.
+        const h = document.createElement("detailed-energy-3d-card");
+        h.id = "c";
+        el.replaceWith(h);
+        el = h;
+        const at = (l, x, y, w, ht) => ({ ...l, layout: { x, y, w, h: ht } });
+        const placed = (f, layouts) => ({ ...f, rooms: f.rooms.map((r, i) => at(r, ...layouts[i])) });
+        const [eg, og, keller] = scenarios.floors.floors;
+        const withLayouts = [placed(eg, [[0, 0, 5, 3], [5, 0, 7, 3], [0, 3, 12, 3]]), placed(og, [[0, 0, 6, 6]]), placed(keller, [[2, 1, 8, 4]])];
+        const houseScenarios = {
+          "house-auto": scenarios.floors,
+          house: { ...scenarios.floors, floors: withLayouts },
+          "house-actions": {
+            ...scenarios.floors,
+            floors: withLayouts.map((f, i) => (i ? f : { ...f, hold_action: { action: "more-info", entity: "sensor.uv_eg" }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/eg" } })),
+          },
+          "house-invalid": { ...scenarios.floors, floors: [{ ...eg, rooms: [at(eg.rooms[0], 0, 0, 5, 3), at(eg.rooms[1], 4, 0, 4, 3)] }] },
+        };
+        const houseConfig = houseScenarios[name === "floors" ? "house-auto" : name] ?? scenarios[name] ?? scenarios.floors;
+        window.__houseConfig = { ...houseConfig, type: "custom:detailed-energy-3d-card" };
+        el.setConfig(window.__houseConfig);
       } else {
         el.setConfig({ type: "custom:detailed-energy-card", ...scenarios[name] });
       }
@@ -766,10 +789,13 @@
           <div class="dlg-body"><div class="pane-l"></div><div class="pane-r"></div></div>
           <div class="dlg-foot"><span>${T("Code-Editor anzeigen", "Show code editor")}</span><span class="btns"><span>${T("Abbrechen", "Cancel")}</span><span class="save">${T("Speichern", "Save")}</span></span></div>`;
         document.body.appendChild(dlg);
+        const house = params.get("card") === "house";
         dlg.querySelector(".pane-r").appendChild(el);
-        const config = { type: "custom:detailed-energy-card", ...scenarios[editorScenario] };
-        el.setConfig(config);
-        const editor = document.createElement("detailed-energy-card-editor");
+        // the 3D card's editor has its own live preview: the dashboard card beside it is left out
+        const config = house ? window.__houseConfig : { type: "custom:detailed-energy-card", ...scenarios[editorScenario] };
+        if (!house) el.setConfig(config);
+        else dlg.querySelector(".pane-r").hidden = true;
+        const editor = document.createElement(house ? "detailed-energy-3d-card-editor" : "detailed-energy-card-editor");
         dlg.querySelector(".pane-l").appendChild(editor);
         editor.hass = hass;
         editor.setConfig(config);

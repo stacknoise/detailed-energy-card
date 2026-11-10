@@ -339,6 +339,69 @@ currency: EUR                 # optional, default the one of Home Assistant
 
 Above the grid: the *base load* (the lowest hourly use between 1 and 5 o'clock in the days shown, like on the energy card), the total of the days, and the most expensive hour (consumption × the price of that hour; without a price the peak hour in kWh instead). The values come from the long-term statistics of the counter (`state_class` `total` or `total_increasing`), hourly rows, reloaded once an hour while the card is visible. Dev page: `?card=heatmap`.
 
+## 3D card
+
+The same file brings a third card, `custom:detailed-energy-3d-card` (**Add card → Detailed Energy 3D**, with its own visual editor, no second installation): the home as floors in an isometric view. It is opt-in: nothing changes on the energy card, and the 3D card only exists where you add it.
+
+```yaml
+type: custom:detailed-energy-3d-card
+title: Haus
+house:
+  cols: 12          # grid of the house, default 12 x 6, the same for all floors
+  rows: 6
+sources:
+  - { entity: sensor.pv_leistung, type: solar }
+  - { entity: sensor.akku_leistung, type: battery }
+  - { entity: sensor.netz_leistung, type: grid }
+floors:
+  - floor_id: erdgeschoss
+    rooms:
+      - area_id: kueche
+        layout: { x: 0, y: 0, w: 6, h: 3 }   # column, row, width, height in cells
+        consumers:
+          - entity: sensor.backofen_power
+      - area_id: wohnzimmer
+        layout: { x: 6, y: 0, w: 6, h: 3 }
+options:
+  lines_by_source: true
+```
+
+### What it reads
+
+The configuration is that of the energy card (`sources`, `floors` or `rooms`, `consumers`, `colors`, `options`, actions) plus two keys. The numbers are the same as in the energy card (same readers, units and thresholds), and the structure comes from your floors and areas. You can copy `sources`, `floors`, `rooms` and `consumers` from an energy card and add only the layout.
+
+| Editor field | YAML key | Default | What it does |
+| --- | --- | --- | --- |
+| – | `type` | – | *Required.* `custom:detailed-energy-3d-card` |
+| Columns, Rows (grid of the house) | `house.cols`, `house.rows` | 12, 6 | Size of the grid in cells (up to 40). One cell is 12.5 units wide in the picture; all floors have the same grid. The editor does not let you make it smaller than the rooms need. |
+| Column, Row, Width, Height (of a room) | `layout.x`, `layout.y`, `layout.w`, `layout.h` on a room | automatic | Position and size of a room on the grid, in whole cells, counted from the top left (`x` from 0 to `cols - 1`, `y` from 0 to `rows - 1`). Rooms must not overlap within a floor; a room that does not fit on the grid is left out of the picture. Without `layout` the card places the room by itself; three rooms on a floor give the layout of the mock. The energy card ignores `layout`. |
+
+Floors are stacked from the bottom up by the `level` of the floors in Home Assistant; when a floor has no level, the order of the configuration decides (the first floor is the lowest). A floor-less configuration (`rooms` only) is drawn as one floor.
+
+Of `options` the card reads `unit`, `decimals`, `animation`, `lines_by_source`, `show_consumers`, `only_active_consumers`, `show_entity_ids`, `show_unassigned`, `remember_selection` and `storage_id`; the editor shows exactly these under *General*. The other options of the energy card (energy mode, costs, views, compact and so on) have no effect here. Colors and thresholds work as on the energy card: `colors.thresholds` and `colors.level_thresholds` set the color and width of a flow line, and with `options.lines_by_source` the lines take the colors of their sources instead. A configuration with an overlapping layout, a layout outside the grid or fractions is reported with the path of the field, like any other configuration error.
+
+### Reading the picture
+
+- Solar sits on the roof, the grid is the pole in front, the battery and other sources are a box on the ground. A riser to the right of the house feeds the floors. The card does not know which source feeds which floor, so the split is proportional, like in the Sankey diagram.
+- Each floor and each room shows its name and power. Below 500 px of card width the room labels are left out and the list below carries the values; the floor values stay.
+- A tap on a floor or room selects it and fades the rest out (the other floors and rooms, but also the roof, solar, battery, pole and their lines); a tap on the selection clears it. A power source can be selected, too: tap the roof or a solar panel (the first solar source), a battery block that sits in no room, or the pole (the grid). The other sources fade out, the floors stay, and the list shows where its power goes (proportional, like the Sankey diagram; a source that consumes shows nothing). A source takes its `tap_action`, `hold_action` and `double_tap_action` from its config entry. Hold and double tap run the `hold_action` and `double_tap_action` of the element (see *Actions*); with a double tap action the tap waits a moment to tell the two apart. A room without its own `hold_action` or `double_tap_action` takes the one of its floor (the rooms cover most of the floor plate, so the floor action would hardly be reachable); an own `none` on the room switches it off. A tap inherits nothing and selects the room. The selection is remembered under its own prefix, so the energy card keeps its own.
+- Floors and rooms are buttons for the keyboard (Tab, Enter or Space) with an `aria-label` of name and value. The list below the picture is the text alternative.
+- The flow lines move only with `options.animation` (on by default), not with *reduce motion* set in the system, and not while the card is out of view.
+
+### Editor
+
+The editor of the 3D card has, from the top: the editor of the energy card with the sections the 3D card has (*General*, *Colors*, *Home*, *Sources*, *Structure*; the import wizard is left out), and below it the grid size, the floor plan with a tab per floor, the form for the selected room and a live preview of the card (the preview only where Home Assistant does not show its own beside the editor).
+
+- **Add a room:** drag on a free area of the floor plan. The editor asks for the Home Assistant area (areas of the floor come first), or you make a custom room with a name.
+- **Move or resize:** drag a room, or drag the dot at its bottom right corner. A position that would overlap another room or leave the grid is refused and the last valid state stays.
+- **Keyboard and form:** Tab selects a room, the arrow keys move it, Shift plus arrow keys resize it, Delete removes it. The form has fields for column, row, width and height and, for custom rooms, the name.
+- **Rooms without a position** are drawn dashed where the card places them. Moving, changing or deleting a room, or adding a new one, writes the shown places of all automatically placed rooms of the floor into the configuration, so none of them jumps. Only rooms for which no space is left stay under *Not on the grid yet*; one click puts a room on the first free spot.
+- **Names in the floor plan** are cut at the edge of their room; the full name and value appear when you hover over it.
+- **Turning off *Use floors*:** the rooms of all floors land in one list, and their grid positions often overlap. If positions would be dropped, the editor asks first; *Cancel* leaves the configuration unchanged and the switch jumps back. If you confirm, the card places the rooms itself.
+- Deleting a room that has consumers asks you to click a second time.
+
+Dev page: `?card=house` with the scenarios `house` (own layouts), `house-auto` (automatic layout), `house-actions` and `house-invalid`; add `&editor=1` for the editor.
+
 ## Navigating the card
 
 
