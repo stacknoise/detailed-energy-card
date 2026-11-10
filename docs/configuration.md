@@ -384,13 +384,13 @@ Of `options` the card reads `unit`, `decimals`, `animation`, `lines_by_source`, 
 
 - Solar sits on the roof, the grid is the pole in front, the battery and other sources are a box on the ground. A riser to the right of the house feeds the floors. The card does not know which source feeds which floor, so the split is proportional, like in the Sankey diagram.
 - Each floor and each room shows its name and power. Below 500 px of card width the room labels are left out and the list below carries the values; the floor values stay.
-- A tap on a floor or room selects it and fades the rest out; a tap on the selection clears it. Hold and double tap run the `hold_action` and `double_tap_action` of the element (see *Actions*); with a double tap action the tap waits a moment to tell the two apart. The selection is remembered under its own prefix, so the energy card keeps its own.
+- A tap on a floor or room selects it and fades the rest out (the other floors and rooms, but also the roof, solar, battery, pole and their lines); a tap on the selection clears it. A power source can be selected, too: tap the roof or a solar panel (the first solar source), a battery block that sits in no room, or the pole (the grid). The other sources fade out, the floors stay, and the list shows where its power goes (proportional, like the Sankey diagram; a source that consumes shows nothing). A source takes its `tap_action`, `hold_action` and `double_tap_action` from its config entry. Hold and double tap run the `hold_action` and `double_tap_action` of the element (see *Actions*); with a double tap action the tap waits a moment to tell the two apart. The selection is remembered under its own prefix, so the energy card keeps its own.
 - Floors and rooms are buttons for the keyboard (Tab, Enter or Space) with an `aria-label` of name and value. The list below the picture is the text alternative.
 - The flow lines move only with `options.animation` (on by default), not with *reduce motion* set in the system, and not while the card is out of view.
 
 ### Editor
 
-The editor of the 3D card has, from the top: the floor plan with a tab per floor, the form for the selected room, the grid size, a live preview of the card, and below it the editor of the energy card with the sections the 3D card has (*General*, *Colors*, *Home*, *Sources*, *Structure*; the import wizard is left out).
+The editor of the 3D card has, from the top: the editor of the energy card with the sections the 3D card has (*General*, *Colors*, *Home*, *Sources*, *Structure*; the import wizard is left out), and below it the grid size, the floor plan with a tab per floor, the form for the selected room and a live preview of the card (the preview only where Home Assistant does not show its own beside the editor).
 
 - **Add a room:** drag on a free area of the floor plan. The editor asks for the Home Assistant area (areas of the floor come first), or you make a custom room with a name.
 - **Move or resize:** drag a room, or drag the dot at its bottom right corner. A position that would overlap another room or leave the grid is refused and the last valid state stays.

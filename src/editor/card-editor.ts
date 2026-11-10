@@ -1,5 +1,6 @@
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
+import { live } from "lit/directives/live.js";
 import type { EnergyCardConfig, FloorConfig, RoomConfig, SourceConfig } from "../model/config";
 import {
   consumerEntitiesExcept,
@@ -843,7 +844,7 @@ export class DetailedEnergyCardEditor extends LitElement {
         <h3>${this._tr("section_structure")}</h3>
         <ha-formfield .label=${this._tr("use_floors")}>
           <ha-switch
-            .checked=${useFloors}
+            .checked=${live(useFloors)}
             .disabled=${!useFloors && !this._reg}
             @change=${(ev: Event) => this._onFloorsToggle((ev.target as HTMLInputElement).checked)}
           ></ha-switch>

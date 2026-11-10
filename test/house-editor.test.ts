@@ -16,7 +16,10 @@ import {
   roomWatts,
   unplacedRooms,
   withGrid,
+  withAutoLayouts,
   withNewRoom,
+  withPinnedAuto,
+  withoutClashingLayouts,
   withRoomLayout,
   withoutRoom,
 } from "../src/editor/house-layout";
@@ -275,5 +278,56 @@ describe("AP7: General fields of the 3D editor", () => {
     const paths = GENERAL.map((f) => f.path);
     for (const p of HOUSE_GENERAL_FIELDS) expect(paths).toContain(p);
     expect(HOUSE_GENERAL_FIELDS).not.toContain("options.compact");
+  });
+});
+
+describe("withoutClashingLayouts", () => {
+  const room = (area_id: string, x: number) => ({ area_id, layout: { x, y: 0, w: 4, h: 3 } });
+  const cfg = (rooms: Array<ReturnType<typeof room>>, extra = {}) => ({ type: "custom:detailed-energy-3d-card", rooms, ...extra }) as never;
+
+  it("drops the positions when the rooms of several floors clash after the floors were switched off", () => {
+    const out = withoutClashingLayouts(cfg([room("a", 0), room("b", 2)]));
+    expect(out.rooms!.every((r) => r.layout === undefined)).toBe(true);
+    expect(validateLayout(out)).toEqual([]);
+  });
+
+  it("keeps positions that fit, and configs that still have floors", () => {
+    const fits = cfg([room("a", 0), room("b", 4)]);
+    expect(withoutClashingLayouts(fits)).toBe(fits);
+    const floors = { type: "x", floors: [{ floor_id: "eg", rooms: [room("a", 0)] }, { floor_id: "og", rooms: [room("b", 0)] }] } as never;
+    expect(withoutClashingLayouts(floors)).toBe(floors);
+  });
+});
+
+describe("rooms without a position (placed by the card)", () => {
+  const cfgNoLayout = () => ({ type: "custom:detailed-energy-3d-card", rooms: [{ area_id: "a" }, { area_id: "b" }, { area_id: "c", layout: { x: 10, y: 4, w: 2, h: 2 } }] }) as never;
+
+  it("gives them the places the card gives them, and keeps own layouts", () => {
+    const floor = floorViews(cfgNoLayout())[0];
+    const ap = withAutoLayouts(floor, 12, 6);
+    expect([...ap.keys].sort()).toEqual(["a", "b"]);
+    expect(ap.floor.rooms.every((r) => r.layout)).toBe(true);
+    expect(ap.floor.rooms.find((r) => r.area_id === "c")!.layout).toEqual({ x: 10, y: 4, w: 2, h: 2 });
+    const shown = gridRooms(ap.floor.rooms, (r) => r.area_id, {}, "de", ap.keys);
+    expect(shown.filter((r) => r.auto).map((r) => r.key).sort()).toEqual(["a", "b"]);
+    expect(shown.find((r) => r.key === "c")!.auto).toBeUndefined();
+  });
+
+  it("pins the others where they were drawn when one is changed", () => {
+    const cfg = cfgNoLayout();
+    const ap = withAutoLayouts(floorViews(cfg)[0], 12, 6);
+    const moved = withRoomLayout(cfg, ap.floor, "a", { x: 0, y: 5, w: 1, h: 1 })!;
+    const pinned = withPinnedAuto(moved, ap, "a");
+    const rooms = pinned.rooms!;
+    expect(rooms.find((r) => r.area_id === "a")!.layout).toEqual({ x: 0, y: 5, w: 1, h: 1 });
+    expect(rooms.find((r) => r.area_id === "b")!.layout).toEqual(ap.floor.rooms.find((r) => r.area_id === "b")!.layout);
+    expect(validateLayout(pinned)).toEqual([]);
+  });
+
+  it("refuses a change onto a place an automatically placed room takes", () => {
+    const cfg = cfgNoLayout();
+    const ap = withAutoLayouts(floorViews(cfg)[0], 12, 6);
+    const b = ap.floor.rooms.find((r) => r.area_id === "b")!.layout!;
+    expect(withRoomLayout(cfg, ap.floor, "a", { ...b })).toBeUndefined();
   });
 });

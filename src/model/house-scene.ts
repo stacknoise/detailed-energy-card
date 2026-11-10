@@ -104,7 +104,7 @@ function sceneFloors(model: EnergyModel, config: HouseConfig, cols: number, rows
  * carries the power of its floor and takes the color of the leading source, as the Sankey diagram shares it out.
  *
  * Selection: a selected floor or room is marked `selected`; the other floors, their rooms and branches (and, with
- * a selected room, the other rooms of its floor) are `dimmed`. Sources, roof and ground stay as they are.
+ * a selected room, the other rooms of its floor) are `dimmed`, and so are the roof, the sources and their lines. The ground stays as it is.
  */
 export function buildHouseScene(input: HouseSceneInput): HouseScene {
   const { model, config, selection, format, lang } = input;
@@ -124,6 +124,10 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
   const selFloor = selection.floor_id ?? (selArea !== undefined ? floors.find((f) => f.rooms.some((r) => r.node.id === selArea))?.node.id : undefined);
   const anySel = selFloor !== undefined || selArea !== undefined;
   const floorDim = (id: string): boolean => anySel && id !== selFloor;
+  /** roof, solar, battery block, pole and their labels and lines fade out with any selection, like the floors */
+  const selSource = selection.source;
+  /** a source part fades out when a floor or room is selected, or another source is */
+  const srcDimFor = (entities: string[]): boolean => anySel || (selSource !== undefined && !entities.includes(selSource));
   const roomDim = (floorId: string, areaId: string): boolean => floorDim(floorId) || (selArea !== undefined && areaId !== selArea);
 
   // ---- sources
@@ -159,7 +163,11 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
     labels.push({ dimmed: false, ...l });
   };
 
-  box({ key: "ground", kind: "ground", tone: "ground", x: -GROUND.left, y: -GROUND.back, z: GROUND.z, w: width + GROUND.left + GROUND.right, d: depth + GROUND.back + GROUND.front, h: 0 });
+  // batteries without a room stand in a row to the back; with many of them the ground grows so that none hangs over its edge
+  const loneCount = batteries.filter((b) => !batteryRooms.get(b.entity)).length;
+  const rearmost = depth - BATTERY_BOX.size - BATTERY_BOX.gap - Math.max(0, loneCount - 1) * (BATTERY_BOX.size + BATTERY_BOX.gap);
+  const groundBack = Math.max(GROUND.back, BATTERY_BOX.gap - rearmost);
+  box({ key: "ground", kind: "ground", tone: "ground", x: -GROUND.left, y: -groundBack, z: GROUND.z, w: width + GROUND.left + GROUND.right, d: depth + groundBack + GROUND.front, h: 0 });
 
   floors.forEach((f, k) => {
     const id = f.node.id;
@@ -223,15 +231,20 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
 
   // ---- roof with the solar modules
   const zr = floors.length * PITCH;
-  box({ key: "roof", kind: "slab", tone: "wall", x: 0, y: 0, z: zr, w: width, d: depth, h: ROOF_H });
+  const solarIds = solars.map((s) => s.entity);
+  const solarDim = srcDimFor(solarIds);
+  const solarSel = selSource !== undefined && solarIds.includes(selSource);
+  const solarWatts = solars.reduce((s, x) => s + x.watts, 0);
+  const solarPick = solars.length ? { source: solars[0].entity, selected: solarSel } : {};
+  box({ key: "roof", kind: "slab", tone: "wall", x: 0, y: 0, z: zr, w: width, d: depth, h: ROOF_H, dimmed: solarDim, ...solarPick, ...(solars.length ? { aria: `${solars[0].name}, ${format(solarWatts)}` } : {}) });
   if (solars.length) {
     for (let a = 0; a < SOLAR_COLS; a++) {
       for (let b = 0; b < SOLAR_ROWS; b++) {
-        box({ key: `solar:${a}:${b}`, kind: "solar", tone: "solar", x: SOLAR.x0 + a * SOLAR.stepX, y: SOLAR.y0 + b * SOLAR.stepY, z: zr + ROOF_H, w: SOLAR.w, d: SOLAR.d, h: SOLAR.h });
+        box({ key: `solar:${a}:${b}`, kind: "solar", tone: "solar", x: SOLAR.x0 + a * SOLAR.stepX, y: SOLAR.y0 + b * SOLAR.stepY, z: zr + ROOF_H, w: SOLAR.w, d: SOLAR.d, h: SOLAR.h, dimmed: solarDim, ...solarPick });
       }
     }
     const watts = solars.reduce((s, x) => s + x.watts, 0);
-    label({ key: "label:solar", kind: "source", at: [0, depth, zr + ROOF_H / 2], anchor: "end", name: solars[0].name, value: format(watts) });
+    label({ key: "label:solar", kind: "source", at: [0, depth, zr + ROOF_H / 2], anchor: "end", name: solars[0].name, value: format(watts), dimmed: solarDim });
   }
 
   // ---- a battery without a room: a block of its own to the right of the riser
@@ -242,8 +255,8 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
   lone.forEach((b, i) => {
     const x = rx + BATTERY_BOX.gap;
     const y = depth - BATTERY_BOX.size - BATTERY_BOX.gap - i * (BATTERY_BOX.size + BATTERY_BOX.gap);
-    box({ key: `battery:${b.entity}`, kind: "battery", tone: "battery", x, y, z: 0, w: BATTERY_BOX.size, d: BATTERY_BOX.size, h: BATTERY_BOX.h, aria: `${b.name}, ${sourceValue(b)}` });
-    label({ key: `label:battery:${b.entity}`, kind: "source", at: [x + BATTERY_BOX.size / 2, y + BATTERY_BOX.size / 2, BATTERY_BOX.h + 12], anchor: "middle", name: b.name, value: sourceValue(b) });
+    box({ key: `battery:${b.entity}`, kind: "battery", tone: "battery", x, y, z: 0, w: BATTERY_BOX.size, d: BATTERY_BOX.size, h: BATTERY_BOX.h, aria: `${b.name}, ${sourceValue(b)}`, dimmed: srcDimFor([b.entity]), source: b.entity, selected: selSource === b.entity });
+    label({ key: `label:battery:${b.entity}`, kind: "source", at: [x + BATTERY_BOX.size / 2, y + BATTERY_BOX.size / 2, BATTERY_BOX.h + 12], anchor: "middle", name: b.name, value: sourceValue(b), dimmed: srcDimFor([b.entity]) });
   });
 
   // ---- grid pole in front of the house
@@ -252,9 +265,12 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
   if (grids.length) {
     const net = grids.reduce((s, g) => s + g.watts, 0);
     const first = { ...grids[0], watts: net, reverse: net < 0 };
-    box({ key: "mast", kind: "mast", tone: "grid", x: mastX, y: mastY, z: 0, w: MAST.foot, d: MAST.foot, h: MAST.h, aria: `${first.name}, ${sourceValue(first)}` });
-    box({ key: "mast-arm", kind: "mast", tone: "grid", x: mastX - 10, y: mastY + 1, z: MAST.armZ, w: MAST.arm, d: 2, h: MAST.armH });
-    label({ key: "label:grid", kind: "source", at: [mastX + MAST.foot / 2, mastY + MAST.foot / 2, MAST.h + 4], anchor: "middle", name: first.name, value: sourceValue(first) });
+    const gridIds = grids.map((g) => g.entity);
+    const gridDim = srcDimFor(gridIds);
+    const gridSel = selSource !== undefined && gridIds.includes(selSource);
+    box({ key: "mast", kind: "mast", tone: "grid", x: mastX, y: mastY, z: 0, w: MAST.foot, d: MAST.foot, h: MAST.h, aria: `${first.name}, ${sourceValue(first)}`, dimmed: gridDim, source: first.entity, selected: gridSel });
+    box({ key: "mast-arm", kind: "mast", tone: "grid", x: mastX - 10, y: mastY + 1, z: MAST.armZ, w: MAST.arm, d: 2, h: MAST.armH, dimmed: gridDim, source: first.entity, selected: gridSel });
+    label({ key: "label:grid", kind: "source", at: [mastX + MAST.foot / 2, mastY + MAST.foot / 2, MAST.h + 4], anchor: "middle", name: first.name, value: sourceValue(first), dimmed: gridDim });
   }
 
   // ---- flow lines
@@ -276,12 +292,12 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
   if (solars.length) {
     const watts = solars.reduce((s, x) => s + x.watts, 0);
     const pts: Vec3[] = [[width - END_INSET, ry, zr + 4], [rx, ry, zr + 4], [rx, ry, zl(0)]];
-    flow("solar:roof", watts, pts, style(solars[0].thresholds, th.source, watts, sourceColor(solars[0])), pts[1]);
+    flow("solar:roof", watts, pts, style(solars[0].thresholds, th.source, watts, sourceColor(solars[0])), pts[0], solarDim);
   }
   generics.forEach((g, i) => {
     const y = ry + (i + 1) * LANE_STEP;
     const pts: Vec3[] = [[rx + RISER_OFFSET, y, zl(0)], [rx, y, zl(0)], [rx, ry, zl(0)]];
-    flow(`generic:${g.entity}`, g.watts, pts, style(g.thresholds, th.source, g.watts, sourceColor(g)), pts[0]);
+    flow(`generic:${g.entity}`, g.watts, pts, style(g.thresholds, th.source, g.watts, sourceColor(g)), pts[0], srcDimFor([g.entity]));
   });
 
   // branches of the riser to the floors; the lowest floor takes the solar lane so that the other lanes stay free
@@ -306,7 +322,7 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
     }
     if (!b.reverse) pts = [...pts].reverse();
     const node = b.reverse ? pts[pts.length - 1] : pts[0];
-    flow(`battery:${b.entity}`, b.watts, pts, style(b.thresholds, th.source, b.watts, sourceColor(b)), node);
+    flow(`battery:${b.entity}`, b.watts, pts, style(b.thresholds, th.source, b.watts, sourceColor(b)), node, srcDimFor([b.entity]));
   });
 
   // grid: import runs from the pole into the house, feed-in back out
@@ -314,7 +330,7 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
     const net = grids.reduce((s, g) => s + g.watts, 0);
     let pts: Vec3[] = [[mastX + MAST.foot / 2, mastY, zl(0)], [mastX + MAST.foot / 2, depth - GRID_ENTRY, zl(0)]];
     if (net < 0) pts = [...pts].reverse();
-    flow("grid:feed", net, pts, style(grids[0].thresholds, th.source, net, sourceColor(grids[0])), pts[pts.length - 1]);
+    flow("grid:feed", net, pts, style(grids[0].thresholds, th.source, net, sourceColor(grids[0])), pts[pts.length - 1], srcDimFor(grids.map((g) => g.entity)));
   }
 
   return { cols, rows, boxes, labels, flows };

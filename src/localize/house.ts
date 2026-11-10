@@ -3,9 +3,11 @@ export const houseDe = {
   house_picker_description: "Das Haus als Etagen in 3D: Leistung von Solar, Akku und Netz bis in die Räume",
   house_placeholder: "3D-Karte im Aufbau",
   house_detail_home: "Haus",
+  house_detail_source_none: "Diese Quelle speist gerade nichts: Sie verbraucht Strom oder liefert nichts.",
 };
 export const houseEn: typeof houseDe = {
   house_picker_description: "The home as floors in 3D: power from solar, battery and grid down to the rooms",
   house_placeholder: "3D card under construction",
   house_detail_home: "Home",
+  house_detail_source_none: "This source feeds nothing right now: it consumes power or delivers none.",
 };

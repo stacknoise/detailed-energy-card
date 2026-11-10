@@ -21,9 +21,13 @@ import {
   unplacedRooms,
   usedAreaIds,
   withGrid,
+  withoutClashingLayouts,
   withNewRoom,
+  withAutoLayouts,
+  withPinnedAuto,
   withRoomLayout,
   withoutRoom,
+  type AutoPlacement,
   type FloorView,
 } from "./house-layout";
 import "./card-editor";
@@ -91,6 +95,9 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   private _pushed?: HouseConfig;
   /** the config last handed to the preview card */
   private _previewed?: HouseConfig;
+  /** Home Assistant shows its own preview of the card next to this editor: ours is left out */
+  @state() private _haPreview = false;
+  private _resize?: ResizeObserver;
 
   static styles = css`
     :host {
@@ -204,6 +211,37 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     return hassChangedForEditor(changed.get("hass") as EditorHass | undefined, this.hass as EditorHass | undefined, this._entityIds);
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    this._resize = new ResizeObserver(() => this._checkHaPreview());
+    this._resize.observe(this);
+    window.addEventListener("resize", this._checkHaPreview);
+    this._checkHaPreview();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._resize?.disconnect();
+    window.removeEventListener("resize", this._checkHaPreview);
+  }
+
+  /** Looks for the preview of the card dialog of Home Assistant beside this editor (`.element-preview`, in older versions `hui-card-preview`) above this editor and whether it is visible. */
+  private _checkHaPreview = (): void => {
+    let root = this.getRootNode();
+    let visible = false;
+    while (root instanceof ShadowRoot) {
+      const preview = root.querySelector("hui-card-preview, .element-preview");
+      if (preview) {
+        const r = preview.getBoundingClientRect();
+        // beside the editor: on a narrow dialog Home Assistant puts its preview below the whole form, out of sight
+        visible = r.width > 0 && r.height > 0 && getComputedStyle(preview).visibility !== "hidden" && r.left >= this.getBoundingClientRect().right - 1;
+        break;
+      }
+      root = root.host.getRootNode();
+    }
+    if (visible !== this._haPreview) this._haPreview = visible;
+  };
+
   protected willUpdate(): void {
     this._registries.ensure(this.hass as RegistryHass | undefined);
   }
@@ -224,6 +262,7 @@ export class DetailedEnergy3DCardEditor extends LitElement {
    */
   private _updatePreview(): void {
     const card = this.renderRoot.querySelector<HTMLElement & { setConfig?(c: unknown): void; hass?: unknown }>("detailed-energy-3d-card");
+    if (!card) this._previewed = undefined; // a new preview card gets the config again
     if (!card || !this.config || typeof card.setConfig !== "function") return;
     if (this._previewed !== this.config) {
       this._previewed = this.config;
@@ -260,8 +299,16 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   /** The embedded energy editor changed the config (consumers, sources ...): pass it on as ours. */
   private _onInner(ev: CustomEvent): void {
     ev.stopPropagation();
-    this._pushed = ev.detail.config;
-    this._emit(ev.detail.config);
+    const incoming = ev.detail.config as HouseConfig;
+    const config = withoutClashingLayouts(incoming);
+    // switching the floors off would throw the positions of the floor plan away: ask first, and on "no" keep everything
+    if (config !== incoming && this.config?.floors && !window.confirm(this._tr("house_ed_confirm_flat"))) {
+      this._pushed = undefined; // the embedded editor gets the unchanged config back, so its switch is on again
+      this.requestUpdate();
+      return;
+    }
+    this._pushed = config;
+    this._emit(config);
   }
 
   /** ha-form reports the whole flat data object of the grid size fields; apply the changed one. */
@@ -282,7 +329,7 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   }
 
   /** The number fields of the selected room: apply the new position and size if they fit, else say where. */
-  private _onLayoutForm(ev: CustomEvent, floor: FloorView, room: RoomConfig): void {
+  private _onLayoutForm(ev: CustomEvent, floor: FloorView, ap: AutoPlacement, room: RoomConfig): void {
     ev.stopPropagation();
     const cfg = this.config;
     if (!cfg || !room.layout) return;
@@ -295,8 +342,8 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     const next = Object.fromEntries((["x", "y", "w", "h"] as const).map((k) => [k, Math.round(Number(data[`layout.${k}`]))])) as unknown as RoomLayout;
     const changed = (["x", "y", "w", "h"] as const).filter((k) => next[k] !== room.layout![k]);
     if (!changed.length) return;
-    const result = withRoomLayout(cfg, floor, room.area_id, next);
-    if (result) this._emit(result);
+    const result = withRoomLayout(cfg, ap.floor, room.area_id, next);
+    if (result) this._emit(withPinnedAuto(result, ap, room.area_id));
     else this._errors = Object.fromEntries(changed.map((k) => [`layout.${k}`, this._tr("house_ed_no_space")]));
   }
 
@@ -307,10 +354,10 @@ export class DetailedEnergy3DCardEditor extends LitElement {
       : { ...cfg, rooms: list };
   }
 
-  private _onRoomChange(ev: CustomEvent<HouseGridEventMap["room-change"]>, floor: FloorView): void {
+  private _onRoomChange(ev: CustomEvent<HouseGridEventMap["room-change"]>, ap: AutoPlacement): void {
     ev.stopPropagation();
-    const next = this.config && withRoomLayout(this.config, floor, ev.detail.key, ev.detail.layout);
-    if (next) this._emit(next);
+    const next = this.config && withRoomLayout(this.config, ap.floor, ev.detail.key, ev.detail.layout);
+    if (next) this._emit(withPinnedAuto(next, ap, ev.detail.key));
   }
 
   private _onRoomAdd(ev: CustomEvent<HouseGridEventMap["room-add"]>, floor: FloorView): void {
@@ -329,7 +376,7 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   }
 
   /** Deletes a room; one with consumers or its own meter asks for a second click first. */
-  private _delete(floor: FloorView, key: string): void {
+  private _delete(floor: FloorView, key: string, ap: AutoPlacement): void {
     const room = floor.rooms.find((r) => r.area_id === key);
     if (!this.config || !room) return;
     if ((room.consumers?.length || room.entity || room.energy_entity) && this._confirm !== key) {
@@ -338,39 +385,39 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     }
     this._confirm = undefined;
     this._sel = undefined;
-    this._emit(withoutRoom(this.config, floor, key));
+    this._emit(withPinnedAuto(withoutRoom(this.config, floor, key), ap, key));
   }
 
-  private _onRoomDelete(ev: CustomEvent<HouseGridEventMap["room-delete"]>, floor: FloorView): void {
+  private _onRoomDelete(ev: CustomEvent<HouseGridEventMap["room-delete"]>, floor: FloorView, ap: AutoPlacement): void {
     ev.stopPropagation();
-    this._delete(floor, ev.detail.key);
+    this._delete(floor, ev.detail.key, ap);
   }
 
-  private _create(floor: FloorView): void {
+  private _create(floor: FloorView, ap: AutoPlacement): void {
     const d = this._draft;
     if (!this.config || !d) return;
     const name = d.name.trim() || this._tr("custom_room_default");
-    const result = withNewRoom(this.config, floor, d.area, d.layout, name);
+    const result = withNewRoom(this.config, ap.floor, d.area, d.layout, name);
     if (!result) {
       this._draft = undefined;
       this._notice = this._tr("house_ed_no_space");
       return;
     }
     this._draft = undefined;
-    this._emit(result.cfg);
+    this._emit(withPinnedAuto(result.cfg, ap));
     this._sel = result.area_id;
   }
 
   /** Puts a room that has no place yet on the first free spot of its floor. */
-  private _place(floor: FloorView, room: RoomConfig): void {
+  private _place(floor: FloorView, ap: AutoPlacement, room: RoomConfig): void {
     if (!this.config) return;
     const { cols, rows } = gridOf(this.config);
-    const spot = freeSpot(layoutsOf(floor.rooms), cols, rows);
+    const spot = freeSpot(layoutsOf(ap.floor.rooms), cols, rows);
     if (!spot) {
       this._notice = this._tr("house_ed_floor_full");
       return;
     }
-    this._emit(this._withRoom(this.config, floor, room.area_id, (r) => ({ ...r, layout: spot })) as HouseConfig);
+    this._emit(withPinnedAuto(this._withRoom(this.config, floor, room.area_id, (r) => ({ ...r, layout: spot })) as HouseConfig, ap, room.area_id));
     this._sel = room.area_id;
   }
 
@@ -395,7 +442,7 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     ></ha-form>`;
   }
 
-  private _renderDraft(floor: FloorView): TemplateResult {
+  private _renderDraft(floor: FloorView, ap: AutoPlacement): TemplateResult {
     const d = this._draft!;
     const tr = this._tr;
     const custom = d.area === CUSTOM_AREA;
@@ -416,12 +463,12 @@ export class DetailedEnergy3DCardEditor extends LitElement {
           this._draft = { ...d, area: v.area ?? d.area, name: v.name ?? d.name };
         }}
       ></ha-form>
-      <button class="add" @click=${() => this._create(floor)}>${tr("house_ed_room_create")}</button>
+      <button class="add" @click=${() => this._create(floor, ap)}>${tr("house_ed_room_create")}</button>
       <button class="add" @click=${() => (this._draft = undefined)}>${tr("house_ed_cancel")}</button>
     </div>`;
   }
 
-  private _renderRoom(cfg: HouseConfig, floor: FloorView, room: RoomConfig): TemplateResult {
+  private _renderRoom(cfg: HouseConfig, floor: FloorView, ap: AutoPlacement, room: RoomConfig): TemplateResult {
     const tr = this._tr;
     const { cols, rows } = gridOf(cfg);
     const custom = this._isCustom(room);
@@ -434,10 +481,10 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     return html`<div class="panel">
       <div class="row">
         <h3>${tr("house_ed_room_edit")}: ${this._roomName(room)}</h3>
-        <button class="danger" @click=${() => this._delete(floor, room.area_id)}>${tr("house_ed_room_delete")}</button>
+        <button class="danger" @click=${() => this._delete(floor, room.area_id, ap)}>${tr("house_ed_room_delete")}</button>
       </div>
       ${confirming ? html`<div class="warn">⚠ ${tr("house_ed_room_delete_confirm", room.consumers?.length ?? 0)}</div>` : nothing}
-      ${this._form(all, room, data, (ev) => this._onLayoutForm(ev, floor, room), this._errors)}
+      ${this._form(all, room, data, (ev) => this._onLayoutForm(ev, floor, ap, room), this._errors)}
     </div>`;
   }
 
@@ -450,13 +497,21 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     const floor = floors[fi];
     const { cols, rows } = gridOf(cfg);
     const states = (this.hass?.states ?? {}) as Record<string, StateLike | undefined>;
-    const placed = gridRooms(floor.rooms, this._roomName, states, this.hass?.locale?.language ?? this.hass?.language);
-    const selected = floor.rooms.find((r) => r.area_id === this._sel && r.layout);
-    const unplaced = unplacedRooms(floor.rooms);
+    // rooms without a position are shown where the card puts them (dashed); a change pins them (withPinnedAuto)
+    const ap = withAutoLayouts(floor, cols, rows);
+    const placed = gridRooms(ap.floor.rooms, this._roomName, states, this.hass?.locale?.language ?? this.hass?.language, ap.keys);
+    const selected = ap.floor.rooms.find((r) => r.area_id === this._sel && r.layout);
+    const unplaced = unplacedRooms(ap.floor.rooms);
     const problems = validateLayout(cfg);
     const gridData = { "house.cols": cols, "house.rows": rows };
     const gridFields = HOUSE.filter((f) => f.path.startsWith("house."));
+    // the energy card sections (general, sources, structure) first, then the grid size, the floor plan and the preview: they are used last
     return html`
+      <detailed-energy-card-editor .hass=${this.hass} .sections=${HOUSE_SECTIONS} .generalFields=${HOUSE_GENERAL_FIELDS} @config-changed=${(ev: CustomEvent) => this._onInner(ev)}></detailed-energy-card-editor>
+      <section>
+        <h3>${tr("house_ed_section_house")}</h3>
+        ${this._form(gridFields, cfg, gridData, (ev) => this._onGridForm(ev))}
+      </section>
       <section>
         <h3>${tr("house_ed_section_plan")}</h3>
         <div class="tabs" role="group" aria-label=${tr("house_ed_floor_group")}>
@@ -476,34 +531,31 @@ export class DetailedEnergy3DCardEditor extends LitElement {
           .cols=${cols}
           .rows=${rows}
           .selected=${selected?.area_id}
-          @room-change=${(ev: CustomEvent<HouseGridEventMap["room-change"]>) => this._onRoomChange(ev, floor)}
+          @room-change=${(ev: CustomEvent<HouseGridEventMap["room-change"]>) => this._onRoomChange(ev, ap)}
           @room-add=${(ev: CustomEvent<HouseGridEventMap["room-add"]>) => this._onRoomAdd(ev, floor)}
-          @room-delete=${(ev: CustomEvent<HouseGridEventMap["room-delete"]>) => this._onRoomDelete(ev, floor)}
+          @room-delete=${(ev: CustomEvent<HouseGridEventMap["room-delete"]>) => this._onRoomDelete(ev, floor, ap)}
           @room-select=${(ev: CustomEvent<HouseGridEventMap["room-select"]>) => this._onRoomSelect(ev)}
         ></detailed-energy-house-grid>
         ${this._draft
-          ? this._renderDraft(floor)
+          ? this._renderDraft(floor, ap)
           : selected
-            ? this._renderRoom(cfg, floor, selected)
+            ? this._renderRoom(cfg, floor, ap, selected)
             : html`<div class="hint">${tr("house_ed_room_none")}</div>`}
         ${unplaced.length
           ? html`<div class="panel">
               <h3>${tr("house_ed_unplaced")}</h3>
-              ${unplaced.map((r) => html`<button class="add" @click=${() => this._place(floor, r)}>${tr("house_ed_place", this._roomName(r))}</button>`)}
+              ${unplaced.map((r) => html`<button class="add" @click=${() => this._place(floor, ap, r)}>${tr("house_ed_place", this._roomName(r))}</button>`)}
             </div>`
           : nothing}
         ${this._notice ? html`<div class="warn">⚠ ${this._notice}</div>` : nothing}
         ${problems.map((p) => html`<div class="warn">⚠ ${p}</div>`)}
       </section>
-      <section>
-        <h3>${tr("house_ed_section_house")}</h3>
-        ${this._form(gridFields, cfg, gridData, (ev) => this._onGridForm(ev))}
-      </section>
-      <section>
-        <h3>${tr("house_ed_section_preview")}</h3>
-        <detailed-energy-3d-card></detailed-energy-3d-card>
-      </section>
-      <detailed-energy-card-editor .hass=${this.hass} .sections=${HOUSE_SECTIONS} .generalFields=${HOUSE_GENERAL_FIELDS} @config-changed=${(ev: CustomEvent) => this._onInner(ev)}></detailed-energy-card-editor>
+      ${this._haPreview
+        ? nothing
+        : html`<section>
+            <h3>${tr("house_ed_section_preview")}</h3>
+            <detailed-energy-3d-card></detailed-energy-3d-card>
+          </section>`}
     `;
   }
 }

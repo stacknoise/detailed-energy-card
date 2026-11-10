@@ -13,7 +13,7 @@ test("draws the mock example: 3 floors, 9 rooms, 6 solar modules, 6 flow lines",
   await expect(svg(page).locator("polygon.solar.t")).toHaveCount(6);
   await expect(svg(page).locator("polygon.ground")).toHaveCount(1);
   await expect(svg(page).locator("polyline.fl.fg")).toHaveCount(6);
-  await expect(svg(page).locator("circle.node")).toHaveCount(6);
+  await expect(svg(page).locator("circle.flow-node")).toHaveCount(6);
   await expect(svg(page).locator("text.lbl")).toHaveCount(9 + 3 + 2);
   await expect(svg(page).locator("text.lbl", { hasText: "Akku" })).toContainText("lädt 1,1 kW");
 });
@@ -27,7 +27,7 @@ test("flow lines: dashed 5/7, width 2 over 5, end node radius 2.6, moving only w
   expect(await fg.evaluate((e) => getComputedStyle(e).strokeDasharray.replace(/px/g, ""))).toBe("5, 7");
   expect(await fg.evaluate((e) => getComputedStyle(e).animationName)).toBe("house-dash");
   expect(await bg.evaluate((e) => getComputedStyle(e).opacity)).toBe("0.2");
-  await expect(svg(page).locator("circle.node").first()).toHaveAttribute("r", "2.6");
+  await expect(svg(page).locator("circle.flow-node").first()).toHaveAttribute("r", "2.6");
   await open(page, "w=700");
   expect(await svg(page).locator("polyline.fl.fg").first().evaluate((e) => getComputedStyle(e).animationName)).toBe("none");
 });

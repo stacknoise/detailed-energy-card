@@ -5,6 +5,7 @@ import { removeLegacyKeys, selectionKey } from "../src/model/selection";
 import {
   HOUSE_SELECTION_PREFIX,
   houseActionsOf,
+  houseGestureOf,
   houseDetail,
   houseSelectionKey,
   parseHouseSelection,
@@ -102,6 +103,18 @@ describe("actions of floors and rooms", () => {
     expect(houseActionsOf(m, { floor_id: "eg", area_id: "kueche" })).toBeUndefined();
     expect(houseActionsOf(m, { floor_id: "nope" })).toBeUndefined();
   });
+
+  it("lets a room without hold and double tap action take those of its floor, but not the tap", () => {
+    const cfg = config();
+    cfg.floors![0] = { ...cfg.floors![0], hold_action: { action: "more-info", entity: "sensor.herd" }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/eg" } };
+    cfg.floors![0].rooms![1] = { ...cfg.floors![0].rooms![1], hold_action: { action: "none" } };
+    const m = model(validateHouseConfig(cfg));
+    expect(houseGestureOf(m, { floor_id: "eg", area_id: "kueche" }, "hold")?.action).toEqual({ action: "more-info", entity: "sensor.herd" });
+    expect(houseGestureOf(m, { floor_id: "eg", area_id: "kueche" }, "double")?.action).toEqual({ action: "navigate", navigation_path: "/lovelace/eg" });
+    expect(houseGestureOf(m, { floor_id: "eg", area_id: "flur" }, "hold")).toBeUndefined(); // an own "none" on the room turns it off
+    expect(houseGestureOf(m, { floor_id: "og" }, "hold")).toBeUndefined();
+    expect(houseActionsOf(m, { floor_id: "eg", area_id: "kueche" })?.tap).toBeUndefined();
+  });
 });
 
 describe("detail list", () => {
@@ -137,5 +150,39 @@ describe("detail list", () => {
 
   it("falls back to the home for a stale selection", () => {
     expect(houseDetail(model(), { floor_id: "weg", area_id: "weg" }, false).scope).toBe("home");
+  });
+});
+
+describe("selecting a power source", () => {
+  const withSources = () => {
+    const cfg = config({ sources: [{ entity: "sensor.pv", type: "solar", name: "PV", tap_action: { action: "more-info" }, hold_action: { action: "navigate", navigation_path: "/lovelace/pv" } }, { entity: "sensor.grid", type: "grid" }] } as never);
+    return computeModel(cfg, reader({ "sensor.pv": 3000, "sensor.grid": 1000, "sensor.herd": 700, "sensor.kuehl": 100, "sensor.licht": 50, "sensor.heizung": 150 }), () => ({ watts: 0, valid: false }), { solar: "S", battery: "B", grid: "G", generic: "Q" } as never);
+  };
+
+  it("resolves, toggles and reads a stored source", () => {
+    const m = withSources();
+    expect(resolveHouseSelection(m, { source: "sensor.pv" })).toEqual({ source: "sensor.pv" });
+    expect(resolveHouseSelection(m, { source: "sensor.nope" })).toEqual({});
+    expect(toggleHouseSelection(m, {}, { source: "sensor.pv" })).toEqual({ source: "sensor.pv" });
+    expect(toggleHouseSelection(m, { source: "sensor.pv" }, { source: "sensor.pv" })).toEqual({});
+    expect(toggleHouseSelection(m, { floor_id: "eg" }, { source: "sensor.grid" })).toEqual({ source: "sensor.grid" });
+    expect(parseHouseSelection(JSON.stringify({ source: "sensor.pv" }))).toEqual({ source: "sensor.pv" });
+  });
+
+  it("takes the actions of the source", () => {
+    const m = withSources();
+    expect(houseGestureOf(m, { source: "sensor.pv" }, "hold")?.action).toEqual({ action: "navigate", navigation_path: "/lovelace/pv" });
+    expect(houseGestureOf(m, { source: "sensor.grid" }, "hold")).toBeUndefined();
+  });
+
+  it("shows where the power of a source goes, proportionally", () => {
+    const m = withSources();
+    const d = houseDetail(m, { source: "sensor.pv" }, false);
+    expect(d.scope).toBe("source");
+    expect(d.name).toBe("PV");
+    expect(d.watts).toBe(3000);
+    const total = d.rows.reduce((s, r) => s + (r.kind === "floor" || r.kind === "room" ? r.watts : 0), 0);
+    const share = m.sources.find((s) => s.entity === "sensor.pv")!.share;
+    expect(total).toBeCloseTo(m.floors.reduce((s, f) => s + f.watts, 0) * share, 5);
   });
 });

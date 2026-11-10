@@ -17,7 +17,8 @@ const drag = async (page: Page, from: { x: number; y: number }, to: { x: number;
   await page.mouse.up();
 };
 const rooms = (page: Page) => page.locator("detailed-energy-house-grid g.room");
-const preview = (page: Page) => page.locator("detailed-energy-3d-card-editor detailed-energy-3d-card svg.house g.pick");
+// floors and rooms only: the parts of the power sources (roof, solar, pole ...) are tappable, too
+const preview = (page: Page) => page.locator("detailed-energy-3d-card-editor detailed-energy-3d-card svg.house g.pick[data-key^=\"slab:\"], detailed-energy-3d-card-editor detailed-energy-3d-card svg.house g.pick[data-key^=\"room:\"]");
 
 test("the editor shows the plan and a live preview of the card", async ({ page }) => {
   await open(page);
