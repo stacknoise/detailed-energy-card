@@ -1,0 +1,266 @@
+<title>Etagen-Editor Mocks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: zwei Editor-Mocks, links Bedienung, rechts live die isometrische Vorschau */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --fg:#161c26; --muted:#566174; --line:#d5dbe4; --ground:#e8ecf2;
+  --solar:#ff9800; --batt:#f06292; --grid:#488fc2; --accent:#1f5f99; --on-accent:#ffffff;
+  --w-t:#f1f4f8; --w-l:#d5dce6; --w-r:#bec8d6; --room-t:#d9e0ea; --room-l:#bfc9d8; --room-r:#a8b4c6;
+  --room-sel:#cfe3f5;
+  --f-head:'Space Grotesk',system-ui,sans-serif; --f-body:'Inter',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --surface:#161d27; --fg:#e8edf4; --muted:#93a0b4; --line:#2b3544; --ground:#1b2430;
+  --accent:#7db6e8; --on-accent:#0e131a;
+  --w-t:#3b4757; --w-l:#2d3745; --w-r:#222b37; --room-t:#566479; --room-l:#44516a; --room-r:#37425a; --room-sel:#2f4a66; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --surface:#161d27; --fg:#e8edf4; --muted:#93a0b4; --line:#2b3544; --ground:#1b2430;
+  --accent:#7db6e8; --on-accent:#0e131a;
+  --w-t:#3b4757; --w-l:#2d3745; --w-r:#222b37; --room-t:#566479; --room-l:#44516a; --room-r:#37425a; --room-sel:#2f4a66; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--f-head);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.1} h2{font-size:22px} h3{font-size:15px;margin-bottom:8px}
+p{margin:0;max-width:68ch} .muted{color:var(--muted)} .small{font-size:13px}
+.tag{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+header,.sec{display:flex;flex-direction:column;gap:14px}
+.ed{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:860px){.ed{grid-template-columns:minmax(0,1fr)}}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.box svg.iso{display:block;width:100%;height:auto;max-height:620px}
+button,select,input{font:inherit;color:var(--fg)}
+input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0;max-width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--grid);outline-offset:1px}
+button{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;font-weight:500}
+button:hover{border-color:var(--muted)}
+button.pri{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+button:disabled{opacity:.4;cursor:default}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto auto;gap:6px;align-items:center;padding:6px;border-radius:10px;border:1px solid transparent}
+.frow.on{border-color:var(--grid);background:color-mix(in srgb,var(--grid) 8%,var(--surface))}
+.flist{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.slot{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--line)}
+.slot .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.slot .top input{flex:1}
+.kwv{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.ents{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:inline-flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;font-size:12.5px}
+.chip button{border:0;background:none;padding:0 6px;font-size:15px;line-height:1.2;color:var(--muted)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0}
+.fields label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+.fields input{width:100%}
+.name-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.name-row input{flex:1;min-width:140px}
+svg.gridsvg{display:block;width:100%;height:auto;touch-action:none;user-select:none;cursor:crosshair;background:var(--bg);border-radius:8px}
+.gl{stroke:var(--line);stroke-width:1}
+.rm{fill:var(--room-t);stroke:var(--muted);stroke-width:1.5}
+.rm.sel{fill:var(--room-sel);stroke:var(--grid);stroke-width:3}
+.rm.tmp{fill:none;stroke:var(--grid);stroke-width:2;stroke-dasharray:6 4}
+.rt{font:600 13px var(--f-body);fill:var(--fg);pointer-events:none}
+.rk{font:500 11px var(--f-body);fill:var(--muted);pointer-events:none}
+.hd{fill:var(--grid);stroke:var(--surface);stroke-width:2;cursor:nwse-resize}
+pre{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;overflow:auto;max-height:260px}
+.notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;font-size:14px}
+@media(max-width:700px){.notes{grid-template-columns:minmax(0,1fr)}}
+.notes ul{margin:4px 0 0;padding-left:18px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.notes b{color:var(--fg);font-weight:600}
+/* isometrische Vorschau */
+.t{fill:var(--ct)} .l{fill:var(--cl)} .r{fill:var(--cr)}
+.wall{--ct:var(--w-t);--cl:var(--w-l);--cr:var(--w-r)}
+.room{--ct:var(--room-t);--cl:var(--room-l);--cr:var(--room-r)}
+.solar{--ct:color-mix(in srgb,var(--solar),#fff 25%);--cl:var(--solar);--cr:color-mix(in srgb,var(--solar),#000 22%)}
+polygon{stroke:var(--line);stroke-width:.5;stroke-linejoin:round}
+.ground{fill:var(--ground);stroke:none}
+.fl{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke:var(--solar)}
+.fl.bg{stroke-width:5;opacity:.2}
+.fl.fg{stroke-width:2;stroke-dasharray:5 7;animation:dash 1s linear infinite}
+.nd{fill:var(--solar)}
+@keyframes dash{to{stroke-dashoffset:-12}}
+@media(prefers-reduced-motion:reduce){.fl.fg{animation:none}}
+.lbl{font:500 7px var(--f-body);fill:var(--fg);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+.lbl .kw{font-weight:700} .lbl.big{font-size:8px}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="tag">Konzept · Beispieldaten · keine Code-Änderung</span>
+  <h1>Etagen-Editor für die 3D-Ansicht</h1>
+  <p class="muted">Zwei Bedienkonzepte zum Ausprobieren. Beide schreiben dasselbe Datenmodell (Etagen mit Räumen auf einem Raster aus 12 × 6 Zellen), die einfache Variante ist also ein Sonderfall der flexiblen. Rechts siehst du jeweils live die Vorschau aus Variante A. Die Entitäten und ihre Leistung sind Beispielwerte.</p>
+</header>
+
+<section class="sec" id="simple">
+  <div><span class="tag">Editor 1 · einfach</span><h2>Feste Raumplätze im Formular</h2></div>
+  <div class="ed">
+    <div class="stack"><div class="box" id="s-panel"></div><pre id="s-yaml" aria-label="Erzeugte Konfiguration"></pre></div>
+    <div class="box"><svg class="iso" id="s-svg" role="img" aria-label="Live-Vorschau des Hauses"></svg></div>
+  </div>
+  <div class="notes">
+    <div><b>So funktioniert es</b><ul><li>Etagen anlegen, benennen und mit den Pfeilen sortieren (1 bis 4).</li><li>Jede Etage hat 3 feste Raumplätze: zwei oben, einer unten über die ganze Breite.</li><li>Pro Raum Name und Entitäten wählen, fertig.</li></ul></div>
+    <div><b>Aufwand</b><ul><li>Normales Formular, kaum Sonderlogik.</li><li>Etwa 2 bis 3 Tage inklusive Tests.</li><li>Funktioniert gut mit Tastatur und am Handy.</li></ul></div>
+  </div>
+</section>
+
+<section class="sec" id="flex">
+  <div><span class="tag">Editor 2 · flexibel</span><h2>Grundriss zeichnen auf dem Raster</h2></div>
+  <div class="ed">
+    <div class="stack">
+      <div class="box">
+        <div class="tabs" id="f-tabs" role="group" aria-label="Etage wählen"></div>
+        <div class="name-row"><input type="text" id="f-fname" aria-label="Etagenname"><button type="button" id="f-del-floor">Etage löschen</button></div>
+        <p class="small muted" style="margin:10px 0 6px">Auf eine freie Fläche ziehen legt einen Raum an. Einen Raum ziehen verschiebt ihn, der Punkt in der Ecke ändert die Größe.</p>
+        <svg class="gridsvg" id="f-grid" viewBox="-6 -6 492 252" aria-label="Grundriss der Etage"></svg>
+      </div>
+      <div class="box" id="f-room"></div>
+      <pre id="f-yaml" aria-label="Erzeugte Konfiguration"></pre>
+    </div>
+    <div class="box"><svg class="iso" id="f-svg" role="img" aria-label="Live-Vorschau des Hauses"></svg></div>
+  </div>
+  <div class="notes">
+    <div><b>So funktioniert es</b><ul><li>Räume rasten am Raster ein und dürfen sich nicht überlappen.</li><li>Alternativ Spalte, Zeile, Breite und Höhe als Zahlen eintippen. Das ist der Weg für Tastatur und Screenreader.</li><li>Die Vorschau stellt Räume in ihrer echten Größe dar.</li></ul></div>
+    <div><b>Aufwand</b><ul><li>Ziehen, Größe ändern, Kollisionen und Touch kosten Zeit.</li><li>Etwa 1 bis 2 Wochen inklusive Tests.</li><li>Günstigere Zwischenstufe: nur die Zahlenfelder, ohne Ziehen.</li></ul></div>
+  </div>
+</section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const el=(t,a={},...c)=>{const e=document.createElement(t);for(const k in a){if(k==='class')e.className=a[k];else if(k.startsWith('on'))e.addEventListener(k.slice(2),a[k]);else e.setAttribute(k,a[k]);}c.flat().forEach(x=>e.append(x));return e;};
+const kw=n=>n.toFixed(2).replace(/0$/,'').replace(/\.$/,'').replace('.',',')+' kW';
+const ENT={'Backofen':.9,'Spülmaschine':.2,'Kühlschrank':.1,'Heizlüfter':.5,'TV':.15,'Beleuchtung':.3,'Wärmepumpe':.7,'Waschmaschine':.3,'PC':.15,'Router':.1};
+const rkw=r=>r.e.reduce((s,n)=>s+ENT[n],0);
+const fkw=f=>f.rooms.reduce((s,r)=>s+rkw(r),0);
+
+/* ---- isometrische Vorschau (wie Variante A) ---- */
+const C=Math.cos(Math.PI/6), P=(x,y,z)=>[(x-y)*C,(x+y)*.5-z], f1=n=>n.toFixed(1);
+const pts=a=>a.map(p=>P(...p).map(f1).join(',')).join(' ');
+const poly=(a,c)=>`<polygon class="${c}" points="${pts(a)}"/>`;
+const box=(x,y,z,w,d,h,c)=>poly([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],c+' t')+poly([[x,y+d,z],[x+w,y+d,z],[x+w,y+d,z+h],[x,y+d,z+h]],c+' l')+poly([[x+w,y,z],[x+w,y+d,z],[x+w,y+d,z+h],[x+w,y,z+h]],c+' r');
+const lab=(x,y,z,n,v,an='middle',cl='')=>{const[a,b]=P(x,y,z);return `<text class="lbl ${cl}" text-anchor="${an}"><tspan x="${f1(a)}" y="${f1(b-8)}">${n}</tspan><tspan x="${f1(a)}" y="${f1(b)}" class="kw">${v}</tspan></text>`;};
+const flow=a=>{const p=a.map(q=>P(...q).map(f1).join(',')).join(' ');return `<polyline class="fl bg" points="${p}"/><polyline class="fl fg" points="${p}"/>`;};
+const node=(x,y,z)=>{const[a,b]=P(x,y,z);return `<circle class="nd" cx="${f1(a)}" cy="${f1(b)}" r="2.6"/>`;};
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function renderIso(svg,floors){
+  const CELL=12.5,W=150,D=75,PITCH=86,SL=10,RH=6; let g='',l='',fx='';
+  g+=poly([[-40,-30,-6],[W+70,-30,-6],[W+70,D+30,-6],[-40,D+30,-6]],'ground');
+  floors.forEach((f,i)=>{const zb=i*PITCH; g+=box(0,0,zb,W,D,SL,'wall');
+    [...f.rooms].sort((a,b)=>a.x+a.y-b.x-b.y).forEach(r=>{
+      const x=r.x*CELL+.8,y=r.y*CELL+.8,w=r.w*CELL-1.6,d=r.h*CELL-1.6; g+=box(x,y,zb+SL,w,d,RH,'room');
+      if(w>=24) l+=lab(x+w/2,y+d/2,zb+SL+RH+1,esc(r.name),kw(rkw(r)));});
+    l+=lab(0,D,zb+SL/2,esc(f.name),kw(fkw(f)),'end','big');});
+  const n=floors.length, zr=n*PITCH; g+=box(0,0,zr,W,D,6,'wall');
+  for(let a=0;a<3;a++)for(let b=0;b<2;b++) g+=box(8+a*46,6+b*32,zr+6,40,28,2,'solar');
+  const rx=W+14,ry=D/2,zl=k=>k*PITCH+SL+3;
+  fx+=flow([[W-8,ry,zr+4],[rx,ry,zr+4],[rx,ry,zl(0)]]);
+  for(let i=0;i<n;i++) fx+=flow([[rx,ry,zl(i)],[W-8,ry,zl(i)]])+node(W-8,ry,zl(i));
+  svg.innerHTML=g+fx+l;
+  const b=svg.getBBox(); svg.setAttribute('viewBox',[b.x-12,b.y-12,b.width+24,b.height+24].map(f1).join(' '));
+}
+const yaml=floors=>'floors:\n'+[...floors].map(f=>`  - name: ${f.name}\n    rooms:\n`+f.rooms.map(r=>`      - {name: ${r.name}, x: ${r.x}, y: ${r.y}, w: ${r.w}, h: ${r.h}, entities: [${r.e.join(', ')}]}`).join('\n')).join('\n');
+function entCtl(room,onch){
+  const b=el('div',{class:'ents'});
+  const draw=()=>{b.replaceChildren();
+    room.e.forEach(n=>b.append(el('span',{class:'chip'},n+' · '+kw(ENT[n]),el('button',{type:'button','aria-label':n+' entfernen',onclick:()=>{room.e=room.e.filter(x=>x!==n);draw();onch();}},'×'))));
+    const free=Object.keys(ENT).filter(n=>!room.e.includes(n));
+    if(free.length){const s=el('select',{'aria-label':'Entität hinzufügen',onchange:()=>{if(s.value){room.e.push(s.value);draw();onch();}}},el('option',{value:''},'+ Entität'),...free.map(n=>el('option',{value:n},n)));b.append(s);}};
+  draw(); return b;
+}
+
+/* ---- Editor 1: einfach ---- */
+const SLOTS=[[0,0,5,3],[5,0,7,3],[0,3,12,3]];
+const mkS=(name,rooms)=>({name,rooms:rooms.map((r,i)=>({name:r[0],x:SLOTS[i][0],y:SLOTS[i][1],w:SLOTS[i][2],h:SLOTS[i][3],e:r[1]}))});
+const sF=[mkS('Keller',[['Wärmepumpe',['Wärmepumpe']],['Technik',[]],['Waschküche',['Waschmaschine']]]),
+          mkS('Erdgeschoss',[['Küche',['Backofen','Spülmaschine','Kühlschrank']],['Wohnzimmer',['TV','Beleuchtung']],['Flur',['Router']]]),
+          mkS('Obergeschoss',[['Bad',['Heizlüfter']],['Büro',['PC']],['Schlafzimmer',[]]])];
+let sSel=1;
+function sUpd(){renderIso($('#s-svg'),sF);$('#s-yaml').textContent=yaml(sF);}
+function renderSimple(){
+  const p=$('#s-panel'); p.replaceChildren(); p.append(el('h3',{},'Etagen'));
+  const list=el('div',{class:'flist'});
+  sF.map((f,i)=>i).reverse().forEach(i=>{const f=sF[i];
+    const mv=(d)=>()=>{const j=i+d;[sF[i],sF[j]]=[sF[j],sF[i]];if(sSel===i)sSel=j;else if(sSel===j)sSel=i;renderSimple();};
+    list.append(el('div',{class:'frow'+(i===sSel?' on':'')},
+      el('input',{type:'text',value:f.name,'aria-label':'Name der Etage',oninput:e=>{f.name=e.target.value;sUpd();}}),
+      el('button',{type:'button','aria-label':f.name+' nach oben',disabled:i===sF.length-1?'':null,onclick:mv(1)},'↑'),
+      el('button',{type:'button','aria-label':f.name+' nach unten',disabled:i===0?'':null,onclick:mv(-1)},'↓'),
+      el('button',{type:'button','aria-pressed':i===sSel,onclick:()=>{sSel=i;renderSimple();}},'Räume'),
+      el('button',{type:'button','aria-label':f.name+' löschen',disabled:sF.length<2?'':null,onclick:()=>{sF.splice(i,1);sSel=Math.min(sSel,sF.length-1);renderSimple();}},'✕')));
+  });
+  list.querySelectorAll('button[disabled=""]').forEach(b=>b.disabled=true);
+  p.append(list,el('button',{type:'button',id:'s-add',onclick:()=>{sF.push(mkS('Neue Etage',[['Raum 1',[]],['Raum 2',[]],['Raum 3',[]]]));sSel=sF.length-1;renderSimple();}},'+ Etage hinzufügen'));
+  $('#s-add').disabled=sF.length>=4;
+  const f=sF[sSel]; p.append(el('h3',{style:'margin-top:18px'},'Räume in „'+f.name+'“'));
+  f.rooms.forEach((r,i)=>{const kv=el('span',{class:'kwv'},kw(rkw(r)));
+    p.append(el('div',{class:'slot'},el('div',{class:'top'},el('input',{type:'text',value:r.name,'aria-label':'Raumname '+(i+1),oninput:e=>{r.name=e.target.value;sUpd();}}),kv),
+      entCtl(r,()=>{kv.textContent=kw(rkw(r));sUpd();})));});
+  sUpd();
+}
+renderSimple();
+
+/* ---- Editor 2: flexibel ---- */
+const COLS=12,ROWS=6,CS=40;
+const mkR=(name,x,y,w,h,e=[])=>({name,x,y,w,h,e});
+const fF=[{name:'Keller',rooms:[mkR('Technik',0,0,6,6,['Wärmepumpe']),mkR('Waschküche',6,0,6,3,['Waschmaschine'])]},
+  {name:'Erdgeschoss',rooms:[mkR('Küche',0,0,4,3,['Backofen','Spülmaschine','Kühlschrank']),mkR('Wohnzimmer',4,0,6,4,['TV','Beleuchtung']),mkR('Flur',10,0,2,6,['Router']),mkR('Essbereich',0,3,4,3)]},
+  {name:'Obergeschoss',rooms:[mkR('Bad',0,0,3,3,['Heizlüfter']),mkR('Büro',3,0,4,3,['PC']),mkR('Schlafzimmer',0,3,7,3)]}];
+let fSel=1, rSel=null, drag=null;
+const grid=$('#f-grid');
+const hit=(a,b)=>a.x<b.x+b.w&&b.x<a.x+a.w&&a.y<b.y+b.h&&b.y<a.y+a.h;
+const free=(c,ign)=>c.x>=0&&c.y>=0&&c.x+c.w<=COLS&&c.y+c.h<=ROWS&&!fF[fSel].rooms.some(r=>r!==ign&&hit(c,r));
+function fUpd(){renderGrid();renderIso($('#f-svg'),fF);$('#f-yaml').textContent=yaml(fF);}
+function renderGrid(){
+  let s='';
+  for(let i=0;i<=COLS;i++)s+=`<line class="gl" x1="${i*CS}" y1="0" x2="${i*CS}" y2="${ROWS*CS}"/>`;
+  for(let j=0;j<=ROWS;j++)s+=`<line class="gl" x1="0" y1="${j*CS}" x2="${COLS*CS}" y2="${j*CS}"/>`;
+  const f=fF[fSel];
+  f.rooms.forEach(r=>{s+=`<rect class="rm${r===rSel?' sel':''}" x="${r.x*CS+1}" y="${r.y*CS+1}" width="${r.w*CS-2}" height="${r.h*CS-2}" rx="4"/>`;
+    if(r.w>=2||r.h>=2){s+=`<text class="rt" x="${r.x*CS+8}" y="${r.y*CS+20}">${esc(r.name)}</text><text class="rk" x="${r.x*CS+8}" y="${r.y*CS+35}">${kw(rkw(r))}</text>`;}});
+  if(drag&&drag.mode==='new'&&drag.tmp){const t=drag.tmp;s+=`<rect class="rm tmp" x="${t.x*CS+1}" y="${t.y*CS+1}" width="${t.w*CS-2}" height="${t.h*CS-2}" rx="4"/>`;}
+  if(rSel&&f.rooms.includes(rSel))s+=`<circle class="hd" cx="${(rSel.x+rSel.w)*CS-2}" cy="${(rSel.y+rSel.h)*CS-2}" r="8"/>`;
+  grid.innerHTML=s;
+}
+function renderFlex(){
+  const t=$('#f-tabs'); t.replaceChildren();
+  fF.forEach((f,i)=>t.append(el('button',{type:'button','aria-pressed':i===fSel,onclick:()=>{fSel=i;rSel=null;renderFlex();}},f.name)));
+  t.append(el('button',{type:'button',id:'f-add',onclick:()=>{fF.push({name:'Neue Etage',rooms:[]});fSel=fF.length-1;rSel=null;renderFlex();}},'+'));
+  $('#f-add').disabled=fF.length>=4;
+  $('#f-fname').value=fF[fSel].name; $('#f-del-floor').disabled=fF.length<2;
+  renderRoom(); fUpd();
+}
+$('#f-fname').addEventListener('input',e=>{fF[fSel].name=e.target.value;const b=$('#f-tabs').children[fSel];if(b)b.textContent=e.target.value;fUpd();});
+$('#f-del-floor').addEventListener('click',()=>{fF.splice(fSel,1);fSel=Math.min(fSel,fF.length-1);rSel=null;renderFlex();});
+function renderRoom(){
+  const p=$('#f-room'); p.replaceChildren();
+  if(!rSel){p.append(el('h3',{},'Raum'),el('p',{class:'muted small'},'Wähle einen Raum im Grundriss, um Name, Größe und Entitäten zu bearbeiten.'));return;}
+  const r=rSel, kv=el('span',{class:'kwv'},kw(rkw(r)));
+  const num=(k,lbl,max)=>{const i=el('input',{type:'number',id:'f-'+k,min:k==='w'||k==='h'?1:0,max:max,value:r[k],'aria-label':lbl,oninput:e=>{const v=Math.round(+e.target.value);const c={...r,[k]:v};if(Number.isFinite(v)&&free(c,r)&&c.w>=1&&c.h>=1){r[k]=v;i.setCustomValidity('');fUpd();}else i.setCustomValidity('Dort ist kein Platz.');i.reportValidity&&0;}});return el('label',{},lbl,i);};
+  p.append(el('h3',{},'Raum bearbeiten'),
+    el('div',{class:'name-row'},el('input',{type:'text',id:'f-rname',value:r.name,'aria-label':'Raumname',oninput:e=>{r.name=e.target.value;fUpd();}}),kv,
+      el('button',{type:'button',onclick:()=>{const f=fF[fSel];f.rooms.splice(f.rooms.indexOf(r),1);rSel=null;renderRoom();fUpd();}},'Raum löschen')),
+    el('div',{class:'fields'},num('x','Spalte',COLS-1),num('y','Zeile',ROWS-1),num('w','Breite',COLS),num('h','Höhe',ROWS)),
+    entCtl(r,()=>{kv.textContent=kw(rkw(r));fUpd();}));
+}
+const gp=e=>{const b=grid.getBoundingClientRect(),v=grid.viewBox.baseVal;return[((e.clientX-b.left)/b.width*v.width+v.x)/CS,((e.clientY-b.top)/b.height*v.height+v.y)/CS];};
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+grid.addEventListener('pointerdown',e=>{
+  const [px,py]=gp(e),f=fF[fSel]; grid.setPointerCapture(e.pointerId);
+  if(rSel&&f.rooms.includes(rSel)&&Math.hypot(px-(rSel.x+rSel.w),py-(rSel.y+rSel.h))<.3){drag={mode:'size',r:rSel};return;}
+  const r=f.rooms.find(r=>px>=r.x&&px<r.x+r.w&&py>=r.y&&py<r.y+r.h);
+  if(r){rSel=r;drag={mode:'move',r,ox:px-r.x,oy:py-r.y};renderRoom();renderGrid();return;}
+  const sx=Math.floor(cl(px,0,COLS-.01)),sy=Math.floor(cl(py,0,ROWS-.01)); rSel=null; drag={mode:'new',sx,sy,tmp:null}; renderRoom();
+});
+grid.addEventListener('pointermove',e=>{ if(!drag)return; const [px,py]=gp(e),r=drag.r;
+  if(drag.mode==='move'){const c={...r,x:cl(Math.round(px-drag.ox),0,COLS-r.w),y:cl(Math.round(py-drag.oy),0,ROWS-r.h)};if(free(c,r)){r.x=c.x;r.y=c.y;fUpd();}}
+  else if(drag.mode==='size'){const c={...r,w:cl(Math.round(px)-r.x,1,COLS-r.x),h:cl(Math.round(py)-r.y,1,ROWS-r.y)};if(free(c,r)){r.w=c.w;r.h=c.h;fUpd();}}
+  else{const cx=Math.floor(cl(px,0,COLS-.01)),cy=Math.floor(cl(py,0,ROWS-.01));const c={x:Math.min(drag.sx,cx),y:Math.min(drag.sy,cy),w:Math.abs(cx-drag.sx)+1,h:Math.abs(cy-drag.sy)+1};drag.tmp=free(c)?c:drag.tmp;renderGrid();}
+});
+const end=()=>{ if(!drag)return; if(drag.mode==='new'&&drag.tmp){const f=fF[fSel];const r=mkR('Raum '+(f.rooms.length+1),drag.tmp.x,drag.tmp.y,drag.tmp.w,drag.tmp.h);f.rooms.push(r);rSel=r;}
+  const was=drag.mode; drag=null; renderRoom(); fUpd(); };
+grid.addEventListener('pointerup',end); grid.addEventListener('pointercancel',end);
+renderFlex();
+</script>

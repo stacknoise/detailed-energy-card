@@ -1,4 +1,9 @@
+import { houseDe, houseEn } from "./house";
+import { houseViewDe, houseViewEn } from "./house-view";
+
 const de = {
+  ...houseDe,
+  ...houseViewDe,
   autarky: "Autarkie",
   import: "Bezug",
   export: "Einspeisung",
@@ -124,6 +129,8 @@ const de = {
   picker_description: "Energiefluss von Quellen über Etagen und Räume bis zu den Verbrauchern",
 };
 const en: typeof de = {
+  ...houseEn,
+  ...houseViewEn,
   autarky: "Self-sufficiency",
   import: "Import",
   export: "Export",

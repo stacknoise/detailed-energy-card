@@ -597,6 +597,13 @@
           title: T("Wann wird Strom verbraucht?", "When is electricity used?"),
           price_entity: params.get("price") === "0" ? undefined : "sensor.strompreis",
         });
+      } else if (params.get("card") === "house") {
+        // ?card=house: the 3D card (frame of AP0; the scenarios of AP7 follow as ?card=house&scenario=...)
+        const h = document.createElement("detailed-energy-3d-card");
+        h.id = "c";
+        el.replaceWith(h);
+        el = h;
+        el.setConfig({ ...scenarios.floors, type: "custom:detailed-energy-3d-card" });
       } else {
         el.setConfig({ type: "custom:detailed-energy-card", ...scenarios[name] });
       }

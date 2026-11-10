@@ -1,4 +1,5 @@
 import { MAX_THRESHOLD_WIDTH, MIN_THRESHOLD_WIDTH, THRESHOLD_LEVELS, type LevelThresholds, type ThresholdConfig } from "./thresholds";
+import type { RoomLayout } from "./house";
 import { isValidColor } from "./colors";
 import { actionError, type ActionConfig } from "./actions";
 
@@ -74,6 +75,8 @@ export interface RoomConfig extends ActionFields {
   /** own energy counter of the room (kWh) for the energy mode */
   energy_entity?: string;
   consumers?: ConsumerConfig[];
+  /** position and size on the grid of the 3D card (whole cells); the energy card ignores it */
+  layout?: RoomLayout;
 }
 
 /** Floors are Home Assistant floors; name and icon are resolved from the floor registry. */
