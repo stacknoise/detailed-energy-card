@@ -8,7 +8,7 @@ The Energy dashboard of Home Assistant tells you *how much* you use. This card s
 
 <img src="https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-hero.png?v=6" alt="The card: solar, battery and grid flow into the home, on to the floors, the rooms of the ground floor and the consumers of the kitchen" width="380">
 
-*Current version: **1.5.0** · [What's new](https://github.com/stacknoise/detailed-energy-card/blob/main/CHANGELOG.md)*
+*Current version: **1.6.0** · [What's new](https://github.com/stacknoise/detailed-energy-card/blob/main/CHANGELOG.md)*
 
 ## Why you'll like it
 
