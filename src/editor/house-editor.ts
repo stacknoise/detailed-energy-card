@@ -435,7 +435,7 @@ export class DetailedEnergy3DCardEditor extends LitElement {
         </div>
         <div class="hint">${tr("house_ed_plan_hint")}</div>
         <detailed-energy-house-grid
-          aria-label=${tr("house_ed_grid_label")}
+          .language=${this.hass?.locale?.language ?? this.hass?.language}
           .rooms=${placed}
           .cols=${cols}
           .rows=${rows}
