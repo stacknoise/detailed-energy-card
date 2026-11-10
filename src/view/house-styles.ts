@@ -36,7 +36,7 @@ export const HOUSE_CSS = `
 .house .fl.fg.on{stroke-dasharray:5 7}
 .house .fl.fg.idle{opacity:.5}
 .house.animate .fl.fg.on{animation:house-dash 1s linear infinite}
-.house .node{pointer-events:none}
+.house .flow-node{pointer-events:none}
 @keyframes house-dash{to{stroke-dashoffset:-12}}
 @media (prefers-reduced-motion:reduce){.house.animate .fl.fg.on{animation:none}}
 .house .lbl{font-family:var(--ha-font-family-body,var(--paper-font-body1_-_font-family,system-ui,sans-serif));font-size:7px;font-weight:500;fill:var(--h-text);paint-order:stroke;stroke:var(--h-surface);stroke-width:3px;stroke-linejoin:round;pointer-events:none}

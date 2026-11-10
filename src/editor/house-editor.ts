@@ -91,6 +91,9 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   private _pushed?: HouseConfig;
   /** the config last handed to the preview card */
   private _previewed?: HouseConfig;
+  /** Home Assistant shows its own preview of the card next to this editor: ours is left out */
+  @state() private _haPreview = false;
+  private _resize?: ResizeObserver;
 
   static styles = css`
     :host {
@@ -204,6 +207,37 @@ export class DetailedEnergy3DCardEditor extends LitElement {
     return hassChangedForEditor(changed.get("hass") as EditorHass | undefined, this.hass as EditorHass | undefined, this._entityIds);
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    this._resize = new ResizeObserver(() => this._checkHaPreview());
+    this._resize.observe(this);
+    window.addEventListener("resize", this._checkHaPreview);
+    this._checkHaPreview();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._resize?.disconnect();
+    window.removeEventListener("resize", this._checkHaPreview);
+  }
+
+  /** Looks for the preview of the card dialog of Home Assistant beside this editor (`.element-preview`, in older versions `hui-card-preview`) above this editor and whether it is visible. */
+  private _checkHaPreview = (): void => {
+    let root = this.getRootNode();
+    let visible = false;
+    while (root instanceof ShadowRoot) {
+      const preview = root.querySelector("hui-card-preview, .element-preview");
+      if (preview) {
+        const r = preview.getBoundingClientRect();
+        // beside the editor: on a narrow dialog Home Assistant puts its preview below the whole form, out of sight
+        visible = r.width > 0 && r.height > 0 && getComputedStyle(preview).visibility !== "hidden" && r.left >= this.getBoundingClientRect().right - 1;
+        break;
+      }
+      root = root.host.getRootNode();
+    }
+    if (visible !== this._haPreview) this._haPreview = visible;
+  };
+
   protected willUpdate(): void {
     this._registries.ensure(this.hass as RegistryHass | undefined);
   }
@@ -224,6 +258,7 @@ export class DetailedEnergy3DCardEditor extends LitElement {
    */
   private _updatePreview(): void {
     const card = this.renderRoot.querySelector<HTMLElement & { setConfig?(c: unknown): void; hass?: unknown }>("detailed-energy-3d-card");
+    if (!card) this._previewed = undefined; // a new preview card gets the config again
     if (!card || !this.config || typeof card.setConfig !== "function") return;
     if (this._previewed !== this.config) {
       this._previewed = this.config;
@@ -499,10 +534,12 @@ export class DetailedEnergy3DCardEditor extends LitElement {
         <h3>${tr("house_ed_section_house")}</h3>
         ${this._form(gridFields, cfg, gridData, (ev) => this._onGridForm(ev))}
       </section>
-      <section>
-        <h3>${tr("house_ed_section_preview")}</h3>
-        <detailed-energy-3d-card></detailed-energy-3d-card>
-      </section>
+      ${this._haPreview
+        ? nothing
+        : html`<section>
+            <h3>${tr("house_ed_section_preview")}</h3>
+            <detailed-energy-3d-card></detailed-energy-3d-card>
+          </section>`}
       <detailed-energy-card-editor .hass=${this.hass} .sections=${HOUSE_SECTIONS} .generalFields=${HOUSE_GENERAL_FIELDS} @config-changed=${(ev: CustomEvent) => this._onInner(ev)}></detailed-energy-card-editor>
     `;
   }

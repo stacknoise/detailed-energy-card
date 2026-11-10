@@ -199,7 +199,7 @@ function flow(f: SceneFlow, ctx: HouseViewContext): SVGTemplateResult {
   return svg`<g class=${f.dimmed ? "dim" : ""} data-key=${f.key}>
     <polyline class="fl bg" points=${pts} stroke=${f.color} stroke-width=${f.width + FLOW_UNDERLAY}></polyline>
     <polyline class="fl fg ${state}" points=${pts} stroke=${f.color} stroke-width=${f.width}></polyline>
-    ${f.node ? svg`<circle class="node" cx=${f1(project(f.node)[0])} cy=${f1(project(f.node)[1])} r=${NODE_RADIUS} fill=${f.color}></circle>` : ""}
+    ${f.node ? svg`<circle class="flow-node" cx=${f1(project(f.node)[0])} cy=${f1(project(f.node)[1])} r=${NODE_RADIUS} fill=${f.color}></circle>` : ""}
   </g>`;
 }
 
