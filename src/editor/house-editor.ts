@@ -296,7 +296,14 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   /** The embedded energy editor changed the config (consumers, sources ...): pass it on as ours. */
   private _onInner(ev: CustomEvent): void {
     ev.stopPropagation();
-    const config = withoutClashingLayouts(ev.detail.config as HouseConfig);
+    const incoming = ev.detail.config as HouseConfig;
+    const config = withoutClashingLayouts(incoming);
+    // switching the floors off would throw the positions of the floor plan away: ask first, and on "no" keep everything
+    if (config !== incoming && this.config?.floors && !window.confirm(this._tr("house_ed_confirm_flat"))) {
+      this._pushed = undefined; // the embedded editor gets the unchanged config back, so its switch is on again
+      this.requestUpdate();
+      return;
+    }
     this._pushed = config;
     this._emit(config);
   }
