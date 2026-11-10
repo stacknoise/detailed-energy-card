@@ -13,7 +13,9 @@ import {
   SOLAR,
   SOLAR_COLS,
   SOLAR_ROWS,
+  drawOrder,
   gridOf,
+  layoutFloor,
   type BoxKind,
   type BoxTone,
   type HouseConfig,
@@ -75,53 +77,13 @@ interface SceneFloor {
 
 const kinds = (s: SourceNode[], type: SourceNode["type"]): SourceNode[] => s.filter((x) => x.type === type);
 
-/**
- * Fallback for rooms without `layout` until the geometry package brings `autoLayout`: up to two bands of
- * equal rooms over the whole grid (three rooms: two above, one below, like the mock).
- */
-function fallbackLayouts(n: number, cols: number, rows: number): RoomLayout[] {
-  if (n <= 0) return [];
-  const bands = n < 3 ? 1 : 2;
-  const sizes = bands === 1 ? [n] : [Math.ceil(n / 2), Math.floor(n / 2)];
-  const out: RoomLayout[] = [];
-  let y = 0;
-  sizes.forEach((count, b) => {
-    const h = b === bands - 1 ? rows - y : Math.floor(rows / bands);
-    let x = 0;
-    for (let i = 0; i < count; i++) {
-      const w = i === count - 1 ? cols - x : Math.floor(cols / count);
-      out.push({ x, y, w: Math.max(1, w), h: Math.max(1, h) });
-      x += w;
-    }
-    y += h;
-  });
-  return out;
-}
-
-/**
- * Draw order of rooms on one floor: A comes before B when A is not behind B (`A.x + A.w <= B.x` or `A.y + A.h <= B.y`
- * puts A behind B). A topological sort; the sum `x + y` breaks ties and orders rooms that overlap (a cycle).
- */
-function drawOrder<T extends { layout: RoomLayout }>(items: T[]): T[] {
-  const behind = (a: RoomLayout, b: RoomLayout): boolean => a.x + a.w <= b.x || a.y + a.h <= b.y;
-  const sum = (t: T): number => t.layout.x + t.layout.y;
-  const left = new Set(items.keys());
-  const out: T[] = [];
-  while (left.size) {
-    const ready = [...left].filter((i) => ![...left].some((j) => j !== i && !behind(items[i].layout, items[j].layout) && behind(items[j].layout, items[i].layout)));
-    const pool = (ready.length ? ready : [...left]).sort((a, b) => sum(items[a]) - sum(items[b]) || a - b);
-    const next = pool[0];
-    out.push(items[next]);
-    left.delete(next);
-  }
-  return out;
-}
-
 /** Floors from the bottom to the top (the order of the config), each with the layout of its rooms. */
 function sceneFloors(model: EnergyModel, config: HouseConfig, cols: number, rows: number): SceneFloor[] {
   const withLayouts = (rooms: RoomNode[], cfgRooms: Array<{ area_id: string; layout?: RoomLayout }> | undefined): SceneFloor["rooms"] => {
-    const fb = fallbackLayouts(rooms.length, cols, rows);
-    return rooms.map((node, i) => ({ node, layout: cfgRooms?.find((r) => r.area_id === node.id)?.layout ?? fb[i] }));
+    // own layouts stay, the others are placed by the geometry package; a room that finds no place is not drawn
+    const own = rooms.map((node) => cfgRooms?.find((r) => r.area_id === node.id) ?? { layout: undefined });
+    const placed = layoutFloor(own, cols, rows);
+    return rooms.flatMap((node, i) => (placed[i] ? [{ node, layout: placed[i]! }] : []));
   };
   if (model.floors.length) {
     return model.floors.map((node, i) => ({ node, real: true, rooms: withLayouts(node.rooms, config.floors?.[i]?.rooms) }));
@@ -136,7 +98,7 @@ function sceneFloors(model: EnergyModel, config: HouseConfig, cols: number, rows
  * AP2: builds the scene from the model, the layout and the selection. Pure: no DOM, no clock.
  *
  * Floors stack from the bottom in the order of the config; every room is a block on its floor at its `layout`
- * (rooms without one are laid out by a fallback). The solar modules sit on the roof, the grid pole stands in front,
+ * (rooms without one are placed by `layoutFloor`). The solar modules sit on the roof, the grid pole stands in front,
  * a battery is a block of its own, or the room that holds its sensor as a consumer. A riser to the right of the
  * house distributes the power to the floors. The model does not know which source supplies which floor: every branch
  * carries the power of its floor and takes the color of the leading source, as the Sankey diagram shares it out.
@@ -219,11 +181,16 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
       dimmed: dim,
       aria: f.real ? `${f.node.name}, ${value}` : undefined,
     });
-    for (const { node, layout } of drawOrder(f.rooms)) {
-      const w = layout.w * CELL - 2 * ROOM_INSET;
-      const d = layout.h * CELL - 2 * ROOM_INSET;
-      const x = layout.x * CELL + ROOM_INSET;
-      const y = layout.y * CELL + ROOM_INSET;
+    const placed = f.rooms.map(({ node, layout }) => ({
+      node,
+      w: layout.w * CELL - 2 * ROOM_INSET,
+      d: layout.h * CELL - 2 * ROOM_INSET,
+      x: layout.x * CELL + ROOM_INSET,
+      y: layout.y * CELL + ROOM_INSET,
+      z: zb + SLAB,
+      h: ROOM_H,
+    }));
+    for (const { node, x, y, w, d } of drawOrder(placed)) {
       const battery = roomBattery(node);
       const kind: BoxKind = battery ? "battery" : "room";
       const tone: BoxTone = battery ? "battery" : "room";
