@@ -71,9 +71,16 @@ const LEVEL_LABEL: Record<"all" | ThresholdLevel, EditorKey> = {
   consumer: "level_consumer",
 };
 
+/** Parts of the editor that can be switched on or off: the 3D card's editor embeds this one and shows only what that card has. */
+export type EditorSection = "import" | "general" | "colors" | "home" | "sources" | "structure";
+/** All sections, the default. */
+export const EDITOR_SECTIONS: readonly EditorSection[] = ["import", "general", "colors", "home", "sources", "structure"];
+
 /** Visual editor: every config option has a field (see schema.ts and the coverage test). */
 export class DetailedEnergyCardEditor extends LitElement {
   @property({ attribute: false }) hass?: Hass;
+  /** the sections that are shown; all of them unless the 3D card's editor limits them */
+  @property({ attribute: false }) sections: readonly EditorSection[] = EDITOR_SECTIONS;
   @state() private _config?: EnergyCardConfig;
   /** open state of collapsible tree/source items, keyed by pointer */
   @state() private _open = new Set<string>();
@@ -876,9 +883,10 @@ export class DetailedEnergyCardEditor extends LitElement {
       this._tr,
     );
     const conflict = sumConflict(this._config, (this.hass?.states ?? {}) as Record<string, StateLike | undefined>);
+    const on = (name: EditorSection) => this.sections.includes(name);
     return html`
-      <button class="add import" @click=${() => (this._wizard = true)}>${this._tr("wiz_button")}</button>
-      ${this._wizard
+      ${on("import") ? html`<button class="add import" @click=${() => (this._wizard = true)}>${this._tr("wiz_button")}</button>` : nothing}
+      ${this._wizard && on("import")
         ? html`<detailed-energy-import-wizard
             .hass=${this.hass}
             .config=${this._config}
@@ -889,10 +897,10 @@ export class DetailedEnergyCardEditor extends LitElement {
             }}
           ></detailed-energy-import-wizard>`
         : nothing}
-      <section><h3>${this._tr("section_general")}</h3>${this._form([], GENERAL)}${this._form([], ENERGY_MODE)}${hasEnergySensor(this._config) ? nothing : html`<div class="hint energy-hint">${this._tr("energy_mode_hint")}</div>`}${costsNeedGridCounter(this._config) ? html`<div class="warn costs-hint">⚠ ${this._tr("costs_need_grid")}</div>` : nothing}</section>
-      <section><h3>${this._tr("section_colors")}</h3>${this._form([], COLORS)}${this._renderThresholds()}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>
-      <section><h3>${this._tr("section_home")}</h3>${this._form([], HOME)}</section>
-      ${this._renderSources()} ${this._renderStructure()}
+      ${on("general") ? html`<section><h3>${this._tr("section_general")}</h3>${this._form([], GENERAL)}${this._form([], ENERGY_MODE)}${hasEnergySensor(this._config) ? nothing : html`<div class="hint energy-hint">${this._tr("energy_mode_hint")}</div>`}${costsNeedGridCounter(this._config) ? html`<div class="warn costs-hint">⚠ ${this._tr("costs_need_grid")}</div>` : nothing}</section>` : nothing}
+      ${on("colors") ? html`<section><h3>${this._tr("section_colors")}</h3>${this._form([], COLORS)}${this._renderThresholds()}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>` : nothing}
+      ${on("home") ? html`<section><h3>${this._tr("section_home")}</h3>${this._form([], HOME)}</section>` : nothing}
+      ${on("sources") ? this._renderSources() : nothing} ${on("structure") ? this._renderStructure() : nothing}
       ${this._notice ? html`<div class="warn">⚠ ${this._notice}</div>` : nothing}
       ${conflict
         ? html`<div class="warn">⚠ ${this._tr("warn_sum_conflict", Math.round(conflict.rooms), Math.round(conflict.total))}</div>`

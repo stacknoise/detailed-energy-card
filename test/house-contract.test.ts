@@ -81,6 +81,6 @@ describe("3D card contracts (AP0)", () => {
     }
     expect(localize("de", "house_placeholder")).toBe(houseDe.house_placeholder);
     expect(localize("en", "house_aria_graphic")).toBe(houseViewEn.house_aria_graphic);
-    expect(makeTr("en")("house_ed_placeholder")).toBe(houseEditorEn.house_ed_placeholder);
+    expect(makeTr("en")("house_ed_section_plan")).toBe(houseEditorEn.house_ed_section_plan);
   });
 });
