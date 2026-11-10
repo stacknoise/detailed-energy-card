@@ -276,7 +276,7 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
   if (solars.length) {
     const watts = solars.reduce((s, x) => s + x.watts, 0);
     const pts: Vec3[] = [[width - END_INSET, ry, zr + 4], [rx, ry, zr + 4], [rx, ry, zl(0)]];
-    flow("solar:roof", watts, pts, style(solars[0].thresholds, th.source, watts, sourceColor(solars[0])), pts[1]);
+    flow("solar:roof", watts, pts, style(solars[0].thresholds, th.source, watts, sourceColor(solars[0])), pts[0]);
   }
   generics.forEach((g, i) => {
     const y = ry + (i + 1) * LANE_STEP;

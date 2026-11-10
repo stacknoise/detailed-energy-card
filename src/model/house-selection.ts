@@ -1,4 +1,4 @@
-import type { NodeActions } from "./actions";
+import type { ActionConfig, NodeActions } from "./actions";
 import type { EnergyCardConfig } from "./config";
 import { listRemainder, listedConsumers, type ConsumerNode, type EnergyModel, type FloorNode, type Remainder, type RoomNode } from "./compute";
 import { HOUSE_STORAGE_PREFIX, type HouseSelection } from "./house";
@@ -70,6 +70,21 @@ export function houseActionsOf(model: EnergyModel | undefined, target: HouseSele
   if (!model) return undefined;
   const { floor, room } = selectedNodes(model, resolveHouseSelection(model, target));
   return (room ?? floor)?.actions;
+}
+
+/**
+ * The hold or double tap action that runs on a floor or room: its own, and a room without one takes that of its floor
+ * (the rooms cover most of the floor slab, so a floor action would hardly be reachable otherwise). The tap is not
+ * inherited: it selects the room.
+ */
+export function houseGestureOf(model: EnergyModel | undefined, target: HouseSelection, kind: "hold" | "double"): { action: ActionConfig; entity?: string } | undefined {
+  if (!model) return undefined;
+  const { floor, room } = selectedNodes(model, resolveHouseSelection(model, target));
+  for (const node of [room, floor]) {
+    const action = node?.actions?.[kind];
+    if (action) return action.action === "none" ? undefined : { action, entity: node?.actions?.entity }; // an own "none" turns it off
+  }
+  return undefined;
 }
 
 /** One line of the detail list below the graphic. */

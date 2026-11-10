@@ -5,6 +5,7 @@ import { removeLegacyKeys, selectionKey } from "../src/model/selection";
 import {
   HOUSE_SELECTION_PREFIX,
   houseActionsOf,
+  houseGestureOf,
   houseDetail,
   houseSelectionKey,
   parseHouseSelection,
@@ -101,6 +102,18 @@ describe("actions of floors and rooms", () => {
     expect(houseActionsOf(m, { floor_id: "eg" })?.tap).toEqual({ action: "navigate", navigation_path: "/lovelace/eg" });
     expect(houseActionsOf(m, { floor_id: "eg", area_id: "kueche" })).toBeUndefined();
     expect(houseActionsOf(m, { floor_id: "nope" })).toBeUndefined();
+  });
+
+  it("lets a room without hold and double tap action take those of its floor, but not the tap", () => {
+    const cfg = config();
+    cfg.floors![0] = { ...cfg.floors![0], hold_action: { action: "more-info", entity: "sensor.herd" }, double_tap_action: { action: "navigate", navigation_path: "/lovelace/eg" } };
+    cfg.floors![0].rooms![1] = { ...cfg.floors![0].rooms![1], hold_action: { action: "none" } };
+    const m = model(validateHouseConfig(cfg));
+    expect(houseGestureOf(m, { floor_id: "eg", area_id: "kueche" }, "hold")?.action).toEqual({ action: "more-info", entity: "sensor.herd" });
+    expect(houseGestureOf(m, { floor_id: "eg", area_id: "kueche" }, "double")?.action).toEqual({ action: "navigate", navigation_path: "/lovelace/eg" });
+    expect(houseGestureOf(m, { floor_id: "eg", area_id: "flur" }, "hold")).toBeUndefined(); // an own "none" on the room turns it off
+    expect(houseGestureOf(m, { floor_id: "og" }, "hold")).toBeUndefined();
+    expect(houseActionsOf(m, { floor_id: "eg", area_id: "kueche" })?.tap).toBeUndefined();
   });
 });
 

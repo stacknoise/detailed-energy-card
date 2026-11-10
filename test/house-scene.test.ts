@@ -72,7 +72,8 @@ describe("buildHouseScene: the mock", () => {
       const f = mine[names[m.key]];
       expect(f.points).toHaveLength(m.points.length);
       m.points.forEach((p, i) => close(f.points[i], p));
-      close(f.node!, m.node!);
+      // the one deliberate difference to the mock: the node of the roof line sits where the line starts on the roof, not at its bend
+      close(f.node!, m.key === "solar:roof" ? m.points[0] : m.node!);
       expect(f.color).toBe(m.color);
       expect(f.width).toBe(m.width);
       expect(f.active).toBe(true);

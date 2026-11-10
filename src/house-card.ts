@@ -9,6 +9,7 @@ import { HOUSE_CARD_TYPE, NARROW_PX, orderFloors, validateHouseConfig, type Hous
 import { buildHouseScene } from "./model/house-scene";
 import {
   houseActionsOf,
+  houseGestureOf,
   houseDetail,
   houseSelectionKey,
   parseHouseSelection,
@@ -293,8 +294,8 @@ export class DetailedEnergy3DCard extends LitElement {
 
   /** Hold and double tap in the graphic run the actions of the config; without one nothing happens. */
   private _onAction(target: HouseSelection, kind: "hold" | "double"): void {
-    const actions = houseActionsOf(this._model, target);
-    this._run(kind === "hold" ? actions?.hold : actions?.double, actions?.entity);
+    const g = houseGestureOf(this._model, target, kind);
+    this._run(g?.action, g?.entity);
   }
 
   /** Tap, hold and double tap of one element of the list; a tap without an action does `fallback`. */
@@ -339,10 +340,7 @@ export class DetailedEnergy3DCard extends LitElement {
           lang: this._lang,
           onSelect: (t) => this._onTap(t),
           onAction: (t, kind) => this._onAction(t, kind),
-          hasAction: (t, kind) => {
-            const a = houseActionsOf(model, t)?.[kind === "hold" ? "hold" : "double"];
-            return !!a && a.action !== "none";
-          },
+          hasAction: (t, kind) => !!houseGestureOf(model, t, kind),
         })}
         ${detail ? this._renderDetail(detail, cfg) : nothing}
       </div>
