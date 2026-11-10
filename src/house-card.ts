@@ -336,6 +336,7 @@ export class DetailedEnergy3DCard extends LitElement {
         ${renderHouse(scene, {
           narrow: this._width > 0 && this._width < NARROW_PX,
           animate: this._animate,
+          lang: this._lang,
           onSelect: (t) => this._onTap(t),
           onAction: (t, kind) => this._onAction(t, kind),
         })}
