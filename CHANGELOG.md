@@ -3,6 +3,7 @@
 ## Unreleased
 
 - 3D card (work in progress, not usable yet): the contracts for the second card `custom:detailed-energy-3d-card`: types and measures in `model/house.ts`, optional `layout` on a room (ignored by the energy card), card skeleton, grid component interface, mocks in `docs/mockups/3d/`, dev page `?card=house`.
+- 3D card (work in progress, not usable yet): the floor-plan grid `<detailed-energy-house-grid>` of the editor ("editor 2" of the mocks): draw rooms by dragging, move them, resize at the handle, snap to cells, no overlap, mouse, pen and touch, plus arrow keys, Shift plus arrow keys and Delete. The logic is in `model/house-grid.ts`.
 
 ## 1.5.0
 
