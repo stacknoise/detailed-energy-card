@@ -5,7 +5,7 @@ import { cardStyles } from "./styles/theme";
 import { collectEntityIds } from "./model/config";
 import { runAction, type ActionConfig, type ActionDeps, type NodeActions } from "./model/actions";
 import { computeModel, type ConsumerNode, type EnergyModel } from "./model/compute";
-import { HOUSE_CARD_TYPE, NARROW_PX, validateHouseConfig, type HouseConfig, type HouseSelection } from "./model/house";
+import { HOUSE_CARD_TYPE, NARROW_PX, orderFloors, validateHouseConfig, type HouseConfig, type HouseSelection } from "./model/house";
 import { buildHouseScene } from "./model/house-scene";
 import {
   houseActionsOf,
@@ -175,13 +175,17 @@ export class DetailedEnergy3DCard extends LitElement {
 
   // ---------- state ----------
 
-  /** Config with the names of the registry (or as it is while they are not there yet). */
+  /** Config with the names of the registry and the floors bottom to top (or as it is while the registry is not there yet). */
   private get _namedConfig(): HouseConfig | undefined {
     const cfg = this._config;
     if (!cfg) return undefined;
     const reg = this._registries.get(this._hass);
     if (!reg) return cfg;
-    if (this._resolved?.reg !== reg) this._resolved = { reg, cfg: resolveNames(cfg, reg) as HouseConfig };
+    if (this._resolved?.reg !== reg) {
+      const named = resolveNames(cfg, reg) as HouseConfig;
+      // the scene stacks floors in the order of the config: bottom to top by registry level
+      this._resolved = { reg, cfg: named.floors ? { ...named, floors: orderFloors(named.floors, reg.floors) } : named };
+    }
     return this._resolved.cfg;
   }
 
