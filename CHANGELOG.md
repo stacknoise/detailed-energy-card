@@ -3,6 +3,7 @@
 ## Unreleased
 
 - 3D card (work in progress, not usable yet): the contracts for the second card `custom:detailed-energy-3d-card`: types and measures in `model/house.ts`, optional `layout` on a room (ignored by the energy card), card skeleton, grid component interface, mocks in `docs/mockups/3d/`, dev page `?card=house`.
+- 3D card editor (work in progress, not usable yet): floor plan per floor with the grid component, form for the selected room (area, name, column, row, width, height), grid size (`house.cols`, `house.rows`), new rooms by area or as a custom room, live layout check, and the energy card's editor below it with only the sections the 3D card has. The energy card's editor itself is unchanged.
 
 ## 1.5.0
 
