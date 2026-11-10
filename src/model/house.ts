@@ -394,6 +394,22 @@ export function houseFloors(cfg: HouseConfig, registry: readonly Pick<FloorEntry
 
 const isInt = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v);
 
+/**
+ * Why `raw` is no valid layout on a `cols` x `rows` grid (not an object, not whole cells, smaller than 1 x 1, outside the
+ * grid), or undefined when it is one. Overlaps are not checked here. The one check behind `validateLayout` and the
+ * editor's form fields.
+ */
+export function layoutProblem(raw: unknown, cols: number, rows: number): string | undefined {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return "must be an object with x, y, w and h";
+  const l = raw as Record<string, unknown>;
+  const bad = (["x", "y", "w", "h"] as const).filter((k) => !isInt(l[k]));
+  if (bad.length) return `${bad.join(", ")} must be whole numbers (cells)`;
+  const { x, y, w, h } = l as unknown as RoomLayout;
+  if (w < 1 || h < 1) return "w and h must be at least 1";
+  if (x < 0 || y < 0 || x + w > cols || y + h > rows) return `must lie inside the ${cols} x ${rows} grid`;
+  return undefined;
+}
+
 /** Checks the grid of `house` and the layouts (whole numbers, at least 1 x 1, inside the grid, no overlap within a floor). Returns the messages with their path, empty if all is well. */
 export function validateLayout(cfg: HouseConfig): string[] {
   const out: string[] = [];
@@ -411,13 +427,9 @@ export function validateLayout(cfg: HouseConfig): string[] {
       const at = `${prefix}[${i}]`;
       const raw = room.layout as unknown;
       if (raw === undefined) return;
-      if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return void out.push(`${at}.layout: must be an object with x, y, w and h`);
-      const l = raw as Record<string, unknown>;
-      const bad = (["x", "y", "w", "h"] as const).filter((k) => !isInt(l[k]));
-      if (bad.length) return void out.push(`${at}.layout: ${bad.join(", ")} must be whole numbers (cells)`);
-      const { x, y, w, h } = l as unknown as RoomLayout;
-      if (w < 1 || h < 1) return void out.push(`${at}.layout: w and h must be at least 1`);
-      if (x < 0 || y < 0 || x + w > cols || y + h > rows) return void out.push(`${at}.layout: must lie inside the ${cols} x ${rows} grid`);
+      const problem = layoutProblem(raw, cols, rows);
+      if (problem) return void out.push(`${at}.layout: ${problem}`);
+      const { x, y, w, h } = raw as RoomLayout;
       const hit = placed.find((p) => layoutsOverlap(p.layout, { x, y, w, h }));
       if (hit) return void out.push(`${at}.layout: overlaps ${hit.at}.layout`);
       placed.push({ at, layout: { x, y, w, h } });

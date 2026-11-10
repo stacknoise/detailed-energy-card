@@ -133,3 +133,15 @@ test("hold and double tap reach onAction", async ({ page }) => {
   expect(entries).toContainEqual(["hold", { floor_id: "eg", area_id: "flur" }]);
   expect(entries).toContainEqual(["double", { floor_id: "eg", area_id: "flur" }]);
 });
+
+test("a tap selects at once when only a hold action is configured, and waits for a second tap when a double tap is", async ({ page }) => {
+  await open(page, "w=700&actions=1&only=hold");
+  const room = svg(page).locator('g.pick[data-key="room:flur"]');
+  await room.click();
+  expect(await log(page)).toEqual([["select", { floor_id: "eg", area_id: "flur" }]]); // no 250 ms delay
+  await open(page, "w=700&actions=1&only=double");
+  await svg(page).locator('g.pick[data-key="room:flur"]').click();
+  expect(await log(page)).toEqual([]); // still waiting for a possible second tap
+  await page.waitForTimeout(400);
+  expect(await log(page)).toEqual([["select", { floor_id: "eg", area_id: "flur" }]]);
+});

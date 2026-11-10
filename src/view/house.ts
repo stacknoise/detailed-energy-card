@@ -15,6 +15,11 @@ export interface HouseViewContext {
   onSelect(target: { floor_id?: string; area_id?: string }): void;
   /** tap-and-hold and double tap, same gestures as in the energy card */
   onAction?(target: { floor_id?: string; area_id?: string }, kind: "hold" | "double"): void;
+  /**
+   * Whether the target has a hold or double tap action. Without a double tap action a tap selects at once instead of
+   * waiting for a second tap. When the card gives no answer, both are assumed whenever `onAction` is set.
+   */
+  hasAction?(target: { floor_id?: string; area_id?: string }, kind: "hold" | "double"): boolean;
   /** language for the aria label of the graphic */
   lang?: string;
 }
@@ -153,11 +158,12 @@ function gestureOf(el: Element): Gesture {
 /** A box that can be picked: focusable, with name and value for screen readers, tap, hold and double tap. */
 function pickable(b: SceneBox, target: { floor_id?: string; area_id?: string }, ctx: HouseViewContext): SVGTemplateResult {
   const actions = !!ctx.onAction;
+  const has = (kind: "hold" | "double") => actions && (ctx.hasAction?.(target, kind) ?? true);
   const run = (el: Element): Gesture => {
     const g = gestureOf(el);
     g.update({
-      hold: actions,
-      double: actions,
+      hold: has("hold"),
+      double: has("double"),
       onTap: () => ctx.onSelect(b.selected ? {} : target),
       onHold: () => ctx.onAction?.(target, "hold"),
       onDouble: () => ctx.onAction?.(target, "double"),
@@ -171,7 +177,7 @@ function pickable(b: SceneBox, target: { floor_id?: string; area_id?: string }, 
     @pointerup=${(e: Event) => run(e.currentTarget as Element).up()}
     @pointerleave=${(e: Event) => run(e.currentTarget as Element).up()}
     @pointercancel=${(e: Event) => run(e.currentTarget as Element).up()}
-    @contextmenu=${(e: Event) => actions && e.preventDefault()}
+    @contextmenu=${(e: Event) => has("hold") && e.preventDefault()}
     @keydown=${(e: KeyboardEvent) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
