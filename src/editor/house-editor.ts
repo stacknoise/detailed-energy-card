@@ -21,6 +21,7 @@ import {
   unplacedRooms,
   usedAreaIds,
   withGrid,
+  withoutClashingLayouts,
   withNewRoom,
   withRoomLayout,
   withoutRoom,
@@ -295,8 +296,9 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   /** The embedded energy editor changed the config (consumers, sources ...): pass it on as ours. */
   private _onInner(ev: CustomEvent): void {
     ev.stopPropagation();
-    this._pushed = ev.detail.config;
-    this._emit(ev.detail.config);
+    const config = withoutClashingLayouts(ev.detail.config as HouseConfig);
+    this._pushed = config;
+    this._emit(config);
   }
 
   /** ha-form reports the whole flat data object of the grid size fields; apply the changed one. */

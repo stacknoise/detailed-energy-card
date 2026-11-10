@@ -1,5 +1,5 @@
 import type { EnergyCardConfig, RoomConfig } from "../model/config";
-import { DEFAULT_COLS, DEFAULT_ROWS, gridOf, layoutProblem, layoutsOverlap, type GridRoom, type HouseConfig, type RoomLayout } from "../model/house";
+import { DEFAULT_COLS, DEFAULT_ROWS, gridOf, layoutProblem, layoutsOverlap, validateLayout, type GridRoom, type HouseConfig, type RoomLayout } from "../model/house";
 import { stateToWatts, formatPower, type StateLike } from "../model/units";
 import { GRID_LIMITS } from "./schema";
 import { updateIn, type Pointer } from "./config-utils";
@@ -166,4 +166,13 @@ export function gridRooms(rooms: readonly RoomConfig[], name: (r: RoomConfig) =>
 /** The rooms of a floor that have no place on the grid yet (the energy card needs none; the 3D card then arranges them by itself). */
 export function unplacedRooms(rooms: readonly RoomConfig[]): RoomConfig[] {
   return rooms.filter((r) => !r.layout);
+}
+
+/**
+ * A config that just lost its floors has the rooms of all floors in one list, and rooms of different floors often sit at
+ * the same cells. Then the positions are dropped, so the 3D card arranges the rooms by itself instead of reporting an overlap.
+ */
+export function withoutClashingLayouts(cfg: HouseConfig): HouseConfig {
+  if (cfg.floors || !cfg.rooms?.some((r) => r.layout) || !validateLayout(cfg).length) return cfg;
+  return { ...cfg, rooms: cfg.rooms.map(({ layout: _layout, ...room }) => room) };
 }

@@ -17,6 +17,7 @@ import {
   unplacedRooms,
   withGrid,
   withNewRoom,
+  withoutClashingLayouts,
   withRoomLayout,
   withoutRoom,
 } from "../src/editor/house-layout";
@@ -275,5 +276,23 @@ describe("AP7: General fields of the 3D editor", () => {
     const paths = GENERAL.map((f) => f.path);
     for (const p of HOUSE_GENERAL_FIELDS) expect(paths).toContain(p);
     expect(HOUSE_GENERAL_FIELDS).not.toContain("options.compact");
+  });
+});
+
+describe("withoutClashingLayouts", () => {
+  const room = (area_id: string, x: number) => ({ area_id, layout: { x, y: 0, w: 4, h: 3 } });
+  const cfg = (rooms: Array<ReturnType<typeof room>>, extra = {}) => ({ type: "custom:detailed-energy-3d-card", rooms, ...extra }) as never;
+
+  it("drops the positions when the rooms of several floors clash after the floors were switched off", () => {
+    const out = withoutClashingLayouts(cfg([room("a", 0), room("b", 2)]));
+    expect(out.rooms!.every((r) => r.layout === undefined)).toBe(true);
+    expect(validateLayout(out)).toEqual([]);
+  });
+
+  it("keeps positions that fit, and configs that still have floors", () => {
+    const fits = cfg([room("a", 0), room("b", 4)]);
+    expect(withoutClashingLayouts(fits)).toBe(fits);
+    const floors = { type: "x", floors: [{ floor_id: "eg", rooms: [room("a", 0)] }, { floor_id: "og", rooms: [room("b", 0)] }] } as never;
+    expect(withoutClashingLayouts(floors)).toBe(floors);
   });
 });
