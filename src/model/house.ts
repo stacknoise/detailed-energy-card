@@ -135,6 +135,8 @@ export interface GridRoom {
   name: string;
   value?: string;
   layout: RoomLayout;
+  /** no own `layout` in the config: the card arranges the room itself, the grid draws it dashed */
+  auto?: boolean;
 }
 
 /** Events of `<detailed-energy-house-grid>`; each carries this `detail`. */

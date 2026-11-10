@@ -1,5 +1,5 @@
 import type { EnergyCardConfig, RoomConfig } from "../model/config";
-import { DEFAULT_COLS, DEFAULT_ROWS, gridOf, layoutProblem, layoutsOverlap, validateLayout, type GridRoom, type HouseConfig, type RoomLayout } from "../model/house";
+import { DEFAULT_COLS, DEFAULT_ROWS, gridOf, layoutFloor, layoutProblem, layoutsOverlap, validateLayout, type GridRoom, type HouseConfig, type RoomLayout } from "../model/house";
 import { stateToWatts, formatPower, type StateLike } from "../model/units";
 import { GRID_LIMITS } from "./schema";
 import { updateIn, type Pointer } from "./config-utils";
@@ -97,6 +97,38 @@ export function withRoomLayout(cfg: HouseConfig, floor: FloorView, areaId: strin
   return updateRoom(cfg, floor.rooms_ptr, areaId, (r) => ({ ...r, layout: { x: layout.x, y: layout.y, w: layout.w, h: layout.h } }));
 }
 
+/** A floor with the places the 3D card gives its rooms without a `layout`: those rooms carry the place, `keys` names them. */
+export interface AutoPlacement {
+  floor: FloorView;
+  keys: Set<string>;
+}
+
+/** What the card draws: rooms without a `layout` take the place `layoutFloor` gives them (a room that finds none stays without). */
+export function withAutoLayouts(floor: FloorView, cols: number, rows: number): AutoPlacement {
+  const placed = layoutFloor(floor.rooms, cols, rows);
+  const keys = new Set<string>();
+  const rooms = floor.rooms.map((r, i) => {
+    if (r.layout || !placed[i]) return r;
+    keys.add(r.area_id);
+    return { ...r, layout: placed[i]! };
+  });
+  return { floor: { ...floor, rooms }, keys };
+}
+
+/**
+ * Writes the shown places of the automatically placed rooms (all but `except`) into the config, so that changing one of
+ * them does not move the others: they were drawn there, and from then on they stay.
+ */
+export function withPinnedAuto(cfg: HouseConfig, auto: AutoPlacement, except?: string): HouseConfig {
+  let out = cfg;
+  for (const key of auto.keys) {
+    if (key === except) continue;
+    const layout = auto.floor.rooms.find((r) => r.area_id === key)?.layout;
+    if (layout) out = updateRoom(out, auto.floor.rooms_ptr, key, (r) => ({ ...r, layout: { ...layout } }));
+  }
+  return out;
+}
+
 /** The next free id for a room without a Home Assistant area: `custom_1`, `custom_2` ... */
 export function nextCustomId(used: readonly string[]): string {
   let n = 1;
@@ -154,12 +186,12 @@ export function roomWatts(room: RoomConfig, states: Record<string, StateLike | u
 }
 
 /** The placed rooms of a floor as the grid component shows them. `name` resolves the area id to a display name. */
-export function gridRooms(rooms: readonly RoomConfig[], name: (r: RoomConfig) => string, states: Record<string, StateLike | undefined>, lang?: string): GridRoom[] {
+export function gridRooms(rooms: readonly RoomConfig[], name: (r: RoomConfig) => string, states: Record<string, StateLike | undefined>, lang?: string, auto: ReadonlySet<string> = new Set()): GridRoom[] {
   return rooms
     .filter((r) => r.layout)
     .map((r) => {
       const w = roomWatts(r, states);
-      return { key: r.area_id, name: name(r), ...(w === undefined ? {} : { value: formatPower(w, "auto", 2, lang) }), layout: r.layout! };
+      return { key: r.area_id, name: name(r), ...(w === undefined ? {} : { value: formatPower(w, "auto", 2, lang) }), layout: r.layout!, ...(auto.has(r.area_id) ? { auto: true } : {}) };
     });
 }
 

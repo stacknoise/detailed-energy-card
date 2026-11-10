@@ -80,6 +80,9 @@ export class DetailedEnergyHouseGrid extends LitElement {
       stroke: var(--_acc);
       stroke-width: 3;
     }
+    .rm.auto {
+      stroke-dasharray: 6 4;
+    }
     .rm.tmp {
       fill: none;
       stroke: var(--_acc);
@@ -217,7 +220,7 @@ export class DetailedEnergyHouseGrid extends LitElement {
         aria-label=${`${label} (${tr("house_ed_grid_room_pos", l.x + 1, l.y + 1, l.w, l.h)})`}>
       <title>${label}</title>
       <clipPath id=${clip}><rect x=${l.x * GRID_CELL_PX + 4} y=${l.y * GRID_CELL_PX + 1} width=${Math.max(0, l.w * GRID_CELL_PX - 8)} height=${l.h * GRID_CELL_PX - 2}></rect></clipPath>
-      <rect class="rm ${sel ? "sel" : ""}" x=${l.x * GRID_CELL_PX + 1} y=${l.y * GRID_CELL_PX + 1} width=${l.w * GRID_CELL_PX - 2} height=${l.h * GRID_CELL_PX - 2} rx="4"></rect>
+      <rect class="rm ${sel ? "sel" : ""} ${r.auto ? "auto" : ""}" x=${l.x * GRID_CELL_PX + 1} y=${l.y * GRID_CELL_PX + 1} width=${l.w * GRID_CELL_PX - 2} height=${l.h * GRID_CELL_PX - 2} rx="4"></rect>
       ${l.w >= LABEL_MIN_CELLS || l.h >= LABEL_MIN_CELLS
         ? svg`<g clip-path="url(#${clip})"><text class="rt" x=${l.x * GRID_CELL_PX + 8} y=${l.y * GRID_CELL_PX + 20}>${r.name}</text>
           ${r.value ? svg`<text class="rk" x=${l.x * GRID_CELL_PX + 8} y=${l.y * GRID_CELL_PX + 35}>${r.value}</text>` : ""}</g>`
