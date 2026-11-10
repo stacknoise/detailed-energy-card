@@ -81,6 +81,8 @@ export class DetailedEnergyCardEditor extends LitElement {
   @property({ attribute: false }) hass?: Hass;
   /** the sections that are shown; all of them unless the 3D card's editor limits them */
   @property({ attribute: false }) sections: readonly EditorSection[] = EDITOR_SECTIONS;
+  /** the paths of the General fields that are shown (and no energy mode fields); all of them unless the 3D card's editor limits them */
+  @property({ attribute: false }) generalFields?: readonly string[];
   @state() private _config?: EnergyCardConfig;
   /** open state of collapsible tree/source items, keyed by pointer */
   @state() private _open = new Set<string>();
@@ -897,7 +899,7 @@ export class DetailedEnergyCardEditor extends LitElement {
             }}
           ></detailed-energy-import-wizard>`
         : nothing}
-      ${on("general") ? html`<section><h3>${this._tr("section_general")}</h3>${this._form([], GENERAL)}${this._form([], ENERGY_MODE)}${hasEnergySensor(this._config) ? nothing : html`<div class="hint energy-hint">${this._tr("energy_mode_hint")}</div>`}${costsNeedGridCounter(this._config) ? html`<div class="warn costs-hint">⚠ ${this._tr("costs_need_grid")}</div>` : nothing}</section>` : nothing}
+      ${on("general") ? html`<section><h3>${this._tr("section_general")}</h3>${this._form([], this.generalFields ? GENERAL.filter((f) => this.generalFields!.includes(f.path)) : GENERAL)}${this.generalFields ? nothing : this._form([], ENERGY_MODE)}${this.generalFields || hasEnergySensor(this._config) ? nothing : html`<div class="hint energy-hint">${this._tr("energy_mode_hint")}</div>`}${costsNeedGridCounter(this._config) ? html`<div class="warn costs-hint">⚠ ${this._tr("costs_need_grid")}</div>` : nothing}</section>` : nothing}
       ${on("colors") ? html`<section><h3>${this._tr("section_colors")}</h3>${this._form([], COLORS)}${this._renderThresholds()}${contrast ? html`<div class="warn">⚠ ${contrast}</div>` : nothing}</section>` : nothing}
       ${on("home") ? html`<section><h3>${this._tr("section_home")}</h3>${this._form([], HOME)}</section>` : nothing}
       ${on("sources") ? this._renderSources() : nothing} ${on("structure") ? this._renderStructure() : nothing}

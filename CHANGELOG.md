@@ -10,6 +10,8 @@
 - 3D card, geometry (AP1): `model/house.ts` computes the view box from the scene, sorts boxes back to front (topological, checked against a brute-force covering test), places rooms without `layout` automatically (`autoLayout`, three rooms give the mock's slots), orders floors by registry level, and validates layouts (whole numbers, inside the grid, no overlap within a floor).
 - 3D card (work in progress, AP2): the scene builder `buildHouseScene` in `model/house-scene.ts` turns the model, the room layouts and the selection into floors, rooms, labels and flow lines (colors from the thresholds or, with `lines_by_source`, from the sources).
 
+- 3D card, integration (AP7, work in progress): the editor shows a live preview of the card, its General section offers only the fields the 3D card reads (`HOUSE_GENERAL_FIELDS`), a tap in the graphic selects at once unless a double tap action is configured (`hasAction`), one layout check (`layoutProblem`) serves the config validation, the editor fields and the grid component, dev page scenarios `?card=house&scenario=house|house-auto|house-actions|house-invalid` and `&editor=1`, Playwright tests for the editor and the comparison with mock A.
+
 ## 1.5.0
 
 ### Added

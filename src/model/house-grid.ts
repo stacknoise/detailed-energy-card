@@ -1,4 +1,4 @@
-import type { RoomLayout } from "./house";
+import { layoutProblem, layoutsOverlap, type RoomLayout } from "./house";
 
 /*
  * Pure logic of the floor-plan grid (AP5): snapping, collision, creating, moving, resizing and the keys.
@@ -27,22 +27,12 @@ export function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/** True when the two rectangles share at least one cell. */
-export function overlaps(a: RoomLayout, b: RoomLayout): boolean {
-  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-}
+/** True when the two rectangles share at least one cell (the check of `validateLayout`). */
+export const overlaps = layoutsOverlap;
 
-/** True when `l` consists of whole cells, has a size of at least 1 and lies inside the grid. */
+/** True when `l` consists of whole cells, has a size of at least 1 and lies inside the grid (the check of `validateLayout`). */
 export function insideGrid(l: RoomLayout, g: GridSize): boolean {
-  return (
-    [l.x, l.y, l.w, l.h].every(Number.isInteger) &&
-    l.x >= 0 &&
-    l.y >= 0 &&
-    l.w >= 1 &&
-    l.h >= 1 &&
-    l.x + l.w <= g.cols &&
-    l.y + l.h <= g.rows
-  );
+  return layoutProblem(l, g.cols, g.rows) === undefined;
 }
 
 /** True when `l` lies inside the grid and overlaps no room except `ignore` (the room being changed). */

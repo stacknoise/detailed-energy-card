@@ -1,5 +1,5 @@
 import type { EnergyCardConfig, RoomConfig } from "../model/config";
-import { DEFAULT_COLS, DEFAULT_ROWS, gridOf, type GridRoom, type HouseConfig, type RoomLayout } from "../model/house";
+import { DEFAULT_COLS, DEFAULT_ROWS, gridOf, layoutProblem, layoutsOverlap, type GridRoom, type HouseConfig, type RoomLayout } from "../model/house";
 import { stateToWatts, formatPower, type StateLike } from "../model/units";
 import { GRID_LIMITS } from "./schema";
 import { updateIn, type Pointer } from "./config-utils";
@@ -30,18 +30,13 @@ export function floorViews(cfg: Pick<EnergyCardConfig, "floors" | "rooms">): Flo
 }
 
 /** True when two layouts share at least one cell. */
-export function overlaps(a: RoomLayout, b: RoomLayout): boolean {
-  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-}
+export const overlaps = layoutsOverlap;
 
 const whole = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
 
-/** True when `layout` is made of whole cells, lies inside the grid and overlaps none of `others`. */
+/** True when `layout` is made of whole cells, lies inside the grid and overlaps none of `others` (the checks of `validateLayout`). */
 export function layoutFits(layout: RoomLayout, others: readonly RoomLayout[], cols: number, rows: number): boolean {
-  const { x, y, w, h } = layout;
-  if (![x, y, w, h].every(whole)) return false;
-  if (x < 0 || y < 0 || w < 1 || h < 1 || x + w > cols || y + h > rows) return false;
-  return !others.some((o) => overlaps(layout, o));
+  return layoutProblem(layout, cols, rows) === undefined && !others.some((o) => layoutsOverlap(layout, o));
 }
 
 /** The layouts of the rooms of a floor, without the room `except` (by area id). */

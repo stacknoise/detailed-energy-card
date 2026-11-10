@@ -40,6 +40,25 @@ interface Hass {
 /** Sections of the energy card's editor that the 3D card has too; the import wizard would replace the floors and rooms and is left out. */
 export const HOUSE_SECTIONS: readonly EditorSection[] = EDITOR_SECTIONS.filter((s) => s !== "import");
 
+/**
+ * The General fields the 3D card reads: its title, the number format, the flow animation and the lines by source of
+ * the graphic, and the options of the detail list below it (consumers, entity ids, unassigned rest, remembered selection).
+ * The rest of the energy card's options (compact view, source mix, forecasts, energy mode ...) has no effect there.
+ */
+export const HOUSE_GENERAL_FIELDS: readonly string[] = [
+  "title",
+  "options.unit",
+  "options.decimals",
+  "options.animation",
+  "options.lines_by_source",
+  "options.show_consumers",
+  "options.only_active_consumers",
+  "options.show_entity_ids",
+  "options.show_unassigned",
+  "options.remember_selection",
+  "options.storage_id",
+];
+
 /** A room just drawn on the grid that waits for its area (or a name) before it is added to the config. */
 interface Draft {
   layout: RoomLayout;
@@ -70,6 +89,8 @@ export class DetailedEnergy3DCardEditor extends LitElement {
   private _registries = new RegistrySource(() => this.requestUpdate());
   /** the config last handed to the embedded energy editor */
   private _pushed?: HouseConfig;
+  /** the config last handed to the preview card */
+  private _previewed?: HouseConfig;
 
   static styles = css`
     :host {
@@ -189,11 +210,26 @@ export class DetailedEnergy3DCardEditor extends LitElement {
 
   /** Hands the config to the embedded energy editor whenever it changed here, so its next edit does not undo a layout change. */
   protected updated(): void {
+    this._updatePreview();
     const inner = this.renderRoot.querySelector<DetailedEnergyCardEditor>("detailed-energy-card-editor");
     if (inner && this.config && this._pushed !== this.config) {
       this._pushed = this.config;
       inner.setConfig(this.config);
     }
+  }
+
+  /**
+   * Live preview: the 3D card itself, fed with the config being edited and the live states. It does not remember
+   * its selection, so the preview never writes to the storage of the real card.
+   */
+  private _updatePreview(): void {
+    const card = this.renderRoot.querySelector<HTMLElement & { setConfig?(c: unknown): void; hass?: unknown }>("detailed-energy-3d-card");
+    if (!card || !this.config || typeof card.setConfig !== "function") return;
+    if (this._previewed !== this.config) {
+      this._previewed = this.config;
+      card.setConfig({ ...this.config, options: { ...this.config.options, remember_selection: false } });
+    }
+    card.hass = this.hass;
   }
 
   // ---------- names ----------
@@ -463,7 +499,11 @@ export class DetailedEnergy3DCardEditor extends LitElement {
         <h3>${tr("house_ed_section_house")}</h3>
         ${this._form(gridFields, cfg, gridData, (ev) => this._onGridForm(ev))}
       </section>
-      <detailed-energy-card-editor .hass=${this.hass} .sections=${HOUSE_SECTIONS} @config-changed=${(ev: CustomEvent) => this._onInner(ev)}></detailed-energy-card-editor>
+      <section>
+        <h3>${tr("house_ed_section_preview")}</h3>
+        <detailed-energy-3d-card></detailed-energy-3d-card>
+      </section>
+      <detailed-energy-card-editor .hass=${this.hass} .sections=${HOUSE_SECTIONS} .generalFields=${HOUSE_GENERAL_FIELDS} @config-changed=${(ev: CustomEvent) => this._onInner(ev)}></detailed-energy-card-editor>
     `;
   }
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { EDITOR_SECTIONS } from "../src/editor/card-editor";
-import { HOUSE_SECTIONS } from "../src/editor/house-editor";
+import { HOUSE_GENERAL_FIELDS, HOUSE_SECTIONS } from "../src/editor/house-editor";
+import { GENERAL } from "../src/editor/schema";
+import { layoutProblem, validateLayout } from "../src/model/house";
+import { insideGrid, overlaps } from "../src/model/house-grid";
 import {
   CUSTOM_AREA,
   areaChoices,
@@ -235,5 +238,42 @@ describe("3D editor: sections of the energy card's editor", () => {
     const c = mockConfig();
     const checked = validateConfig(c);
     expect(JSON.stringify(checked)).toBe(JSON.stringify(c));
+  });
+});
+
+describe("AP7: one layout check", () => {
+  const cases: Array<[unknown, string | undefined]> = [
+    [{ x: 0, y: 0, w: 2, h: 2 }, undefined],
+    [{ x: 11, y: 5, w: 1, h: 1 }, undefined],
+    [{ x: 11, y: 5, w: 2, h: 1 }, "inside"],
+    [{ x: -1, y: 0, w: 1, h: 1 }, "inside"],
+    [{ x: 0, y: 0, w: 0, h: 1 }, "at least 1"],
+    [{ x: 0.5, y: 0, w: 1, h: 1 }, "whole numbers"],
+    ["x", "object"],
+  ];
+  it.each(cases)("%j", (layout, part) => {
+    const problem = layoutProblem(layout, 12, 6);
+    if (part) expect(problem).toContain(part);
+    else expect(problem).toBeUndefined();
+    // the editor's check, the grid component's check and the config validation agree
+    const l = layout as { x: number; y: number; w: number; h: number };
+    expect(layoutFits(l, [], 12, 6)).toBe(!part);
+    if (typeof layout === "object") expect(insideGrid(l, { cols: 12, rows: 6 })).toBe(!part);
+    expect(validateLayout({ type: "x", rooms: [{ area_id: "a", layout: layout as never }] } as never).length === 0).toBe(!part);
+  });
+
+  it("overlap is the same in editor and grid", () => {
+    const a = { x: 0, y: 0, w: 3, h: 3 };
+    for (const b of [{ x: 2, y: 2, w: 2, h: 2 }, { x: 3, y: 0, w: 2, h: 2 }]) {
+      expect(overlaps(a, b)).toBe(!layoutFits(b, [a], 12, 6));
+    }
+  });
+});
+
+describe("AP7: General fields of the 3D editor", () => {
+  it("are all fields of the energy editor's General section", () => {
+    const paths = GENERAL.map((f) => f.path);
+    for (const p of HOUSE_GENERAL_FIELDS) expect(paths).toContain(p);
+    expect(HOUSE_GENERAL_FIELDS).not.toContain("options.compact");
   });
 });

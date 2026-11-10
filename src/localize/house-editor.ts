@@ -3,6 +3,7 @@ export const houseEditorDe = {
   // card editor (AP6)
   house_ed_section_plan: "Grundriss",
   house_ed_section_house: "Raster des Hauses",
+  house_ed_section_preview: "Vorschau",
   house_ed_cols: "Spalten",
   house_ed_rows: "Zeilen",
   house_ed_x: "Spalte",
@@ -35,6 +36,7 @@ export const houseEditorDe = {
 export const houseEditorEn: typeof houseEditorDe = {
   house_ed_section_plan: "Floor plan",
   house_ed_section_house: "Grid of the house",
+  house_ed_section_preview: "Preview",
   house_ed_cols: "Columns",
   house_ed_rows: "Rows",
   house_ed_x: "Column",

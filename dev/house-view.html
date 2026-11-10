@@ -49,6 +49,8 @@
               draw();
             },
             onAction: q.get("actions") === "1" ? (t, kind) => window.__log.push([kind, t]) : undefined,
+            // ?actions=1&only=hold: only a hold action is configured, so a tap must not wait for a double tap
+            hasAction: q.get("only") ? (t, kind) => kind === q.get("only") : undefined,
           }),
           card,
         );

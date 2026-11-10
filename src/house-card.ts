@@ -339,6 +339,10 @@ export class DetailedEnergy3DCard extends LitElement {
           lang: this._lang,
           onSelect: (t) => this._onTap(t),
           onAction: (t, kind) => this._onAction(t, kind),
+          hasAction: (t, kind) => {
+            const a = houseActionsOf(model, t)?.[kind === "hold" ? "hold" : "double"];
+            return !!a && a.action !== "none";
+          },
         })}
         ${detail ? this._renderDetail(detail, cfg) : nothing}
       </div>
