@@ -379,6 +379,7 @@ export class DetailedEnergy3DCard extends LitElement {
   private _emptyText(d: HouseDetail): string {
     if (d.scope === "home") return this._model?.floors.length || this._model?.rooms.length ? "" : this._t("no_rooms");
     if (d.scope === "room") return d.total === 0 ? this._t("no_consumers") : this._t("no_active_consumers");
+    if (d.scope === "source") return this._t("house_detail_source_none");
     return "";
   }
 

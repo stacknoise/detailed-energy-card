@@ -81,6 +81,8 @@ export interface SceneBox {
   h: number;
   floor_id?: string;
   area_id?: string;
+  /** entity of the power source this part stands for: a tap selects the source */
+  source?: string;
   selected: boolean;
   dimmed: boolean;
   /** text for screen readers (name and value), set on picked parts */
@@ -127,6 +129,8 @@ export interface HouseScene {
 export interface HouseSelection {
   floor_id?: string;
   area_id?: string;
+  /** entity of a selected power source (roof and solar, a battery block, the pole); excludes a floor or room */
+  source?: string;
 }
 
 /** A room as the grid component shows it: a key (the area id, or a temporary id for a new room), display name, optional value text. */

@@ -53,7 +53,8 @@ describe("buildHouseScene: the mock", () => {
     const mine = byKey(scene.boxes);
     for (const m of mock.boxes) {
       const b = mine[m.key];
-      expect({ ...b, aria: undefined }).toEqual({ ...m, aria: undefined });
+      // `source` is new: the parts of a power source are tappable (the mock only draws them)
+      expect({ ...b, aria: undefined, source: undefined }).toEqual({ ...m, aria: undefined, source: undefined });
       if (m.kind === "slab" && m.floor_id) expect(b.aria).toBe(m.aria);
     }
   });
@@ -322,5 +323,32 @@ describe("buildHouseScene: batteries without a room", () => {
     const back = (n: number) => scene(n).boxes.find((b) => b.key === "ground")!.y;
     expect(back(3)).toBeLessThan(back(2));
     expect(back(2)).toBe(back(1));
+  });
+});
+
+describe("buildHouseScene: a selected power source", () => {
+  const sel = (source: string) => buildHouseScene(mockInput({}, { source }));
+
+  it("marks its parts, fades the other sources, and leaves floors and rooms as they are", () => {
+    const s = sel("sensor.pv");
+    const boxes = byKey(s.boxes);
+    expect(boxes.roof.selected).toBe(true);
+    expect(boxes.roof.dimmed).toBe(false);
+    expect(boxes.mast.dimmed).toBe(true);
+    expect(boxes.mast.selected).toBe(false);
+    expect(byKey(s.flows)["grid:feed"].dimmed).toBe(true);
+    expect(byKey(s.flows)["solar:roof"].dimmed).toBe(false);
+    expect(s.boxes.filter((b) => b.kind === "slab" && b.floor_id).every((b) => !b.dimmed)).toBe(true);
+    expect(s.boxes.filter((b) => b.kind === "room").every((b) => !b.dimmed)).toBe(true);
+  });
+
+  it("selects the pole with the grid entity, and a tap target carries the source", () => {
+    const s = sel("sensor.grid");
+    const boxes = byKey(s.boxes);
+    expect(boxes.mast.selected).toBe(true);
+    expect(boxes["mast-arm"].selected).toBe(true);
+    expect(boxes.roof.dimmed).toBe(true);
+    expect(boxes.roof.source).toBe("sensor.pv");
+    expect(boxes.mast.source).toBe("sensor.grid");
   });
 });

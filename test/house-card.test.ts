@@ -152,3 +152,37 @@ describe("detail list", () => {
     expect(houseDetail(model(), { floor_id: "weg", area_id: "weg" }, false).scope).toBe("home");
   });
 });
+
+describe("selecting a power source", () => {
+  const withSources = () => {
+    const cfg = config({ sources: [{ entity: "sensor.pv", type: "solar", name: "PV", tap_action: { action: "more-info" }, hold_action: { action: "navigate", navigation_path: "/lovelace/pv" } }, { entity: "sensor.grid", type: "grid" }] } as never);
+    return computeModel(cfg, reader({ "sensor.pv": 3000, "sensor.grid": 1000, "sensor.herd": 700, "sensor.kuehl": 100, "sensor.licht": 50, "sensor.heizung": 150 }), () => ({ watts: 0, valid: false }), { solar: "S", battery: "B", grid: "G", generic: "Q" } as never);
+  };
+
+  it("resolves, toggles and reads a stored source", () => {
+    const m = withSources();
+    expect(resolveHouseSelection(m, { source: "sensor.pv" })).toEqual({ source: "sensor.pv" });
+    expect(resolveHouseSelection(m, { source: "sensor.nope" })).toEqual({});
+    expect(toggleHouseSelection(m, {}, { source: "sensor.pv" })).toEqual({ source: "sensor.pv" });
+    expect(toggleHouseSelection(m, { source: "sensor.pv" }, { source: "sensor.pv" })).toEqual({});
+    expect(toggleHouseSelection(m, { floor_id: "eg" }, { source: "sensor.grid" })).toEqual({ source: "sensor.grid" });
+    expect(parseHouseSelection(JSON.stringify({ source: "sensor.pv" }))).toEqual({ source: "sensor.pv" });
+  });
+
+  it("takes the actions of the source", () => {
+    const m = withSources();
+    expect(houseGestureOf(m, { source: "sensor.pv" }, "hold")?.action).toEqual({ action: "navigate", navigation_path: "/lovelace/pv" });
+    expect(houseGestureOf(m, { source: "sensor.grid" }, "hold")).toBeUndefined();
+  });
+
+  it("shows where the power of a source goes, proportionally", () => {
+    const m = withSources();
+    const d = houseDetail(m, { source: "sensor.pv" }, false);
+    expect(d.scope).toBe("source");
+    expect(d.name).toBe("PV");
+    expect(d.watts).toBe(3000);
+    const total = d.rows.reduce((s, r) => s + (r.kind === "floor" || r.kind === "room" ? r.watts : 0), 0);
+    const share = m.sources.find((s) => s.entity === "sensor.pv")!.share;
+    expect(total).toBeCloseTo(m.floors.reduce((s, f) => s + f.watts, 0) * share, 5);
+  });
+});

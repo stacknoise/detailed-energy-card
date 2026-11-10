@@ -1,9 +1,9 @@
-import { svg, type SVGTemplateResult, type TemplateResult } from "lit";
+import { nothing, svg, type SVGTemplateResult, type TemplateResult } from "lit";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 import { Gesture } from "./gesture";
 import { HOUSE_CSS } from "./house-styles";
 import { localize } from "../localize";
-import { NODE_R as NODE_RADIUS, project, type HouseScene, type SceneBox, type SceneFlow, type SceneLabel, type Vec3 } from "../model/house";
+import { NODE_R as NODE_RADIUS, project, type HouseScene, type HouseSelection, type SceneBox, type SceneFlow, type SceneLabel, type Vec3 } from "../model/house";
 
 /** What the view needs from the card besides the scene. */
 export interface HouseViewContext {
@@ -11,15 +11,15 @@ export interface HouseViewContext {
   narrow: boolean;
   /** flow lines move (options.animation, no prefers-reduced-motion, card visible) */
   animate: boolean;
-  /** a floor or room was tapped; both undefined clears the selection */
-  onSelect(target: { floor_id?: string; area_id?: string }): void;
+  /** a floor, room or power source was tapped; all undefined clears the selection */
+  onSelect(target: HouseSelection): void;
   /** tap-and-hold and double tap, same gestures as in the energy card */
-  onAction?(target: { floor_id?: string; area_id?: string }, kind: "hold" | "double"): void;
+  onAction?(target: HouseSelection, kind: "hold" | "double"): void;
   /**
    * Whether the target has a hold or double tap action. Without a double tap action a tap selects at once instead of
    * waiting for a second tap. When the card gives no answer, both are assumed whenever `onAction` is set.
    */
-  hasAction?(target: { floor_id?: string; area_id?: string }, kind: "hold" | "double"): boolean;
+  hasAction?(target: HouseSelection, kind: "hold" | "double"): boolean;
   /** language for the aria label of the graphic */
   lang?: string;
 }
@@ -95,8 +95,9 @@ export function sceneViewBox(scene: HouseScene, narrow: boolean): [number, numbe
   return [x0 - VIEW_PAD, y0 - VIEW_PAD, x1 - x0 + 2 * VIEW_PAD, y1 - y0 + 2 * VIEW_PAD];
 }
 
-/** The target a tap on a box selects: the room with its floor, or the floor; undefined for decoration. */
-export function pickTarget(b: SceneBox): { floor_id?: string; area_id?: string } | undefined {
+/** The target a tap on a box selects: a power source, the room with its floor, or the floor; undefined for decoration. */
+export function pickTarget(b: SceneBox): HouseSelection | undefined {
+  if (b.source) return { source: b.source };
   if (b.kind === "room" || b.kind === "battery") return b.area_id ? { floor_id: b.floor_id, area_id: b.area_id } : undefined;
   if (b.kind === "slab" && b.floor_id) return { floor_id: b.floor_id };
   return undefined;
@@ -156,7 +157,7 @@ function gestureOf(el: Element): Gesture {
 }
 
 /** A box that can be picked: focusable, with name and value for screen readers, tap, hold and double tap. */
-function pickable(b: SceneBox, target: { floor_id?: string; area_id?: string }, ctx: HouseViewContext): SVGTemplateResult {
+function pickable(b: SceneBox, target: HouseSelection, ctx: HouseViewContext): SVGTemplateResult {
   const actions = !!ctx.onAction;
   const has = (kind: "hold" | "double") => actions && (ctx.hasAction?.(target, kind) ?? true);
   const run = (el: Element): Gesture => {
@@ -171,7 +172,9 @@ function pickable(b: SceneBox, target: { floor_id?: string; area_id?: string }, 
     return g;
   };
   const cls = ["pick", b.selected ? "sel" : "", b.dimmed ? "dim" : ""].filter(Boolean).join(" ");
-  return svg`<g class=${cls} data-key=${b.key} role="button" tabindex="0" aria-label=${b.aria ?? b.key} aria-pressed=${b.selected ? "true" : "false"}
+  // the solar panels and the pole arm only extend the picked source: one stop for keyboard and screen reader is enough
+  const stop = !(b.source && b.aria === undefined);
+  return svg`<g class=${cls} data-key=${b.key} role=${stop ? "button" : nothing} tabindex=${stop ? "0" : nothing} aria-label=${stop ? (b.aria ?? b.key) : nothing} aria-pressed=${stop ? (b.selected ? "true" : "false") : nothing}
     @click=${(e: Event) => run(e.currentTarget as Element).click()}
     @pointerdown=${(e: Event) => run(e.currentTarget as Element).down()}
     @pointerup=${(e: Event) => run(e.currentTarget as Element).up()}
