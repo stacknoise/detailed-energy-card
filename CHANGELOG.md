@@ -4,6 +4,7 @@
 
 - 3D card, graphic (work in progress, not usable yet): `renderHouse` draws the scene as isometric SVG like variant A of the mock: faces from theme colors (light and dark), flow lines (dashed, moving only with animation and without reduced motion), two-line labels, no room labels below 500 px, floors and rooms as focusable buttons (Tab, Enter) with tap, hold and double tap. Harness `dev/house-view.html`.
 - 3D card (work in progress, not usable yet): the contracts for the second card `custom:detailed-energy-3d-card`: types and measures in `model/house.ts`, optional `layout` on a room (ignored by the energy card), card skeleton, grid component interface, mocks in `docs/mockups/3d/`, dev page `?card=house`.
+- 3D card, geometry (AP1): `model/house.ts` computes the view box from the scene, sorts boxes back to front (topological, checked against a brute-force covering test), places rooms without `layout` automatically (`autoLayout`, three rooms give the mock's slots), orders floors by registry level, and validates layouts (whole numbers, inside the grid, no overlap within a floor).
 
 ## 1.5.0
 
