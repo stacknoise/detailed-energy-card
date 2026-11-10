@@ -688,3 +688,19 @@ Die Karte zeigt neben der Leistung jetzt auch die Energie eines Zeitraums.
 - **Kosten-Daten:** Mit Preis lädt die Card für den Kosten-Zeitraum die Stundenzeilen aller Energiezähler und die Stundenmittel der Preissensoren, inkrementell: Eine Aktualisierung fragt nur ab der jüngsten Zeile neu und behält die älteren (`incremental` im `EnergyStore`). Dazu, falls vorhanden, die Kostenstatistiken von Home Assistant.
 - **Grenzen:** Vergleiche gibt es im Verlauf (Abschnitt 8); die Kosten rechnen mit Stundenmitteln des Preises.
 - **Editor:** `energy_entity` bei Quellen und Verbrauchern, `total_energy_entity` bei Zuhause, Startansicht, Zeiträume, Zweitwert sowie Startansicht und Ansichten des Diagramms und die Preise (fest oder Sensor, Vergütung, Währung) unter Allgemein (nur sichtbar, sobald ein Energiesensor eingetragen ist). Ein Preissensor ohne `state_class: measurement` bekommt einen Hinweis, Kosten ohne Energiezähler am Netz ebenfalls. Solange kein Energiesensor eingetragen ist, steht unter Allgemein stattdessen ein Hinweis, wo man einen einträgt, damit der Schalter *Jetzt | Heute | Woche | Monat* erscheint. Der Editor prüft live, ob der Sensor `device_class: energy` und eine passende Einheit hat.
+
+---
+
+## 16. 3D-Karte (`custom:detailed-energy-3d-card`)
+
+Eine zweite Karte im selben Bundle zeigt das Haus isometrisch als Etagen (Variante A der Mocks) und hat einen Grundriss-Editor auf einem Raster (Editor 2). Sie ist ein eigener Kartentyp: wer sie nicht ins Dashboard setzt, sieht nichts, die Energy Card verhält sich unverändert. Die Mocks liegen in `docs/mockups/3d/` (`house-view-mock.html`, `editor-mock.html`) und sind für Layout und Maße verbindlich; alle Maße stehen als benannte Konstanten in `model/house.ts`.
+
+Stand: Verträge (AP0). Die Pakete AP1 bis AP6 füllen die leeren Stellen, ohne die Typen zu ändern.
+
+- **Konfiguration:** die der Energy Card (`sources`, `floors`, `rooms`, `consumers`, `colors`, `options`) plus `house: { cols, rows }` (Raster, Standard 12 × 6) und `layout: { x, y, w, h }` an einem Raum (ganze Zellen). Die Energy Card ignoriert `layout`. Geprüft wird mit `validateHouseConfig` (erst `validateConfig`, dann `validateLayout`).
+- **Datenfluss:** `hass` → `computeModel` → `buildHouseScene` (`model/house-scene.ts`, rein) → `renderHouse` (`view/house.ts`, nur Zeichnen).
+- **`HouseScene`:** Quader (`SceneBox`), Beschriftungen (`SceneLabel`) und Flusslinien (`SceneFlow`) in Weltkoordinaten (x, y am Boden, z nach oben) mit `floor_id`/`area_id`, `selected`, `dimmed`, Farbe und Stärke. Die Quader sind von hinten nach vorn sortiert. Die Projektion auf den Bildschirm macht erst die Ansicht über `project()`. Räume bekommen unter `NARROW_PX` (500) keine Beschriftung, die Detailliste trägt die Werte.
+- **`<detailed-energy-house-grid>`:** Eigenschaften `rooms` (`GridRoom[]`), `cols`, `rows`, `selected`; Events `room-change`, `room-add`, `room-delete`, `room-select` (Typen in `HouseGridEventMap`).
+- **Texte:** je Paket eine eigene Datei mit Präfix `house_` (`localize/house.ts`, `house-view.ts`, `house-editor.ts`), per Spread in `localize/index.ts` und `localize/editor.ts` zusammengeführt.
+- **Auswahl:** gespeichert unter `detailed-energy-house:` (`HOUSE_STORAGE_PREFIX`), weil `removeLegacyKeys` alles unter `detailed-energy-card:` löscht, was nicht zur aktuellen Auswahl gehört.
+- **Dev-Seite:** `?card=house` zeigt die Karte.

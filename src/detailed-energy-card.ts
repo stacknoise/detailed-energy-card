@@ -23,6 +23,7 @@ import { localize, sourceNames, type Key } from "./localize";
 import { buildStubConfig, type StubHass } from "./model/stub-config";
 import "./editor/card-editor";
 import "./heatmap-card";
+import "./house-card";
 import { defineOnce, logBannerOnce, registerCardOnce, type BannerTarget } from "./register";
 import { RegistrySource, resolveNames, type AreaEntry, type FloorEntry } from "./model/registry";
 import { Gesture } from "./view/gesture";

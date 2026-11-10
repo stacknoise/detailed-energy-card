@@ -1,9 +1,12 @@
+import { houseEditorDe, houseEditorEn } from "./house-editor";
+
 /**
  * Editor texts, looked up by key. German and English must have the same keys (`en: typeof de`),
  * so a missing translation or a mistyped key is a compile error.
  * Placeholders {0}, {1} are replaced by the extra arguments.
  */
 const de = {
+  ...houseEditorDe,
   // sections
   section_general: "Allgemein",
   section_colors: "Farben",
@@ -277,6 +280,7 @@ const de = {
 };
 
 const en: typeof de = {
+  ...houseEditorEn,
   // sections
   section_general: "General",
   section_colors: "Colors",
