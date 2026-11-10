@@ -3,6 +3,7 @@
 ## Unreleased
 
 - 3D card (work in progress, not usable yet): the contracts for the second card `custom:detailed-energy-3d-card`: types and measures in `model/house.ts`, optional `layout` on a room (ignored by the energy card), card skeleton, grid component interface, mocks in `docs/mockups/3d/`, dev page `?card=house`.
+- 3D card, package AP4 (not usable until the packages are merged): the card itself in `house-card.ts` reads the model of the energy card (`computeModel`, registry names), remembers the selection under its own prefix `detailed-energy-house:` (`model/house-selection.ts`), runs tap, hold and double tap actions of floors, rooms and consumers, and shows a detail list below the graphic.
 
 ## 1.5.0
 
