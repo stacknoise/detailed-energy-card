@@ -20,7 +20,7 @@ The Energy dashboard of Home Assistant tells you *how much* you use. This card s
 - ☀️ **Self-sufficiency and self-consumption** at a glance, plus feed-in and battery charging.
 - 🎨 **Sources at a glance** (optional). A ring around the home shows where the power comes from, the battery tells you when it is full or empty, and the solar power shows where it goes. Lines in the colors of the sources, a surplus banner and tiles with today's values are optional too.
 - 🔍 **Find the energy hogs.** Base load of your home, devices that never switch off, and a heatmap of *when* you use electricity.
-- 📊 **Three ways to look at it:** the tree, a Sankey diagram and a timeline of the day.
+- 📊 **Three ways to look at it:** the tree, a Sankey diagram and a timeline of the day, plus a 3D view of your home as a card of its own.
 - 🎛️ **Act right away.** Turn a device off from the list, or give any element your own tap actions.
 - 📱 **Fits everywhere.** A compact view for phones and dashboard corners, follows your theme, in English and German.
 
@@ -93,6 +93,16 @@ One more switch: the timeline of today gets a dashed line with the forecast of t
 | Timeline of today with the solar forecast |
 | --- |
 | ![Timeline of today with a dashed orange line for the solar forecast](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-pv-forecast.png?v=5) |
+
+### The 3D card (optional)
+
+A second card that comes with the same download: **Add card → Detailed Energy 3D**. It shows your home as floors in an isometric view, with the solar panels on the roof, the grid pole in front and the battery in the basement. Dashed lines carry the power from the sources up the riser and into the floors, in the colors and widths of your thresholds. Tap a floor or a room and the rest fades out; the list below shows the consumers of your choice, with the same numbers as the energy card.
+
+| The card | The editor with floor plan |
+| --- | --- |
+| ![3D card: floors with flow lines, the kitchen selected, its consumers below](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/card-house.png?v=5) | ![Editor of the 3D card: floor plan with rooms, grid size and live preview](https://raw.githubusercontent.com/stacknoise/detailed-energy-card/main/docs/screenshots/editor-house.png?v=5) |
+
+It is a card of its own, so nothing changes until you add it to a dashboard. It reads the same configuration as the energy card (`sources`, `floors`, `rooms`, `consumers`), so you can copy that over and only add where each room sits. The editor draws the rooms for you: drag on the floor plan to add a room, drag a room to move it, drag the dot in its corner to resize it, or type column, row, width and height. Rooms without a position are placed automatically. See [docs/configuration.md](docs/configuration.md#3d-card).
 
 ### More options for the ones who want them
 

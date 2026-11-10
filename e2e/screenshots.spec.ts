@@ -251,6 +251,30 @@ test("screenshot card-heatmap", async ({ page }) => {
   });
 });
 
+// The 3D card (dev/index.html?card=house): floors in isometric view with own layouts, a room selected
+test("screenshot card-house", async ({ page }) => {
+  await page.setViewportSize({ width: 512, height: 1000 });
+  await page.goto(`/dev/index.html?card=house&scenario=house&lang=${LANG}`);
+  const card = page.locator("detailed-energy-3d-card");
+  await expect(card.locator("svg").first()).toBeVisible();
+  await card.locator(`[role=button][aria-label*="${t("Küche")}"]`).first().click();
+  await page.waitForTimeout(700); // the other floors and rooms have faded out
+  await card.screenshot({ path: "docs/screenshots/card-house.png" });
+});
+
+// The editor of the 3D card in a dialog like the one of Home Assistant: floor plan, room form and live preview
+test("screenshot editor-house", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 1080 });
+  await page.goto(`/dev/index.html?card=house&scenario=house&editor=1&lang=${LANG}`);
+  const editor = page.locator("detailed-energy-3d-card-editor");
+  await expect(editor).toBeVisible();
+  await page.waitForTimeout(800);
+  // the editor has its own preview, so the right half of the dialog stays empty: only the left half is the image
+  const box = await page.locator(".dlg").boundingBox();
+  if (!box) throw new Error("editor-house: no dialog");
+  await page.screenshot({ path: "docs/screenshots/editor-house.png", clip: { x: box.x, y: box.y, width: 460, height: box.height } });
+});
+
 // The editor, rendered in a dialog like the one of Home Assistant with demo data (dev/index.html?editor=editor).
 // The form fields are drawn by a stand-in for <ha-form> (dev/ha-form-stub.js).
 test.describe("editor screenshots", () => {
