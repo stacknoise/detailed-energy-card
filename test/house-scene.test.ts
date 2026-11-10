@@ -298,3 +298,29 @@ describe("buildHouseScene: structure", () => {
 function overlap(a: SceneBox, b: SceneBox): boolean {
   return a.x < b.x + b.w - 1e-9 && b.x < a.x + a.w - 1e-9 && a.y < b.y + b.d - 1e-9 && b.y < a.y + a.d - 1e-9;
 }
+
+describe("buildHouseScene: batteries without a room", () => {
+  const scene = (n: number) => {
+    const config = validateConfig({
+      type: "custom:detailed-energy-3d-card",
+      sources: Array.from({ length: n }, (_, i) => ({ entity: `sensor.akku${i}`, type: "battery", name: `Akku ${i}` })),
+      rooms: [{ area_id: "a", consumers: [{ entity: "sensor.a" }] }],
+    }) as HouseConfig;
+    const model = computeModel(config, reader({ "sensor.a": 100, ...Object.fromEntries(Array.from({ length: n }, (_, i) => [`sensor.akku${i}`, 50])) }));
+    return buildHouseScene({ model, config, selection: {}, format: kw, lang: "de" });
+  };
+  /** every battery block lies on the ground */
+  const onGround = (s: ReturnType<typeof scene>) => {
+    const g = s.boxes.find((b) => b.key === "ground")!;
+    return s.boxes.filter((b) => b.kind === "battery").every((b) => b.y >= g.y && b.y + b.d <= g.y + g.d && b.x >= g.x && b.x + b.w <= g.x + g.w);
+  };
+
+  it("keeps up to two on the ground as before and lets the ground grow for more", () => {
+    expect(onGround(scene(2))).toBe(true);
+    expect(onGround(scene(3))).toBe(true);
+    expect(onGround(scene(6))).toBe(true);
+    const back = (n: number) => scene(n).boxes.find((b) => b.key === "ground")!.y;
+    expect(back(3)).toBeLessThan(back(2));
+    expect(back(2)).toBe(back(1));
+  });
+});

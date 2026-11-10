@@ -161,7 +161,11 @@ export function buildHouseScene(input: HouseSceneInput): HouseScene {
     labels.push({ dimmed: false, ...l });
   };
 
-  box({ key: "ground", kind: "ground", tone: "ground", x: -GROUND.left, y: -GROUND.back, z: GROUND.z, w: width + GROUND.left + GROUND.right, d: depth + GROUND.back + GROUND.front, h: 0 });
+  // batteries without a room stand in a row to the back; with many of them the ground grows so that none hangs over its edge
+  const loneCount = batteries.filter((b) => !batteryRooms.get(b.entity)).length;
+  const rearmost = depth - BATTERY_BOX.size - BATTERY_BOX.gap - Math.max(0, loneCount - 1) * (BATTERY_BOX.size + BATTERY_BOX.gap);
+  const groundBack = Math.max(GROUND.back, BATTERY_BOX.gap - rearmost);
+  box({ key: "ground", kind: "ground", tone: "ground", x: -GROUND.left, y: -groundBack, z: GROUND.z, w: width + GROUND.left + GROUND.right, d: depth + groundBack + GROUND.front, h: 0 });
 
   floors.forEach((f, k) => {
     const id = f.node.id;
