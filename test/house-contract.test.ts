@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ConfigError, validateConfig } from "../src/model/config";
+import { computeModel } from "../src/model/compute";
 import { buildHouseScene } from "../src/model/house-scene";
 import {
   CELL,
@@ -9,7 +10,6 @@ import {
   HOUSE_CARD_TYPE,
   HOUSE_STORAGE_PREFIX,
   PITCH,
-  emptyScene,
   gridOf,
   project,
   validateHouseConfig,
@@ -56,9 +56,11 @@ describe("3D card contracts (AP0)", () => {
     expect(() => validateHouseConfig(null)).toThrow(ConfigError);
   });
 
-  it("returns an empty scene with the grid for now", () => {
-    const scene = buildHouseScene({ model: undefined as never, config: { type: "x", house: { cols: 8, rows: 4 } }, selection: {}, format: String });
-    expect(scene).toEqual(emptyScene(8, 4));
+  it("builds the scene with the grid of the config (AP2 fills it)", () => {
+    const config = { type: "x", house: { cols: 8, rows: 4 } };
+    const scene = buildHouseScene({ model: computeModel(config, () => ({ watts: 0, valid: false })), config, selection: {}, format: String });
+    expect(scene).toMatchObject({ cols: 8, rows: 4, labels: [], flows: [] });
+    expect(scene.boxes.map((b) => b.key)).toEqual(["ground", "roof"]);
   });
 
   it("has a fixture scene with the example values of the mock", () => {
