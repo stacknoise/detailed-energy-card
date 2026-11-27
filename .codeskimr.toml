@@ -1,0 +1,40 @@
+# Layers of the Detailed Energy Card for CodeSkimr, outermost first. The first layer that owns a
+# qualified name wins. `may_use` lists the layers a layer may depend on.
+# test/, e2e/, dev/, scripts/ and docs/ belong to no layer on purpose.
+
+# The three cards and the bundle entry point.
+[[layers]]
+name = "Card"
+namespaces = ["src.detailed-energy-card", "src.house-card", "src.heatmap-card"]
+may_use = ["Editor", "View", "Styles", "Model", "Localize", "Register"]
+
+[[layers]]
+name = "Editor"
+namespaces = ["src.editor"]
+may_use = ["Model", "Localize", "Register"]
+
+[[layers]]
+name = "View"
+namespaces = ["src.view"]
+may_use = ["Styles", "Model", "Localize"]
+
+[[layers]]
+name = "Styles"
+namespaces = ["src.styles"]
+may_use = ["Model"]
+
+[[layers]]
+name = "Model"
+namespaces = ["src.model"]
+may_use = ["Localize"]
+
+[[layers]]
+name = "Localize"
+namespaces = ["src.localize"]
+may_use = []
+
+# Element registration and load banner, used by the cards and the editors.
+[[layers]]
+name = "Register"
+namespaces = ["src.register"]
+may_use = []
